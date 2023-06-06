@@ -1,0 +1,14 @@
+{
+  "Version": 1,
+  "AudioStimulants": [
+    {
+      "TimeStamp": "2022-09-17 16:09:10",
+	  "AudioDevice": "Headphones",
+      "Title": "JV352E_02 Activating the Seeds of New Possibilities",
+      "AudioFilename": "jv352e_02.mp3",
+      "TotalLength": "0:30:42",
+      "StartLocation": "0:00:00",
+      "Duration": "0:30:42"
+    }
+  ]
+}

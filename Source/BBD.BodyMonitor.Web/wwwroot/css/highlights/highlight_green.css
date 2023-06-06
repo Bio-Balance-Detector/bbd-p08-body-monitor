@@ -1,0 +1,53 @@
+/* Generating Color Pack*/
+.color-highlight {
+  color: #8CC152 !important;
+}
+
+.bg-highlight {
+  background-color: #8CC152 !important;
+  color: #FFF !important;
+}
+
+.border-highlight {
+  border-color: #8CC152 !important;
+}
+
+.gradient-highlight {
+  background-image: linear-gradient(to bottom, #A0D468, #8CC152) !important;
+}
+
+.footer-bar-5 .active-nav::after,
+.footer-bar-4 .active-nav::after,
+.footer-bar-2 .active-nav::after,
+.footer-bar-1 .active-nav::after {
+  background-color: #8CC152;
+}
+
+.footer-bar-3 .active-nav i, .footer-bar-3 .active-nav span {
+  color: #8CC152;
+}
+
+.splide__pagination__page.is-active {
+  background-color: #8CC152 !important;
+}
+
+.form-floating-over > .form-control:focus ~ label {
+  color: #8CC152;
+}
+
+.form-floating-over > .form-control:not(:placeholder-shown) ~ label {
+  color: #8CC152;
+}
+
+.form-floating-over > .form-select ~ label {
+  color: #8CC152;
+}
+
+.color-highlight {
+  color: #8CC152;
+}
+
+.bg-highlight {
+  background-color: #8CC152;
+  color: #FFF !important;
+}

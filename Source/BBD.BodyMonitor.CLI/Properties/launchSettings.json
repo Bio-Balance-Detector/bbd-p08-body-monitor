@@ -1,0 +1,48 @@
+{
+  "profiles": {
+    "00 - calibrate": {
+      "commandName": "Project",
+      "commandLineArgs": "--calibrate"
+    },
+    "01 - create ML CSV (Subject_None)": {
+      "commandName": "Project",
+      "commandLineArgs": "--mlcsv TrainingData \"MLP05\" \"Subject_\" \"Subject_None\""
+    },
+    "01 - create ML CSV (Actvity_Meditation)": {
+      "commandName": "Project",
+      "commandLineArgs": "--mlcsv TrainingData \"MLP06\" \"Activity_\" \"Activity_Meditation\""
+    },
+    "01 - create ML CSV (Subject_Andras)": {
+      "commandName": "Project",
+      "commandLineArgs": "--mlcsv TrainingData \"MLP05\" \"Subject_\" \"Subject_AndrasFuchs\""
+    },
+    "01 - create ML CSV (Subject_Timea)": {
+      "commandName": "Project",
+      "commandLineArgs": "--mlcsv TrainingData \"MLP05\" \"Subject_\" \"Subject_TimeaNagy\""
+    },
+    "01 - create ML CSV (BloodTest_*)": {
+      "commandName": "Project",
+      "commandLineArgs": "--mlcsv TrainingData \"MLP06\" \"BloodTest_\" \"BloodTest_CRP\"=json:bloodTestResults:(CRP)"
+    },
+    "02 - test models": {
+      "commandName": "Project",
+      "commandLineArgs": "--testmodels TrainingData 5%"
+    },
+    "03 - data acquisition": {
+      "commandName": "Project",
+      "commandLineArgs": "--dataacquisition"
+    },
+    "04 - generate video": {
+      "commandName": "Project",
+      "commandLineArgs": "--video \"TrainingData\\#Subject_None\" \"MLP06\" 1920x1080"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    },
+    "05 - download FitBit data": {
+      "commandName": "Project",
+      "commandLineArgs": "--fitbit \"Andras\" 2022-10-21+2"
+    }
+  }
+}

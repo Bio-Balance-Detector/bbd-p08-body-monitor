@@ -1,0 +1,14 @@
+﻿using Fitbit.Models;
+using System.Collections.Generic;
+using System.Net.Http;
+
+namespace Fitbit.Api.Portable
+{
+    public class FitbitTokenException : FitbitRequestException
+    {
+        public FitbitTokenException(HttpResponseMessage response, IEnumerable<ApiError> errors = null, string message = default(string))
+            : base(response, errors, message ?? $"Fitbit Token exception - HTTP Status Code-- {(int)response.StatusCode} -- see errors for more details.")
+        {
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "Version": 1,
+  "SegmentedData": {
+    "Sleep": [
+      {
+        "Level": 0,
+        "Duration": 40.0,
+        "Start": "2022-11-22T10:10:00+01:00",
+        "End": "2022-11-22T10:50:00+01:00"
+      }      
+    ]
+  },
+  "Id": "2e7f9b01-9b0f-4f24-85d7-bcbc7b9d4195",
+  "Alias": "0xB28CBCE6"
+}

@@ -1,0 +1,1 @@
+Machine learning data files, models and generated videos are excluded from this repo.

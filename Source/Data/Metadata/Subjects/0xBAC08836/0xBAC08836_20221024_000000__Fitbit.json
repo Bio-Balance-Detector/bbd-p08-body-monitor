@@ -1,0 +1,16 @@
+{
+  "Version": 1,
+  "StartedAt": null,
+  "FinishedAt": null,
+  "Location": null,
+  "Subject": null,
+  "SegmentedData": {
+    "Sleep": [],
+    "HeartRate": [],
+    "BloodTest": null
+  },
+  "Configuration": null,
+  "Id": "2dd97a81-523d-4af2-a0a6-23b3e0d14dd6",
+  "Alias": "0xA902A10A",
+  "Name": null
+}

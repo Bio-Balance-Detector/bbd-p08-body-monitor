@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   width="456"
+   height="456"
+   id="svg27"
+   sodipodi:docname="logo.svg"
+   inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs31" />
+  <sodipodi:namedview
+     id="namedview29"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.72749951"
+     inkscape:cx="-121.64957"
+     inkscape:cy="339.51913"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g25" />
+  <g
+     transform="matrix(11.851852,0,0,11.851853,-189.62963,0)"
+     id="g25"
+     inkscape:label="BBDLogo">
+    <defs
+       id="SvgjsDefs6826" />
+    <g
+       id="SvgjsG6828"
+       featureKey="container1"
+       fill="#000000"
+       transform="matrix(0.76949999,0,0,0.76949999,16,0)"
+       inkscape:label="BlackBackground"
+       style="display:inline">
+      <path
+         d="m 5,0 h 45 v 45 a 5,5 0 0 1 -5,5 H 0 V 5 A 5,5 0 0 1 5,0 Z"
+         id="path6"
+         inkscape:label="Background" />
+    </g>
+    <g
+       id="SvgjsG6829"
+       featureKey="symbol1"
+       fill="#c9fbfa"
+       transform="matrix(0.28180764,0,0,0.28180764,21.061614,5.2291169)"
+       inkscape:label="HivePoly"
+       style="display:inline">
+      <path
+         d="M 49.999,3.29 9.547,26.646 V 73.355 L 49.999,96.71 90.453,73.355 V 26.646 Z M 82.19,68.584 49.999,87.169 17.811,68.584 V 31.414 L 49.999,12.829 82.19,31.414 Z"
+         id="path11"
+         inkscape:label="HiveBig" />
+      <path
+         d="M 20.368,32.89 V 67.108 L 49.999,84.216 79.633,67.108 V 32.89 L 49.999,15.782 Z M 71.446,62.383 49.999,74.763 28.555,62.383 V 37.618 L 49.999,25.236 71.446,37.618 Z"
+         id="path13"
+         inkscape:label="HiveMedium" />
+      <path
+         d="M 31.112,39.094 V 60.906 L 49.999,71.81 68.889,60.907 V 39.094 L 49.999,28.189 Z M 60.925,56.308 49.999,62.615 39.075,56.308 V 43.692 l 10.924,-6.308 10.926,6.308 z"
+         id="path9"
+         inkscape:label="HiveSmall" />
+    </g>
+  </g>
+</svg>

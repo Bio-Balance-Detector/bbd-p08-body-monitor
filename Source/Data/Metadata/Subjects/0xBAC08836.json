@@ -1,0 +1,14 @@
+{
+  "Version": 1,
+  "Subject": {
+    "Id": "a24646fe-d9d5-44a7-9b79-4b6b1b23070e",
+    "Alias": "0xBAC08836",
+    "Name": "Andras",
+    "Gender": "male",
+    "Birthdate": "1981-11-29",
+    "Weight": 66.5,
+    "Height": 170,
+    "FitbitEncodedID": "9F9D59",
+    "Conditions": [ "abdominal aortic aneurysm", "acne", "acute cholecystitis" ]
+  }
+}

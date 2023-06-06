@@ -1,0 +1,25 @@
+{
+  "Version": 1,
+  "AudioStimulants": [
+    {
+      "TimeStamp": "2022-09-15 17:01:05",
+	  "AudioDevice": "Headphones",
+      "Title": "JV352E_01 Playing in the Realm of Infinite Possibilities",
+      "AudioFilename": "jv352e_01.mp3",
+      "TotalLength": "0:27:46",
+      "StartLocation": "0:00:00",
+      "Duration": "0:27:46"
+    }
+  ],
+  "AudioInputs": [
+    {
+      "TimeStamp": "2022-09-14 17:17:31",
+	  "AudioDevice": "Microphone",
+      "Title": "BBD Body Monitor recording 2022-09-14 17:17:31",
+      "AudioFilename": "AD2_20220914_171731.mp3",
+      "TotalLength": "0:00:05",
+      "StartLocation": "0:00:00",
+      "Duration": "0:00:05"
+    }
+  ]  
+}

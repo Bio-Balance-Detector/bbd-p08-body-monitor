@@ -1,0 +1,224 @@
+{
+  "Version": 1,
+  "StartedAt": "2022-10-31T11:22:53.6414875+01:00",
+  "FinishedAt": "2022-10-31T11:22:53.7079184+01:00",
+  "Location": {
+    "PlusCode": "WM85\u002B4J Kecskem\u00E9t, Hungary",
+    "TimeZone": "UTC\u002B2",
+    "Id": "b6422796-65d4-4b26-a910-99911ff0705a",
+    "Alias": "0x4A75C1F7",
+    "Name": "Arbor\u00E9tum lak\u00F3park"
+  },
+  "Subject": {
+    "Gender": "male",
+    "Birthdate": "1981-11-29T00:00:00",
+    "Weight": 66.5,
+    "Height": 170,
+    "FitbitEncodedID": "9F9D59",
+    "Conditions": [
+      "abdominal aortic aneurysm",
+      "acne",
+      "acute cholecystitis"
+    ],
+    "Identity": {
+      "FullName": "Andras Fuchs",
+      "ContactEmails": [
+        "andras.fuchs@gmail.com"
+      ],
+      "PhoneNumbers": [
+        {
+          "Type": "Home",
+          "Number": "\u002B36 123 123-123"
+        },
+        {
+          "Type": "Office",
+          "Number": "\u002B36 321 321-321"
+        }
+      ]
+    },
+    "Id": "a24646fe-d9d5-44a7-9b79-4b6b1b23070e",
+    "Alias": "0xBAC08836",
+    "Name": "Andras"
+  },
+  "SegmentedData": {
+    "Sleep": null,
+    "HeartRate": null,
+    "BloodTest": null
+  },
+  "Configuration": {
+    "DataDirectory": "o:\\Work\\BBD.BodyMonitor\\",
+    "MinimumAvailableFreeSpace": 200000000,
+    "Acquisition": {
+      "Enabled": true,
+      "Channels": [
+        1
+      ],
+      "Buffer": 30,
+      "Block": 0.01,
+      "Samplerate": 250000
+    },
+    "SignalGenerator": {
+      "Enabled": false,
+      "Channel": 2,
+      "Frequency": 123.4567,
+      "Voltage": 0.5
+    },
+    "DataWriter": {
+      "Enabled": true,
+      "Interval": 5,
+      "SaveAsWAV": true,
+      "SingleFile": true
+    },
+    "Postprocessing": {
+      "Enabled": true,
+      "Interval": 0.5,
+      "DataBlock": 5,
+      "FFTSize": 1048576,
+      "MagnitudeThreshold": 0,
+      "ResampleFFTResolutionToHz": 0.25,
+      "SaveAsFFT": false,
+      "SaveAsCompressedFFT": false,
+      "SaveAsBinaryFFT": false,
+      "SaveAsPNG": {
+        "Enabled": false,
+        "TargetWidth": 1920,
+        "TargetHeight": 1080,
+        "RangeY": {
+          "Min": 0.75,
+          "Max": 2,
+          "Unit": " of median",
+          "Format": "P"
+        },
+        "RangeX": 15000,
+        "MLProfile": "MLP13"
+      }
+    },
+    "AudioRecording": {
+      "Enabled": false,
+      "Interval": 10,
+      "PreferredDevice": "dshow/Microphone (USB Audio Device)",
+      "SilenceThreshold": 0.055
+    },
+    "Indicators": {
+      "Enabled": false,
+      "Interval": 0.5,
+      "ModelsToUse": [
+        "IsSubject_None",
+        "IsSubject_AndrasFuchs",
+        "IsSubject_TimeaNagy",
+        "IsActivity_Meditation"
+      ]
+    },
+    "MachineLearning": {
+      "Profiles": [
+        {
+          "Name": "MLP00_0p1Hz-12p3-45p6Hz",
+          "FrequencyStep": 0.1,
+          "MinFrequency": 12.3,
+          "MaxFrequency": 45.6
+        },
+        {
+          "Name": "MLP01_0p1Hz-1990Hz",
+          "FrequencyStep": 0.1,
+          "MinFrequency": 0,
+          "MaxFrequency": 1990
+        },
+        {
+          "Name": "MLP02_1p0Hz-19900Hz",
+          "FrequencyStep": 1,
+          "MinFrequency": 0,
+          "MaxFrequency": 19900
+        },
+        {
+          "Name": "MLP03_5p0Hz-99500Hz",
+          "FrequencyStep": 5,
+          "MinFrequency": 0,
+          "MaxFrequency": 99500
+        },
+        {
+          "Name": "MLP04_20p0Hz-398000Hz",
+          "FrequencyStep": 20,
+          "MinFrequency": 0,
+          "MaxFrequency": 398000
+        },
+        {
+          "Name": "MLP05_0p5Hz-200Hz",
+          "FrequencyStep": 0.5,
+          "MinFrequency": 0,
+          "MaxFrequency": 200
+        },
+        {
+          "Name": "MLP06_1p0Hz-150000Hz",
+          "FrequencyStep": 1,
+          "MinFrequency": 0,
+          "MaxFrequency": 150000
+        },
+        {
+          "Name": "MLP07_0p1Hz-800Hz",
+          "FrequencyStep": 0.1,
+          "MinFrequency": 0,
+          "MaxFrequency": 800
+        },
+        {
+          "Name": "MLP08_10p0Hz-150000Hz",
+          "FrequencyStep": 10,
+          "MinFrequency": 0,
+          "MaxFrequency": 150000
+        },
+        {
+          "Name": "MLP09_5p0Hz-150000Hz",
+          "FrequencyStep": 5,
+          "MinFrequency": 0,
+          "MaxFrequency": 150000
+        },
+        {
+          "Name": "MLP10_0p1Hz-2500Hz",
+          "FrequencyStep": 0.1,
+          "MinFrequency": 0,
+          "MaxFrequency": 2500
+        },
+        {
+          "Name": "MLP11_0p1Hz-9500Hz",
+          "FrequencyStep": 0.1,
+          "MinFrequency": 0,
+          "MaxFrequency": 9500
+        },
+        {
+          "Name": "MLP12_0p25Hz-250Hz",
+          "FrequencyStep": 0.25,
+          "MinFrequency": 0,
+          "MaxFrequency": 250
+        },
+        {
+          "Name": "MLP13_0p25Hz-125000Hz",
+          "FrequencyStep": 0.25,
+          "MinFrequency": 0,
+          "MaxFrequency": 125000
+        },
+        {
+          "Name": "MLP14_0p25Hz-6250Hz",
+          "FrequencyStep": 0.25,
+          "MinFrequency": 0,
+          "MaxFrequency": 6250
+        },
+        {
+          "Name": "MLP15_1p00Hz-25000Hz",
+          "FrequencyStep": 1,
+          "MinFrequency": 0,
+          "MaxFrequency": 25000
+        },
+        {
+          "Name": "MLP16_5p00Hz-125000Hz",
+          "FrequencyStep": 5,
+          "MinFrequency": 0,
+          "MaxFrequency": 125000
+        }
+      ],
+      "CSVHeaders": true,
+      "GenerateMBConfigs": true
+    }
+  },
+  "Id": "f1a2e04b-0fb3-406e-8843-2a0eef0f3897",
+  "Alias": "0xF22FD00A",
+  "Name": null
+}

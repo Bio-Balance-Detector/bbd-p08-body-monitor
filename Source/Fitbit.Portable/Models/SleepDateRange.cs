@@ -1,0 +1,21 @@
+﻿using System;
+
+namespace Fitbit.Api.Portable.Models
+{
+    public class SleepDateRange
+    {
+        public string DateOfSleep { get; set; }
+        public int Duration { get; set; }
+        public int Efficiency { get; set; }
+        public bool IsMainSleep { get; set; }
+        public SleepDateRangeLevels Levels { get; set; }
+        public long LogId { get; set; }
+        public int MinutesAfterWakeup { get; set; }
+        public int MinutesAsleep { get; set; }
+        public int MinutesAwake { get; set; }
+        public int MinutesToFallAsleep { get; set; }
+        public DateTime StartTime { get; set; }
+        public int TimeInBed { get; set; }
+        public string Type { get; set; }
+    }
+}

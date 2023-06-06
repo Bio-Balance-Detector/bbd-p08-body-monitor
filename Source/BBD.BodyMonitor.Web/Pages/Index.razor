@@ -1,0 +1,58 @@
+﻿@page "/"
+@using BBD.BodyMonitor.Environment;
+@using BBD.BodyMonitor.Web.Data
+@inject BioBalanceDetectorService BBDService
+
+<PageTitle>Index</PageTitle>
+
+<h1>System Information</h1>
+
+@*show the current status of the BBD service*@
+@if (BioBalanceDetectorService.SystemInformation == null)
+{
+    <p><em>Connecting to a Bio Balance Detector service...</em></p>
+}
+else
+{
+    <p>
+        Host: @BioBalanceDetectorService.SystemInformation.CPUName with @BioBalanceDetectorService.SystemInformation.RAMSize GB RAM<br />
+        Connected Devices: @BioBalanceDetectorService.SystemInformation.Devices.Count()<br />
+        @foreach (var device in BioBalanceDetectorService.SystemInformation.Devices)
+        {
+            <div>
+                <div>@device.Brand @device.Name (@device.SerialNumber)</div>
+
+                @if (!device.IsOpened)
+                {
+                    @*add a button to start the data aquistion*@
+                    <a @onclick="Start" class="btn btn-m btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-green-dark">Start</a>
+                } else {
+                    @*add a button to stop the data aquistion*@
+                    <a @onclick="Stop" class="btn btn-m btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-red-light">Stop</a>
+                }
+            </div>
+        }
+        Active Sessions: @BioBalanceDetectorService.SystemInformation.Sessions.Count()<br />
+    </p>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        BBDService.StreamSystemInformationAsync(new CancellationToken());
+
+        Timer timer = new Timer((state) => 
+        {
+            // Get the system information from the BBD service
+            //BBDService.StreamSystemInformationAsync(new CancellationToken());
+            //systemInformation = BBDService.GetSystemInformationAsync().Result; 
+            
+            // Invoke the StateHasChanged method to update the Blazor page
+            InvokeAsync(StateHasChanged);
+        }, null, 0, 500);
+    }
+
+    protected void Start() => BBDService.Start();
+
+    protected void Stop() => BBDService.Stop();
+}

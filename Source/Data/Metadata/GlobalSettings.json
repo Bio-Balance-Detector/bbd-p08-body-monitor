@@ -1,0 +1,29 @@
+{
+  "Version": 1,
+  "Constants": {
+    "WeightUnit": "kg",
+    "HeightUnit": "cm",
+    "BloodTestEntries": [
+      {
+        "Name": "C-Reactive Protein",
+        "Aliases": [ "CRP" ],
+        "Unit": "mg/L"
+      },
+      {
+        "Name": "Cholesterol",
+        "Aliases": [],
+        "Unit": "mmol/L"
+      },
+      {
+        "Name": "HDL Cholesterol",
+        "Aliases": [ "HDL" ],
+        "Unit": "mmol/L"
+      },
+      {
+        "Name": "LDL Cholesterol",
+        "Aliases": [ "LDL" ],
+        "Unit": "mmol/L"
+      }
+    ]
+  }
+}

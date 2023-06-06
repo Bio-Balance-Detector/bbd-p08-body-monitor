@@ -1,0 +1,53 @@
+/* Generating Color Pack*/
+.color-highlight {
+  color: #7DB1B1 !important;
+}
+
+.bg-highlight {
+  background-color: #7DB1B1 !important;
+  color: #FFF !important;
+}
+
+.border-highlight {
+  border-color: #7DB1B1 !important;
+}
+
+.gradient-highlight {
+  background-image: linear-gradient(to bottom, #A0CECB, #7DB1B1) !important;
+}
+
+.footer-bar-5 .active-nav::after,
+.footer-bar-4 .active-nav::after,
+.footer-bar-2 .active-nav::after,
+.footer-bar-1 .active-nav::after {
+  background-color: #7DB1B1;
+}
+
+.footer-bar-3 .active-nav i, .footer-bar-3 .active-nav span {
+  color: #7DB1B1;
+}
+
+.splide__pagination__page.is-active {
+  background-color: #7DB1B1 !important;
+}
+
+.form-floating-over > .form-control:focus ~ label {
+  color: #7DB1B1;
+}
+
+.form-floating-over > .form-control:not(:placeholder-shown) ~ label {
+  color: #7DB1B1;
+}
+
+.form-floating-over > .form-select ~ label {
+  color: #7DB1B1;
+}
+
+.color-highlight {
+  color: #7DB1B1;
+}
+
+.bg-highlight {
+  background-color: #7DB1B1;
+  color: #FFF !important;
+}

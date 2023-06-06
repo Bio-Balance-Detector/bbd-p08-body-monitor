@@ -1,0 +1,36 @@
+﻿@inherits LayoutComponentBase
+
+<PageTitle>BBD.BodyMonitor.Web</PageTitle>
+
+<div class="page">
+
+    <div class="sidebar collapse">
+        <NavMenu />
+    </div>
+
+    <main>
+
+@*        <div class="top-row px-4">
+            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+        </div>
+*@
+        <div class="header header-demo header-logo-center mb-4 shadow-l">
+            @*<a href="index.html" class="header-logo">Enabled<span class="color-highlight"> Mobile</span></a>*@
+            <a href="#" class="header-icon header-icon-1" data-menu="menu-background"><i class="fas fa-bars"></i></a>
+            <a href="#" class="header-icon header-icon-4"><i class="fas fa-user-circle"></i></a>
+        </div>
+
+
+        <article class="content px-4">
+            @Body
+        </article>
+
+        <div id="footer-bar" class="footer-bar-5 position-relative mb-4 ms-3 me-3 shadow-xl rounded-s">
+            <a href="#" class="active-nav"><i class="fa fa-house"></i><span>Dashboard</span></a>
+            <a href="#"><i class="fa fa-record-vinyl"></i><span>Acquisition</span></a>
+            <a href="#"><i class="fa fa-play"></i><span>Signal generation</span></a>
+            <a href="#"><i class="fa fa-file"></i><span>Post-processing</span></a>
+            <a href="#"><i class="fa fa-gear"></i><span>Settings</span></a>
+        </div>
+    </main>
+</div>

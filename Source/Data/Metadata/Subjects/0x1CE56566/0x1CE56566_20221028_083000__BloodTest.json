@@ -1,0 +1,14 @@
+{
+  "Version": 1,
+  "SegmentedData": {
+    "BloodTest": [
+      {
+        "Start": "2022-10-28T06:30:00+02:00",
+        "End": "2022-10-28T10:30:00+02:00",
+        "Cholesterol": 2.90,
+        "HDL": 0.94,
+        "LDL": 1.48
+      }
+    ]
+  }
+}
