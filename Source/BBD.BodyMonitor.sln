@@ -13,7 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBD.BodyMonitor", "BBD.Body
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fitbit.Portable", "Fitbit.Portable\Fitbit.Portable.csproj", "{E5CFD3AF-E85A-44CE-BD48-C02AE5D5E748}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EDF", "..\..\..\..\..\EDF\EDF\EDF.csproj", "{0D205FE1-39A5-4F6E-A570-553469445F05}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EDF", "EDF\EDF\EDF.csproj", "{0D205FE1-39A5-4F6E-A570-553469445F05}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BBD.BodyMonitor.Web", "BBD.BodyMonitor.Web\BBD.BodyMonitor.Web.csproj", "{7C52CFEC-52BB-42EE-825D-5DC1E22D7848}"
 EndProject

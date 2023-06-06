@@ -11,20 +11,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="7.0.4" />
+    <PackageReference Include="Microsoft.ML" Version="2.0.1" />
     <PackageReference Include="Nito.HashAlgorithms.CRC" Version="1.0.1" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
     <PackageReference Include="System.Management" Version="7.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\EDF\EDF\EDF.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Microsoft.ML.Data">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.Data.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\EDF\EDF\EDF.csproj" />
   </ItemGroup>
 
 </Project>

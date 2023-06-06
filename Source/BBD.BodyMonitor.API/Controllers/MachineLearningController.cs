@@ -140,7 +140,7 @@ namespace BBD.BodyMonitor.API.Controllers
                 var pipeline =
                     mlContext.Auto().Featurizer(trainTestData.TrainSet, numericColumns: new[] { "Features" })
                         //.Append(mlContext.Auto().Regression(useFastTree: true, useLbfgs: false, useSdca: false, useFastForest: true, useLgbm: false));
-                        .Append(mlContext.Auto().Regression(useFastTree: true, useLbfgsPoissonRegression: true, useSdca: true, useFastForest: true, useLgbm: false));
+                        .Append(mlContext.Auto().Regression(useFastTree: true, useLbfgs: true, useSdca: true, useFastForest: true, useLgbm: false));
                         //.Append(mlContext.Auto().Regression(useFastTree: false, useLbfgs: false, useSdca: false, useFastForest: false, useLgbm: true, lgbmSearchSpace: lgbmSearchSpace));
 
                 var monitor = new MLExperimentMonitor(_logger, mlContext, pipeline, data.Schema, modelFilename);
@@ -152,13 +152,13 @@ namespace BBD.BodyMonitor.API.Controllers
                     .SetTrainingTimeInSeconds(trainingTimeInSeconds)
                     .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: "Label")
                     .SetDataset(trainTestData.TrainSet, trainTestData.TestSet)
-                    .SetMonitor(monitor)
-                    .SetPerformanceMonitor((service) =>
-                    {
-                        var channel = service.GetService<IChannel>();
-                        var settings = service.GetRequiredService<AutoMLExperiment.AutoMLExperimentSettings>();
-                        return new MLExperimentPerformanceMonitor(_logger, pipeline, settings, channel, 100);
-                    });
+                    .SetMonitor(monitor);
+                    //.SetPerformanceMonitor((service) =>
+                    //{
+                    //    var channel = service.GetService<IChannel>();
+                    //    var settings = service.GetRequiredService<AutoMLExperiment.AutoMLExperimentSettings>();
+                    //    return new MLExperimentPerformanceMonitor(_logger, pipeline, settings, channel, 100);
+                    //});
 
                 var result = await experiment.RunAsync();
 
