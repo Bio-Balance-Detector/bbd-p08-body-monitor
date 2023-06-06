@@ -24,7 +24,7 @@ Technically the requirements above mean:
 * [20000 mAh power bank](https://www.mi.com/global/20000mAh-mi-power-bank-3-pro/)
 * USB microphone
 
-![Hardware Components](https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Photos/Proto08/Hardware_components.jpg)  
+![Hardware Components](./Photos/Hardware_components.jpg)  
 
 ## Software Components
 * [Raspbian OS](https://www.raspberrypi.com/software/)/[Android](https://www.android.com/)<sup>[1]</sup> (mobile mode) or [Windows 11](https://www.microsoft.com/software-download/windows11)<sup>[2]</sup>/[Ubuntu 22](https://ubuntu.com/) (workstation mode)
@@ -111,7 +111,7 @@ Using the Body Monitor on Android makes it mobile, but it still needs another co
 5) Before you start the data acquisition make sure that you select the "Digilent USB device" in the VirtualHere client and you select "Use this device"
 6) Run the `bbd.bodymonitor` as you would normally do
 
-![Hardware Components](https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Photos/Proto08/Android_mobile_configuration.jpg) 
+![Hardware Components](./Photos/Android_mobile_configuration.jpg) 
 
 ## Workflow
 0) Calibration (optional)
