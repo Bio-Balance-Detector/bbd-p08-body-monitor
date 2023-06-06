@@ -1,0 +1,3 @@
+[submodule "Source/EDF"]
+	path = Source/EDF
+	url = https://github.com/andrasfuchs/EDF/
