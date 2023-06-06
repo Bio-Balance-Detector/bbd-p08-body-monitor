@@ -26,25 +26,5 @@
   <ItemGroup>
     <ProjectReference Include="..\BBD.BodyMonitor\BBD.BodyMonitor.csproj" />
     <ProjectReference Include="..\Fitbit.Portable\Fitbit.Portable.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="Microsoft.ML">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.ML.AutoML">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.AutoML.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.ML.Core">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.ML.Data">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.Data.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.ML.DataView">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.DataView.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.ML.SearchSpace">
-      <HintPath>..\..\..\..\..\..\dotnet\machinelearning\artifacts\bin\Microsoft.ML.AutoML\Debug\netstandard2.0\Microsoft.ML.SearchSpace.dll</HintPath>
-    </Reference>
   </ItemGroup>  
 </Project>
