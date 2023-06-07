@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace BBD.BodyMonitor.Sessions
+namespace BBD.BodyMonitor.Sessions.Segments
 {
     public class SensorSegment : Segment
     {
@@ -8,19 +8,19 @@ namespace BBD.BodyMonitor.Sessions
         public float?[] SensorValues { get; set; } = new float?[0];
         public override string ToString()
         {
-            List<string> values = new List<string>();
-            StringBuilder sb = new StringBuilder();
-            sb.Append($"{base.ToString()}: ");
-            for (int i = 0; (i < SensorNames.Length) && (i < SensorValues.Length); i++)
+            List<string> values = new();
+            StringBuilder sb = new();
+            _ = sb.Append($"{base.ToString()}: ");
+            for (int i = 0; i < SensorNames.Length && i < SensorValues.Length; i++)
             {
-                if ((SensorNames[i] == null) && (SensorValues[i] == null))
+                if (SensorNames[i] == null && SensorValues[i] == null)
                 {
                     continue;
                 }
-                
+
                 values.Add($"{SensorNames[i]}={SensorValues[i]?.ToString("0.00")}");
             }
-            sb.Append(String.Join(",", values));
+            _ = sb.Append(string.Join(",", values));
 
             return sb.ToString();
         }

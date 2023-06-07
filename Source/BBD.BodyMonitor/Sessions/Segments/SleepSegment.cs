@@ -1,4 +1,4 @@
-﻿namespace BBD.BodyMonitor.Sessions
+﻿namespace BBD.BodyMonitor.Sessions.Segments
 {
     /// <summary>
     /// American Academy of Sleep Medicine
@@ -19,13 +19,7 @@
     public class SleepSegment : Segment
     {
         public SleepLevel Level { get; set; }
-        public double Duration
-        {
-            get
-            {
-                return (End - Start).TotalMinutes;
-            }
-        }
+        public double Duration => (End - Start).TotalMinutes;
         public override string ToString()
         {
             return $"{base.ToString()}: {Level} for {Duration} minutes";

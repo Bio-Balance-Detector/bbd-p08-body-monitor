@@ -1,5 +1,4 @@
-﻿using BBD.BodyMonitor.Sessions;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text.Json;
@@ -13,27 +12,14 @@ namespace BBD.BodyMonitor
         public string Version { get; } = "3.0";
         public DateTimeOffset? Start { get; set; }
         public DateTimeOffset? End { get; set; }
-        public double? Duration
-        {
-            get
-            {
-                if (this.Start.HasValue && this.End.HasValue)
-                {
-                    return (this.End.Value - this.Start.Value).TotalSeconds;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
+        public double? Duration => Start.HasValue && End.HasValue ? (End.Value - Start.Value).TotalSeconds : null;
         public int BasedOnSamplesCount { get; set; }
         public float FirstFrequency { get; set; }
         public float LastFrequency { get; set; }
         public float FrequencyStep { get; set; }
         public int FftSize { get; set; }
         private float[]? _magnitudeData { get; set; } = null;
-        private List<string> appliedFilters = new List<string>();
+        private List<string> appliedFilters = new();
         /// <summary>
         /// Contains the FFT magnitude data without the DC component
         /// </summary>
@@ -41,12 +27,12 @@ namespace BBD.BodyMonitor
         {
             get
             {
-                if ((_magnitudeData == null) && (!String.IsNullOrWhiteSpace(this.Filename)))
+                if ((_magnitudeData == null) && (!string.IsNullOrWhiteSpace(Filename)))
                 {
-                    this.Load();
+                    Load();
                 }
 
-                return _magnitudeData == null ? new float[0] : _magnitudeData;
+                return _magnitudeData ?? (new float[0]);
             }
             set
             {
@@ -59,85 +45,84 @@ namespace BBD.BodyMonitor
             }
         }
         [JsonIgnore]
-        public string Filename { get; set; } = String.Empty;
-        public string Name { get; set; } = String.Empty;
+        public string Filename { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public string[] Tags { get; set; } = new string[0];
         [JsonIgnore]
         public long FileSize { get; set; }
         [JsonIgnore]
         public DateTime? FileModificationTimeUtc { get; set; }
-        public string MLProfileName { get; private set; } = String.Empty;
-        public string[] AppliedFilters
-        {
-            get
-            {
-                return appliedFilters.ToArray();
-            }
-        }
+        public string MLProfileName { get; private set; } = string.Empty;
+        public string[] AppliedFilters => appliedFilters.ToArray();
 
         public FftDataV3() { }
 
+        [Obsolete]
         public FftDataV3(FftDataV2 fftDataV2)
         {
-            DateTimeOffset startTime = new DateTimeOffset(fftDataV2.CaptureTime.Ticks, new TimeSpan(+2,0,0));
+            DateTimeOffset startTime = new(fftDataV2.CaptureTime.Ticks, new TimeSpan(+2, 0, 0));
 
-            this.Start = startTime;
-            this.End = startTime.AddSeconds(fftDataV2.Duration);
-            this.BasedOnSamplesCount = fftDataV2.BasedOnSamplesCount;
-            this.FirstFrequency = fftDataV2.FirstFrequency;
-            this.LastFrequency = fftDataV2.LastFrequency;
-            this.FrequencyStep = fftDataV2.FrequencyStep;
-            this.FftSize = fftDataV2.FftSize;
-            this._magnitudeData = fftDataV2.MagnitudeData;
-            this.Filename = fftDataV2.Filename;
-            this.Tags = fftDataV2.Tags;
-            this.MLProfileName = fftDataV2.MLProfileName;
+            Start = startTime;
+            End = startTime.AddSeconds(fftDataV2.Duration);
+            BasedOnSamplesCount = fftDataV2.BasedOnSamplesCount;
+            FirstFrequency = fftDataV2.FirstFrequency;
+            LastFrequency = fftDataV2.LastFrequency;
+            FrequencyStep = fftDataV2.FrequencyStep;
+            FftSize = fftDataV2.FftSize;
+            _magnitudeData = fftDataV2.MagnitudeData;
+            Filename = fftDataV2.Filename;
+            Tags = fftDataV2.Tags;
+            MLProfileName = fftDataV2.MLProfileName;
         }
 
         public FftDataV3(FftDataV3 fftData)
         {
-            this.Start = fftData.Start;
-            this.End = fftData.End;
-            this.BasedOnSamplesCount = fftData.BasedOnSamplesCount;
-            this.FirstFrequency = fftData.FirstFrequency;
-            this.LastFrequency = fftData.LastFrequency;
-            this.FrequencyStep = fftData.FrequencyStep;
-            this.FftSize = fftData.FftSize;
-            this.Filename = fftData.Filename;
-            this.Name = fftData.Name;
-            this.Tags = fftData.Tags;
-            this.FileSize = fftData.FileSize;
-            this.FileModificationTimeUtc = fftData.FileModificationTimeUtc;
-            this.MLProfileName = fftData.MLProfileName;
-            this.appliedFilters = new List<string>(fftData.AppliedFilters);
+            Start = fftData.Start;
+            End = fftData.End;
+            BasedOnSamplesCount = fftData.BasedOnSamplesCount;
+            FirstFrequency = fftData.FirstFrequency;
+            LastFrequency = fftData.LastFrequency;
+            FrequencyStep = fftData.FrequencyStep;
+            FftSize = fftData.FftSize;
+            Filename = fftData.Filename;
+            Name = fftData.Name;
+            Tags = fftData.Tags;
+            FileSize = fftData.FileSize;
+            FileModificationTimeUtc = fftData.FileModificationTimeUtc;
+            MLProfileName = fftData.MLProfileName;
+            appliedFilters = new List<string>(fftData.AppliedFilters);
         }
 
         public FftDataV3 Downsample(float frequencyStep)
         {
-            if (this.FirstFrequency > 0)
+            if (FirstFrequency > 0)
             {
                 throw new Exception("The FirstFrequency must be 0 if you want to use the MagnitudesPerHz property.");
             }
 
-            if (this.FrequencyStep > frequencyStep)
+            if (FrequencyStep > frequencyStep)
             {
                 throw new Exception("The FrequencyStep of the FFT dataset must be smaller then the frequency step that we resample to.");
             }
 
-            FftDataV3 result = new FftDataV3(this);
-            result.FrequencyStep = frequencyStep;
+            FftDataV3 result = new(this)
+            {
+                FrequencyStep = frequencyStep
+            };
 
-            var recalculatedValues = new List<float>();
-            recalculatedValues.Add(0);
+            List<float> recalculatedValues = new()
+            {
+                0
+            };
 
             for (int i = 0; i < _magnitudeData.Length; i++)
             {
                 //var sourceBin = this.GetBinFromIndex(i);
-                var sourceBinStartFrequency = i * this.FrequencyStep;
-                var sourceBinEndFrequency = sourceBinStartFrequency + this.FrequencyStep;
-                var sourceBinWidth = this.FrequencyStep;
+                float sourceBinStartFrequency = i * FrequencyStep;
+                float sourceBinEndFrequency = sourceBinStartFrequency + FrequencyStep;
+                float sourceBinWidth = FrequencyStep;
                 //var targetBin = result.GetBinFromIndex(recalculatedValues.Count - 1);
-                var targetBinEndFrequency = (recalculatedValues.Count) * frequencyStep;
+                float targetBinEndFrequency = recalculatedValues.Count * frequencyStep;
 
                 if (sourceBinEndFrequency <= targetBinEndFrequency)
                 {
@@ -155,7 +140,7 @@ namespace BBD.BodyMonitor
 
             result.LastFrequency = frequencyStep * recalculatedValues.Count;
             result.FftSize = recalculatedValues.Count;
-            result.MagnitudeData = recalculatedValues.Select(md => md * (this.FrequencyStep / frequencyStep)).ToArray();
+            result.MagnitudeData = recalculatedValues.Select(md => md * (FrequencyStep / frequencyStep)).ToArray();
             result.appliedFilters.Add($"BBD.Downsample({frequencyStep})");
 
             return result;
@@ -163,10 +148,7 @@ namespace BBD.BodyMonitor
 
         public FftBin GetBinFromIndex(int index, float? frequencyStep = null)
         {
-            if (frequencyStep == null)
-            {
-                frequencyStep = this.FrequencyStep;
-            }
+            frequencyStep ??= FrequencyStep;
 
             return new FftBin()
             {
@@ -174,24 +156,24 @@ namespace BBD.BodyMonitor
                 StartFrequency = index * frequencyStep.Value,
                 EndFrequency = (index + 1) * frequencyStep.Value,
                 MiddleFrequency = (index + 0.5f) * frequencyStep.Value,
-                Width = this.FrequencyStep
+                Width = FrequencyStep
             };
         }
 
         public MagnitudeStats GetMagnitudeStats()
         {
-            float minValue = this.MagnitudeData.Min();
-            float maxValue = this.MagnitudeData.Max();
+            float minValue = MagnitudeData.Min();
+            float maxValue = MagnitudeData.Max();
             // calculate the median value of the magnitude data
-            float median = this.MagnitudeData.OrderBy(x => x).Skip(this.MagnitudeData.Length / 2).First();
+            float median = MagnitudeData.OrderBy(x => x).Skip(MagnitudeData.Length / 2).First();
 
-            MagnitudeStats result = new MagnitudeStats()
+            MagnitudeStats result = new()
             {
                 Min = minValue,
-                MinIndex = Array.FindIndex(this.MagnitudeData, d => d == minValue),
+                MinIndex = Array.FindIndex(MagnitudeData, d => d == minValue),
                 Max = maxValue,
-                MaxIndex = Array.FindIndex(this.MagnitudeData, d => d == maxValue),
-                Average = this.MagnitudeData.Average(),
+                MaxIndex = Array.FindIndex(MagnitudeData, d => d == maxValue),
+                Average = MagnitudeData.Average(),
                 Median = median,
             };
 
@@ -200,28 +182,22 @@ namespace BBD.BodyMonitor
 
         public static void SaveAsJson(FftDataV3 fftData, string pathToFile, bool compress)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
             fftData.Name = filename;
             string fftDataJson = JsonSerializer.Serialize(fftData, new JsonSerializerOptions() { WriteIndented = true });
 
             if (compress)
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Create))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Create))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.fft");
-                        using (StreamWriter writer = new StreamWriter(fftFileEntry.Open()))
-                        {
-                            writer.Write(fftDataJson);
-                        }
-                    }
-                }
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Create);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Create);
+                ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.fft");
+                using StreamWriter writer = new(fftFileEntry.Open());
+                writer.Write(fftDataJson);
             }
             else
             {
-                File.WriteAllTextAsync($"{pathToFile}.fft", fftDataJson);
+                _ = File.WriteAllTextAsync($"{pathToFile}.fft", fftDataJson);
             }
         }
 
@@ -235,9 +211,9 @@ namespace BBD.BodyMonitor
             pathToFile = GetMLProfiledFilenameWithoutExtension(pathToFile, mlProfileName);
             fftData.Name = Path.GetFileName(pathToFile);
 
-            var writeStream = new MemoryStream();
+            MemoryStream writeStream = new();
 
-            var formatter = new BinaryFormatter();
+            BinaryFormatter formatter = new();
 #pragma warning disable SYSLIB0011
             formatter.Serialize(writeStream, fftData);
 #pragma warning restore SYSLIB0011
@@ -245,16 +221,12 @@ namespace BBD.BodyMonitor
 
             if (compress)
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Create))
+                using (FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Create))
                 {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Create))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{fftData.Name}.bfft");
-                        using (BinaryWriter writer = new BinaryWriter(fftFileEntry.Open()))
-                        {
-                            writer.Write(fftDataBinary, 0, fftDataBinary.Length);
-                        }
-                    }
+                    using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Create);
+                    ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{fftData.Name}.bfft");
+                    using BinaryWriter writer = new(fftFileEntry.Open());
+                    writer.Write(fftDataBinary, 0, fftDataBinary.Length);
                 }
 
                 if (fftData.Start.HasValue)
@@ -272,18 +244,19 @@ namespace BBD.BodyMonitor
             }
         }
 
+        [Obsolete]
         public static FftDataV3 LoadFrom(string pathToFile)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
             FftDataV3? fftData = null;
             Exception? ex = null;
 
             if (File.Exists($"{pathToFile}.bfft"))
             {
-                using (var readStream = new FileStream($"{pathToFile}.bfft", FileMode.Open))
+                using (FileStream readStream = new($"{pathToFile}.bfft", FileMode.Open))
                 {
-                    var formatter = new BinaryFormatter();
+                    BinaryFormatter formatter = new();
 #pragma warning disable SYSLIB0011
                     try
                     {
@@ -295,11 +268,11 @@ namespace BBD.BodyMonitor
 
                         try
                         {
-                            readStream.Seek(0, SeekOrigin.Begin);
-                            var fftDataV2 = (FftDataV2)formatter.Deserialize(readStream);
+                            _ = readStream.Seek(0, SeekOrigin.Begin);
+                            FftDataV2 fftDataV2 = (FftDataV2)formatter.Deserialize(readStream);
                             fftData = new FftDataV3(fftDataV2);
 
-                            var fi = new FileInfo(pathToFile);
+                            FileInfo fi = new(pathToFile);
                             fftData.Filename = pathToFile;
                             fftData.FileSize = fi.Length;
                             fftData.FileModificationTimeUtc = fi.LastWriteTimeUtc;
@@ -312,12 +285,12 @@ namespace BBD.BodyMonitor
                             ex = ev2;
                             try
                             {
-                                readStream.Seek(0, SeekOrigin.Begin);
-                                var fftDataV1 = (FftData)formatter.Deserialize(readStream);
-                                FftDataV2 fftDataV2 = new FftDataV2(fftDataV1);
+                                _ = readStream.Seek(0, SeekOrigin.Begin);
+                                FftData fftDataV1 = (FftData)formatter.Deserialize(readStream);
+                                FftDataV2 fftDataV2 = new(fftDataV1);
                                 fftData = new FftDataV3(fftDataV2);
 
-                                var fi = new FileInfo(pathToFile);
+                                FileInfo fi = new(pathToFile);
                                 fftData.Filename = pathToFile;
                                 fftData.FileSize = fi.Length;
                                 fftData.FileModificationTimeUtc = fi.LastWriteTimeUtc;
@@ -347,96 +320,86 @@ namespace BBD.BodyMonitor
                 fftData = JsonSerializer.Deserialize<FftDataV3>(File.ReadAllText($"{pathToFile}.fft"));
             }
 
-            if ((fftData == null) && (File.Exists($"{pathToFile}.zip")))
+            if ((fftData == null) && File.Exists($"{pathToFile}.zip"))
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Open))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Read))
-                    {
-                        ZipArchiveEntry? fftFileEntry = archive.GetEntry($"{filename}.fft");
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Open);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Read);
+                ZipArchiveEntry? fftFileEntry = archive.GetEntry($"{filename}.fft");
 
-                        if (fftFileEntry != null)
-                        {
-                            using (StreamReader reader = new StreamReader(fftFileEntry.Open()))
-                            {
-                                fftData = JsonSerializer.Deserialize<FftDataV3>(reader.ReadToEnd());
-                            }
-                        }
-                    }
+                if (fftFileEntry != null)
+                {
+                    using StreamReader reader = new(fftFileEntry.Open());
+                    fftData = JsonSerializer.Deserialize<FftDataV3>(reader.ReadToEnd());
                 }
             }
 
-            if (fftData == null)
-            {
-                throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.*.", ex);
-            }
-
-            return fftData;
+            return fftData == null ? throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.*.", ex) : fftData;
         }
 
         public static string GetMLProfiledFilenameWithoutExtension(string originalFilename, string mlProfileName)
         {
             string mlProfiledFilename = originalFilename;
 
-            mlProfiledFilename = mlProfiledFilename.Substring(0, mlProfiledFilename.Length - Path.GetExtension(mlProfiledFilename).Length);
+            mlProfiledFilename = mlProfiledFilename[..^Path.GetExtension(mlProfiledFilename).Length];
             string filename = Path.GetFileNameWithoutExtension(mlProfiledFilename);
-            if (!String.IsNullOrEmpty(mlProfileName))
+            if (!string.IsNullOrEmpty(mlProfileName))
             {
                 filename = filename.Split("__")[0] + "__" + mlProfileName.Split("_")[0];
             }
-            mlProfiledFilename = mlProfiledFilename.Substring(0, mlProfiledFilename.Length - Path.GetFileName(mlProfiledFilename).Length) + filename;
+            mlProfiledFilename = mlProfiledFilename[..^Path.GetFileName(mlProfiledFilename).Length] + filename;
 
             return mlProfiledFilename;
         }
 
+        [Obsolete]
         public void Load(string desiredMLProfileName = "")
         {
-            if (this._magnitudeData == null)
+            if (_magnitudeData == null)
             {
-                string profiledFilename = GetMLProfiledFilenameWithoutExtension(this.Filename, desiredMLProfileName) + ".bfft";
+                string profiledFilename = GetMLProfiledFilenameWithoutExtension(Filename, desiredMLProfileName) + ".bfft";
                 FftDataV3 data;
                 if (File.Exists(profiledFilename))
                 {
                     data = FftDataV3.LoadFrom(profiledFilename);
-                    this.MLProfileName = desiredMLProfileName;
+                    MLProfileName = desiredMLProfileName;
                 }
                 else
                 {
-                    data = FftDataV3.LoadFrom(this.Filename);
-                    this.MLProfileName = data.MLProfileName;
+                    data = FftDataV3.LoadFrom(Filename);
+                    MLProfileName = data.MLProfileName;
                 }
 
-                this.Start = data.Start;
-                this.End = data.End;
-                this.BasedOnSamplesCount = data.BasedOnSamplesCount;
-                this.FirstFrequency = data.FirstFrequency;
-                this.LastFrequency = data.LastFrequency;
-                this.FrequencyStep = data.FrequencyStep;
-                this.FftSize = data.FftSize;
-                this.MagnitudeData = data.MagnitudeData;
-                this.appliedFilters = new List<string>(data.AppliedFilters);
+                Start = data.Start;
+                End = data.End;
+                BasedOnSamplesCount = data.BasedOnSamplesCount;
+                FirstFrequency = data.FirstFrequency;
+                LastFrequency = data.LastFrequency;
+                FrequencyStep = data.FrequencyStep;
+                FftSize = data.FftSize;
+                MagnitudeData = data.MagnitudeData;
+                appliedFilters = new List<string>(data.AppliedFilters);
             }
         }
 
         public FftDataV3 ApplyMLProfile(MLProfile mlProfile)
         {
-            FftDataV3 result = this.Downsample(mlProfile.FrequencyStep);
+            FftDataV3 result = Downsample(mlProfile.FrequencyStep);
 
-            if (this.FirstFrequency > mlProfile.MinFrequency)
+            if (FirstFrequency > mlProfile.MinFrequency)
             {
                 throw new Exception("The dataset has a higher FirstFrequency than the ML profile's MinFrequency. This dataset can not be used with this profile.");
             }
 
-            if (this.LastFrequency < mlProfile.MaxFrequency)
+            if (LastFrequency < mlProfile.MaxFrequency)
             {
-                throw new Exception($"The dataset has a lower LastFrequency ({this.LastFrequency}) than the MaxFrequency ({mlProfile.MaxFrequency}) of ML profile '{mlProfile.Name}'. This dataset can not be used with this profile.");
+                throw new Exception($"The dataset has a lower LastFrequency ({LastFrequency}) than the MaxFrequency ({mlProfile.MaxFrequency}) of ML profile '{mlProfile.Name}'. This dataset can not be used with this profile.");
             }
 
             int magnitudeDataIndexStart = 0;
             int magnitudeDataIndexEnd = 0;
             for (int ci = 0; ci < result.FftSize; ci++)
             {
-                var bin = result.GetBinFromIndex(ci);
+                FftBin bin = result.GetBinFromIndex(ci);
 
                 if (bin.EndFrequency <= mlProfile.MinFrequency)
                 {
@@ -485,8 +448,8 @@ namespace BBD.BodyMonitor
 
         public string GetFFTRange()
         {
-            string startFrequency = (1 * this.FrequencyStep).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
-            string endFrequency = ((this.MagnitudeData.Length - 1) * this.FrequencyStep).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+            string startFrequency = (1 * FrequencyStep).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+            string endFrequency = ((MagnitudeData.Length - 1) * FrequencyStep).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
             string fftRange = $"{startFrequency}Hz-{endFrequency}Hz".Replace(".", "p");
 
             return fftRange;
@@ -495,19 +458,19 @@ namespace BBD.BodyMonitor
 
         public override string ToString()
         {
-            return $"FFT Data '{Name}' {this.FftSize}x{this.FrequencyStep:0.00} Hz";
+            return $"FFT Data '{Name}' {FftSize}x{FrequencyStep:0.00} Hz";
         }
 
         public void ApplyMedianFilter()
         {
-            var stats = this.GetMagnitudeStats();
+            MagnitudeStats stats = GetMagnitudeStats();
 
-            for (int i = 0; i < this.MagnitudeData.Length; i++)
+            for (int i = 0; i < MagnitudeData.Length; i++)
             {
-                this.MagnitudeData[i] = this.MagnitudeData[i] / stats.Median;
+                MagnitudeData[i] = MagnitudeData[i] / stats.Median;
             }
 
-            this.appliedFilters.Add($"BBD.Median()");
+            appliedFilters.Add($"BBD.Median()");
         }
 
         /// <summary>
@@ -521,12 +484,12 @@ namespace BBD.BodyMonitor
                 throw new Exception("Power must be greater than 0.");
             }
 
-            for (int i = 0; i < this.MagnitudeData.Length; i++)
+            for (int i = 0; i < MagnitudeData.Length; i++)
             {
-                this.MagnitudeData[i] = (float)Math.Pow(this.MagnitudeData[i], power);
+                MagnitudeData[i] = (float)Math.Pow(MagnitudeData[i], power);
             }
 
-            this.appliedFilters.Add($"BBD.Compressor({power})");
+            appliedFilters.Add($"BBD.Compressor({power})");
         }
     }
 }

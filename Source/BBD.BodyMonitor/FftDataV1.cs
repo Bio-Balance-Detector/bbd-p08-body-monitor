@@ -24,31 +24,23 @@ namespace BBD.BodyMonitor
 
         public static void SaveAsBinary(FftDataV1 FftDataV1, string pathToFile, bool compress)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
             FftDataV1.Filename = filename;
 
-            var writeStream = new MemoryStream();
+            MemoryStream writeStream = new();
 
-            var formatter = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
+            BinaryFormatter formatter = new();
             formatter.Serialize(writeStream, FftDataV1);
-#pragma warning restore SYSLIB0011
             byte[] FftDataV1Binary = writeStream.ToArray();
 
             if (compress)
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Create))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Create))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.bfft");
-                        using (BinaryWriter writer = new BinaryWriter(fftFileEntry.Open()))
-                        {
-                            writer.Write(FftDataV1Binary, 0, FftDataV1Binary.Length);
-                        }
-                    }
-                }
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Create);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Create);
+                ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.bfft");
+                using BinaryWriter writer = new(fftFileEntry.Open());
+                writer.Write(FftDataV1Binary, 0, FftDataV1Binary.Length);
             }
             else
             {
@@ -58,19 +50,15 @@ namespace BBD.BodyMonitor
 
         public static FftDataV1 LoadFrom(string pathToFile)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
-            FftDataV1 FftDataV1 = null;
+            FftDataV1? FftDataV1 = null;
 
             if (File.Exists($"{pathToFile}.bfft"))
             {
-                using (var readStream = new FileStream($"{pathToFile}.bfft", FileMode.Open))
-                {
-                    var formatter = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-                    FftDataV1 = (FftDataV1)formatter.Deserialize(readStream);
-#pragma warning restore SYSLIB0011
-                }
+                using FileStream readStream = new($"{pathToFile}.bfft", FileMode.Open);
+                BinaryFormatter formatter = new();
+                FftDataV1 = (FftDataV1)formatter.Deserialize(readStream);
             }
 
             if (File.Exists($"{pathToFile}.fft"))
@@ -80,25 +68,14 @@ namespace BBD.BodyMonitor
 
             if (FftDataV1 == null && File.Exists($"{pathToFile}.zip"))
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Open))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Read))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.GetEntry($"{filename}.fft");
-                        using (StreamReader reader = new StreamReader(fftFileEntry.Open()))
-                        {
-                            FftDataV1 = JsonSerializer.Deserialize<FftDataV1>(reader.ReadToEnd());
-                        }
-                    }
-                }
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Open);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Read);
+                ZipArchiveEntry fftFileEntry = archive.GetEntry($"{filename}.fft");
+                using StreamReader reader = new(fftFileEntry.Open());
+                FftDataV1 = JsonSerializer.Deserialize<FftDataV1>(reader.ReadToEnd());
             }
 
-            if (FftDataV1 == null)
-            {
-                throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.");
-            }
-
-            return FftDataV1;
+            return FftDataV1 == null ? throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.") : FftDataV1;
         }
     }
 }

@@ -21,10 +21,7 @@ namespace BBD.BodyMonitor
         /// </summary>
         public float[] MagnitudeData
         {
-            get
-            {
-                return _magnitudeData;
-            }
+            get => _magnitudeData;
             set
             {
                 if (_magnitudeData != null)
@@ -53,7 +50,7 @@ namespace BBD.BodyMonitor
                 throw new Exception("The FrequencyStep of the FFT dataset must be smaller then the frequency step that we resample to.");
             }
 
-            FftData result = new FftData()
+            FftData result = new()
             {
                 CaptureTime = CaptureTime,
                 Duration = Duration,
@@ -64,13 +61,15 @@ namespace BBD.BodyMonitor
                 Tags = Tags
             };
 
-            var recalculatedValues = new List<float>();
-            recalculatedValues.Add(0);
+            List<float> recalculatedValues = new()
+            {
+                0
+            };
 
             for (int i = 0; i < _magnitudeData.Length; i++)
             {
-                var sourceBin = GetBinFromIndex(i);
-                var targetBin = result.GetBinFromIndex(recalculatedValues.Count - 1);
+                FftBin sourceBin = GetBinFromIndex(i);
+                FftBin targetBin = result.GetBinFromIndex(recalculatedValues.Count - 1);
 
                 if (sourceBin.EndFrequency <= targetBin.EndFrequency)
                 {
@@ -95,10 +94,7 @@ namespace BBD.BodyMonitor
 
         public FftBin GetBinFromIndex(int index, float? frequencyStep = null)
         {
-            if (frequencyStep == null)
-            {
-                frequencyStep = FrequencyStep;
-            }
+            frequencyStep ??= FrequencyStep;
 
             return new FftBin()
             {
@@ -115,7 +111,7 @@ namespace BBD.BodyMonitor
             float minValue = MagnitudeData.Min();
             float maxValue = MagnitudeData.Max();
 
-            MagnitudeStats result = new MagnitudeStats()
+            MagnitudeStats result = new()
             {
                 Min = minValue,
                 MinIndex = Array.FindIndex(MagnitudeData, d => d == minValue),
@@ -129,58 +125,44 @@ namespace BBD.BodyMonitor
 
         public static void SaveAs(FftData fftData, string pathToFile, bool compress)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
             fftData.Filename = filename;
             string fftDataJson = JsonSerializer.Serialize(fftData, new JsonSerializerOptions() { WriteIndented = true });
 
             if (compress)
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Create))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Create))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.fft");
-                        using (StreamWriter writer = new StreamWriter(fftFileEntry.Open()))
-                        {
-                            writer.Write(fftDataJson);
-                        }
-                    }
-                }
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Create);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Create);
+                ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.fft");
+                using StreamWriter writer = new(fftFileEntry.Open());
+                writer.Write(fftDataJson);
             }
             else
             {
-                File.WriteAllTextAsync($"{pathToFile}.fft", fftDataJson);
+                _ = File.WriteAllTextAsync($"{pathToFile}.fft", fftDataJson);
             }
         }
 
         public static void SaveAsBinary(FftData fftData, string pathToFile, bool compress)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
             fftData.Filename = filename;
 
-            var writeStream = new MemoryStream();
+            MemoryStream writeStream = new();
 
-            var formatter = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
+            BinaryFormatter formatter = new();
             formatter.Serialize(writeStream, fftData);
-#pragma warning restore SYSLIB0011
             byte[] fftDataBinary = writeStream.ToArray();
 
             if (compress)
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Create))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Create))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.bfft");
-                        using (BinaryWriter writer = new BinaryWriter(fftFileEntry.Open()))
-                        {
-                            writer.Write(fftDataBinary, 0, fftDataBinary.Length);
-                        }
-                    }
-                }
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Create);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Create);
+                ZipArchiveEntry fftFileEntry = archive.CreateEntry($"{filename}.bfft");
+                using BinaryWriter writer = new(fftFileEntry.Open());
+                writer.Write(fftDataBinary, 0, fftDataBinary.Length);
             }
             else
             {
@@ -190,19 +172,15 @@ namespace BBD.BodyMonitor
 
         public static FftData LoadFrom(string pathToFile)
         {
-            pathToFile = pathToFile.Substring(0, pathToFile.Length - Path.GetExtension(pathToFile).Length);
+            pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
             string filename = Path.GetFileNameWithoutExtension(pathToFile);
-            FftData fftData = null;
+            FftData? fftData = null;
 
             if (File.Exists($"{pathToFile}.bfft"))
             {
-                using (var readStream = new FileStream($"{pathToFile}.bfft", FileMode.Open))
-                {
-                    var formatter = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-                    fftData = (FftData)formatter.Deserialize(readStream);
-#pragma warning restore SYSLIB0011
-                }
+                using FileStream readStream = new($"{pathToFile}.bfft", FileMode.Open);
+                BinaryFormatter formatter = new();
+                fftData = (FftData)formatter.Deserialize(readStream);
             }
 
             if (File.Exists($"{pathToFile}.fft"))
@@ -212,25 +190,14 @@ namespace BBD.BodyMonitor
 
             if (fftData == null && File.Exists($"{pathToFile}.zip"))
             {
-                using (FileStream zipToOpen = new FileStream($"{pathToFile}.zip", FileMode.Open))
-                {
-                    using (ZipArchive archive = new ZipArchive(zipToOpen, ZipArchiveMode.Read))
-                    {
-                        ZipArchiveEntry fftFileEntry = archive.GetEntry($"{filename}.fft");
-                        using (StreamReader reader = new StreamReader(fftFileEntry.Open()))
-                        {
-                            fftData = JsonSerializer.Deserialize<FftData>(reader.ReadToEnd());
-                        }
-                    }
-                }
+                using FileStream zipToOpen = new($"{pathToFile}.zip", FileMode.Open);
+                using ZipArchive archive = new(zipToOpen, ZipArchiveMode.Read);
+                ZipArchiveEntry fftFileEntry = archive.GetEntry($"{filename}.fft");
+                using StreamReader reader = new(fftFileEntry.Open());
+                fftData = JsonSerializer.Deserialize<FftData>(reader.ReadToEnd());
             }
 
-            if (fftData == null)
-            {
-                throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.");
-            }
-
-            return fftData;
+            return fftData == null ? throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.") : fftData;
         }
 
         public FftData ApplyMLProfile(float frequencyStep, float minFrequency, float maxFrequency)
@@ -241,7 +208,7 @@ namespace BBD.BodyMonitor
             int magnitudeDataIndexEnd = 0;
             for (int ci = 0; ci < result.FftSize; ci++)
             {
-                var bin = result.GetBinFromIndex(ci);
+                FftBin bin = result.GetBinFromIndex(ci);
 
                 if (bin.EndFrequency <= minFrequency)
                 {

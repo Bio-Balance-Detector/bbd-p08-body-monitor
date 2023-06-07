@@ -2,7 +2,7 @@
 {
     public class MLP09Output
     {
-        public string PredictedLabel { get; set; }
+        public required string PredictedLabel { get; set; }
         public float Score { get; set; }
     }
 }

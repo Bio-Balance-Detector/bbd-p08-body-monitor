@@ -1,4 +1,5 @@
 ﻿using BBD.BodyMonitor.Configuration;
+using BBD.BodyMonitor.Sessions.Segments;
 
 namespace BBD.BodyMonitor.Sessions
 {
@@ -11,8 +12,8 @@ namespace BBD.BodyMonitor.Sessions
         public Subject? Subject { get; set; }
         public SegmentedData? SegmentedData { get; set; }
         public BodyMonitorOptions? Configuration { get; set; }
-        
-        
+
+
         public bool TryToGetValue(string path, DateTimeOffset startTime, DateTimeOffset endTime, out float value)
         {
             value = 0;
@@ -57,13 +58,13 @@ namespace BBD.BodyMonitor.Sessions
                 {
                     value = segments.Select(s => s.BeatsPerMinute).Average();
                 }
-                
+
                 return true;
             }
 
             if (path == "Session.SegmentedData.BloodTest.Cholesterol")
             {
-                var segment = SegmentedData?.BloodTest?.Where(s => s.End >= startTime && s.Start <= endTime).FirstOrDefault();
+                BloodTestSegment? segment = SegmentedData?.BloodTest?.Where(s => s.End >= startTime && s.Start <= endTime).FirstOrDefault();
 
                 if (segment == null)
                 {

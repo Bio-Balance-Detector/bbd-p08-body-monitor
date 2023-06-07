@@ -12,12 +12,7 @@ namespace BBD.BodyMonitor.Sessions.CustomJsonConverters
                 return null;
             }
 
-            if (reader.TokenType == JsonTokenType.String)
-            {
-                return reader.GetString();
-            }
-
-            throw new JsonException();
+            return reader.TokenType == JsonTokenType.String ? reader.GetString() : throw new JsonException();
         }
 
         public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)

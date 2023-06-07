@@ -1,4 +1,6 @@
-﻿namespace BBD.BodyMonitor.Sessions
+﻿using BBD.BodyMonitor.Sessions.Segments;
+
+namespace BBD.BodyMonitor.Sessions
 {
     public class SegmentedData
     {

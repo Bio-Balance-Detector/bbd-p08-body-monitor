@@ -5,7 +5,7 @@ namespace BBD.BodyMonitor.Configuration
 {
     public class BodyMonitorOptions
     {
-        public string DataDirectory { get; } = String.Empty;
+        public string DataDirectory { get; } = string.Empty;
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public long MinimumAvailableFreeSpace { get; } = 0;
         public AcqusitionOptions Acquisition { get; }
@@ -18,6 +18,8 @@ namespace BBD.BodyMonitor.Configuration
         public FitbitOptions Fitbit { get; }
         public ThingSpeakOptions ThingSpeak { get; }
         public BodyMonitorOptions() { }
+
+        [Obsolete]
         public BodyMonitorOptions(IConfigurationSection config)
         {
             DataDirectory = config["DataDirectory"];
@@ -25,8 +27,8 @@ namespace BBD.BodyMonitor.Configuration
 
             Acquisition = new AcqusitionOptions()
             {
-                Enabled = Boolean.Parse(config["Acquisition:Enabled"]),
-                Channels = config.GetSection("Acquisition:Channels").Get<string[]>().Select(ch => Int32.Parse(new String(ch.TakeLast(1).ToArray()))).ToArray(),
+                Enabled = bool.Parse(config["Acquisition:Enabled"]),
+                Channels = config.GetSection("Acquisition:Channels").Get<string[]>().Select(ch => int.Parse(new string(ch.TakeLast(1).ToArray()))).ToArray(),
                 Buffer = ParseNumber(config["Acquisition:Buffer"]),
                 Block = ParseNumber(config["Acquisition:Block"]),
                 Samplerate = (int)ParseNumber(config["Acquisition:Samplerate"])
@@ -34,37 +36,37 @@ namespace BBD.BodyMonitor.Configuration
 
             SignalGenerator = new SignalGeneratorOptions()
             {
-                Enabled = Boolean.Parse(config["SignalGenerator:Enabled"]),
-                Channel = Byte.Parse(new String(config["SignalGenerator:Channel"].TakeLast(1).ToArray())),
+                Enabled = bool.Parse(config["SignalGenerator:Enabled"]),
+                Channel = byte.Parse(new string(config["SignalGenerator:Channel"].TakeLast(1).ToArray())),
                 Frequency = ParseNumber(config["SignalGenerator:Frequency"]),
                 Voltage = ParseNumber(config["SignalGenerator:Voltage"]),
             };
 
             DataWriter = new DataWriterOptions()
             {
-                Enabled = Boolean.Parse(config["DataWriter:Enabled"]),
+                Enabled = bool.Parse(config["DataWriter:Enabled"]),
                 Interval = ParseNumber(config["DataWriter:Interval"]),
                 OutputRange = ParseNumber(config["DataWriter:OutputRange"]),
-                SaveAsWAV = Boolean.Parse(config["DataWriter:SaveAsWAV"]),
-                SingleFile = Boolean.Parse(config["DataWriter:SingleFile"]),
+                SaveAsWAV = bool.Parse(config["DataWriter:SaveAsWAV"]),
+                SingleFile = bool.Parse(config["DataWriter:SingleFile"]),
             };
 
             Postprocessing = new PostprocessingOptions()
             {
-                Enabled = Boolean.Parse(config["Postprocessing:Enabled"]),
+                Enabled = bool.Parse(config["Postprocessing:Enabled"]),
                 Interval = ParseNumber(config["Postprocessing:Interval"]),
                 DataBlock = ParseNumber(config["Postprocessing:DataBlock"]),
                 FFTSize = (int)ParseNumber(config["Postprocessing:FFTSize"]),
                 MagnitudeThreshold = ParseNumber(config["Postprocessing:MagnitudeThreshold"]),
                 ResampleFFTResolutionToHz = ParseNumber(config["Postprocessing:ResampleFFTResolutionToHz"]),
-                SaveAsFFT = Boolean.Parse(config["Postprocessing:SaveAsFFT"]),
-                SaveAsCompressedFFT = Boolean.Parse(config["Postprocessing:SaveAsCompressedFFT"]),
-                SaveAsBinaryFFT = Boolean.Parse(config["Postprocessing:SaveAsBinaryFFT"]),
+                SaveAsFFT = bool.Parse(config["Postprocessing:SaveAsFFT"]),
+                SaveAsCompressedFFT = bool.Parse(config["Postprocessing:SaveAsCompressedFFT"]),
+                SaveAsBinaryFFT = bool.Parse(config["Postprocessing:SaveAsBinaryFFT"]),
                 SaveAsPNG = new SaveAsPngOptions()
                 {
-                    Enabled = Boolean.Parse(config["Postprocessing:SaveAsPNG:Enabled"]),
-                    TargetWidth = Int32.Parse(config["Postprocessing:SaveAsPNG:TargetWidth"]),
-                    TargetHeight = Int32.Parse(config["Postprocessing:SaveAsPNG:TargetHeight"]),
+                    Enabled = bool.Parse(config["Postprocessing:SaveAsPNG:Enabled"]),
+                    TargetWidth = int.Parse(config["Postprocessing:SaveAsPNG:TargetWidth"]),
+                    TargetHeight = int.Parse(config["Postprocessing:SaveAsPNG:TargetHeight"]),
                     RangeX = (int)ParseNumber(config["Postprocessing:SaveAsPNG:RangeX"]),
                     RangeY = new SaveAsPngRangeOptions()
                     {
@@ -79,7 +81,7 @@ namespace BBD.BodyMonitor.Configuration
 
             AudioRecording = new AudioRecordingOptions()
             {
-                Enabled = Boolean.Parse(config["AudioRecording:Enabled"]),
+                Enabled = bool.Parse(config["AudioRecording:Enabled"]),
                 Interval = ParseNumber(config["AudioRecording:Interval"]),
                 PreferredDevice = config["AudioRecording:PreferredDevice"],
                 SilenceThreshold = ParseNumber(config["AudioRecording:SilenceThreshold"])
@@ -87,7 +89,7 @@ namespace BBD.BodyMonitor.Configuration
 
             Indicators = new IndicatorsOptions()
             {
-                Enabled = Boolean.Parse(config["Indicators:Enabled"]),
+                Enabled = bool.Parse(config["Indicators:Enabled"]),
                 Interval = ParseNumber(config["Indicators:Interval"]),
                 ModelsToUse = config.GetSection("Indicators:ModelsToUse").Get<string[]>()
             };
@@ -95,8 +97,8 @@ namespace BBD.BodyMonitor.Configuration
             MachineLearning = new MachineLearningOptions()
             {
                 Profiles = config.GetSection("MachineLearning:Profiles").Get<MLProfile[]>(),
-                CSVHeaders = Boolean.Parse(config["MachineLearning:CSVHeaders"]),
-                GenerateMBConfigs = Boolean.Parse(config["MachineLearning:GenerateMBConfigs"])
+                CSVHeaders = bool.Parse(config["MachineLearning:CSVHeaders"]),
+                GenerateMBConfigs = bool.Parse(config["MachineLearning:GenerateMBConfigs"])
             };
 
             Fitbit = new FitbitOptions()
@@ -122,13 +124,13 @@ namespace BBD.BodyMonitor.Configuration
 
             int numberIndex = 1;
             float numberPart = 0;
-            while ((numberIndex <= str.Length) && (Single.TryParse(str.Substring(0, numberIndex), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out float parsedNumberPart)))
+            while ((numberIndex <= str.Length) && float.TryParse(str[..numberIndex], System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out float parsedNumberPart))
             {
                 numberIndex++;
                 numberPart = parsedNumberPart;
             }
 
-            string textPart = str.Substring(numberIndex - 1).Trim();
+            string textPart = str[(numberIndex - 1)..].Trim();
 
             if (textPart == "%")
             {
@@ -139,7 +141,7 @@ namespace BBD.BodyMonitor.Configuration
                 int postfixIndex = 4;
                 for (int i = 0; i < postfixes.Length; i++)
                 {
-                    if ((postfixes[i] != "") && (textPart.StartsWith(postfixes[i])))
+                    if ((postfixes[i] != "") && textPart.StartsWith(postfixes[i]))
                     {
                         postfixIndex = i;
                         break;
@@ -148,13 +150,13 @@ namespace BBD.BodyMonitor.Configuration
 
                 while (postfixIndex < 4)
                 {
-                    numberPart /= (binaryMode ? 1024 : 1000);
+                    numberPart /= binaryMode ? 1024 : 1000;
                     postfixIndex++;
                 }
 
                 while (postfixIndex > 4)
                 {
-                    numberPart *= (binaryMode ? 1024 : 1000);
+                    numberPart *= binaryMode ? 1024 : 1000;
                     postfixIndex--;
                 }
             }

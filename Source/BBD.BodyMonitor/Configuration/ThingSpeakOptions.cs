@@ -1,6 +1,4 @@
-﻿using System.ComponentModel;
-
-namespace BBD.BodyMonitor.Configuration
+﻿namespace BBD.BodyMonitor.Configuration
 {
     public class ThingSpeakOptions
     {

@@ -7,7 +7,7 @@ namespace BBD.BodyMonitor.Configuration
         public bool Enabled { get; set; } = false;
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public float Interval { get; set; } = 10.0f;
-        public string PreferredDevice { get; set; } = String.Empty;
+        public string PreferredDevice { get; set; } = string.Empty;
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public float SilenceThreshold { get; set; } = 0.0f;
     }

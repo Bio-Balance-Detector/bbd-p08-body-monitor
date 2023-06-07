@@ -8,13 +8,7 @@ namespace BBD.BodyMonitor.Configuration
     {
         internal bool ValidateType(object value, Type expected)
         {
-            bool result;
-
-            if ((value != null) && (value.GetType() != expected))
-                result = false;
-            else
-                result = true;
-
+            bool result = value == null || value.GetType() == expected;
             return result;
         }
 
@@ -25,7 +19,7 @@ namespace BBD.BodyMonitor.Configuration
 
         public override bool CanConvertFrom(ITypeDescriptorContext ctx, Type type)
         {
-            return (type == typeof(string));
+            return type == typeof(string);
         }
 
         public override object ConvertTo(ITypeDescriptorContext ctx, CultureInfo ci, object value, Type type)
@@ -42,18 +36,18 @@ namespace BBD.BodyMonitor.Configuration
 
             int numberIndex = 1;
             double numberPart = 0;
-            while ((numberIndex <= str.Length) && (Double.TryParse(str.Substring(0, numberIndex), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out double parsedNumberPart)))
+            while ((numberIndex <= str.Length) && double.TryParse(str[..numberIndex], System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out double parsedNumberPart))
             {
                 numberIndex++;
                 numberPart = parsedNumberPart;
             }
 
-            string textPart = str.Substring(numberIndex - 1).Trim();
+            string textPart = str[(numberIndex - 1)..].Trim();
 
             int postfixIndex = 4;
             for (int i = 0; i < postfixes.Length; i++)
             {
-                if ((postfixes[i] != "") && (textPart.StartsWith(postfixes[i])))
+                if ((postfixes[i] != "") && textPart.StartsWith(postfixes[i]))
                 {
                     postfixIndex = i;
                     break;
@@ -62,13 +56,13 @@ namespace BBD.BodyMonitor.Configuration
 
             while (postfixIndex < 4)
             {
-                numberPart /= (binaryMode ? 1024 : 1000);
+                numberPart /= binaryMode ? 1024 : 1000;
                 postfixIndex++;
             }
 
             while (postfixIndex > 4)
             {
-                numberPart *= (binaryMode ? 1024 : 1000);
+                numberPart *= binaryMode ? 1024 : 1000;
                 postfixIndex--;
             }
 

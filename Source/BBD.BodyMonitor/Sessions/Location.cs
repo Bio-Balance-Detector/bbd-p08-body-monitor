@@ -2,11 +2,11 @@
 {
     public class Location : DeidentifiedData
     {
-        public string PlusCode { get; set; }
-        public string TimeZone { get; set; }
+        public required string PlusCode { get; set; }
+        public required string TimeZone { get; set; }
         public override string ToString()
         {
-            return $"Location {this.Alias}: '{this.Name}'";
+            return $"Location {Alias}: '{Name}'";
         }
     }
 }

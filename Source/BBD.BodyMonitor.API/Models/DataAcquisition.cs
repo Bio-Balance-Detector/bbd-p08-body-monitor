@@ -1,9 +1,8 @@
 ﻿using BBD.BodyMonitor.Buffering;
 using BBD.BodyMonitor.Environment;
-using Fitbit.Models;
 using static BBD.BodyMonitor.Buffering.ShiftingBuffer;
 
-namespace BBD.BodyMonitor
+namespace BBD.BodyMonitor.Models
 {
     internal class DataAcquisition
     {
@@ -21,7 +20,7 @@ namespace BBD.BodyMonitor
         public float BufferLength { get; private set; }
         public int[] AcquisitionChannels { get; private set; }
 
-        private ILogger logger;
+        private readonly ILogger logger;
 
         private int dwfHandle = -1;
 
@@ -36,45 +35,42 @@ namespace BBD.BodyMonitor
 
         private bool terminateAcquisition = false;
 
-        private Dictionary<int, List<Action<object, BlockReceivedEventArgs>>> subscribers = new Dictionary<int, List<Action<object, BlockReceivedEventArgs>>>();
+        private readonly Dictionary<int, List<Action<object, BlockReceivedEventArgs>>> subscribers = new();
 
         public DataAcquisition(ILogger logger)
         {
             this.logger = logger;
 
-            dwf.FDwfGetVersion(out string dwfVersion);
+            _ = dwf.FDwfGetVersion(out string dwfVersion);
             logger.LogInformation($"DWF Version: {dwfVersion}");
         }
 
         public ConnectedDevice[] ListDevices()
         {
-            List<ConnectedDevice> result = new List<ConnectedDevice>();
+            List<ConnectedDevice> result = new();
 
-            dwf.FDwfGetVersion(out string dwfVersion);
+            _ = dwf.FDwfGetVersion(out string dwfVersion);
 
-            dwf.FDwfEnum(dwf.enumfilterAll, out int deviceCount);
+            _ = dwf.FDwfEnum(dwf.enumfilterAll, out int deviceCount);
             for (int idxDevice = 0; idxDevice < deviceCount; idxDevice++)
             {
-                ConnectedDevice device = new ConnectedDevice();
+                _ = dwf.FDwfEnumDeviceType(idxDevice, out int deviceId, out int deviceRevision);
+                _ = dwf.FDwfEnumDeviceIsOpened(idxDevice, out int isOpened);
+                _ = dwf.FDwfEnumUserName(idxDevice, out string userName);
+                _ = dwf.FDwfEnumDeviceName(idxDevice, out string deviceName);
+                _ = dwf.FDwfEnumSN(idxDevice, out string serialNumber);
 
-                device.Brand = "Digilent";
-                device.Library = "DWF v" + dwfVersion;
-
-                dwf.FDwfEnumDeviceType(idxDevice, out int deviceId, out int deviceRevision);
-                device.Id = deviceId;
-                device.Revision = deviceRevision;
-
-                dwf.FDwfEnumDeviceIsOpened(idxDevice, out int isOpened);
-                device.IsOpened = isOpened == 1;
-
-                dwf.FDwfEnumUserName(idxDevice, out string userName);
-                device.UserName = userName;
-
-                dwf.FDwfEnumDeviceName(idxDevice, out string deviceName);
-                device.Name = deviceName;
-
-                dwf.FDwfEnumSN(idxDevice, out string serialNumber);
-                device.SerialNumber = serialNumber;
+                ConnectedDevice device = new()
+                {
+                    Brand = "Digilent",
+                    Library = "DWF v" + dwfVersion,
+                    Id = deviceId,
+                    Revision = deviceRevision,
+                    IsOpened = isOpened == 1,
+                    UserName = userName,
+                    Name = deviceName,
+                    SerialNumber = serialNumber
+                };
 
                 result.Add(device);
             }
@@ -84,38 +80,38 @@ namespace BBD.BodyMonitor
 
         public int OpenDevice(int[] acquisitionChannels, float acquisitionSamplerate, bool signalGeneratorEnabled, byte signalGeneratorChannel, float signalGeneratorFrequency, float signalGeneratorVoltage, float blockLength, float bufferLength)
         {
-            this.AcquisitionChannels = acquisitionChannels;
-            this.Samplerate = acquisitionSamplerate;
-            this.SignalGeneratorEnabled = signalGeneratorEnabled;
-            this.SignalGeneratorChannel = signalGeneratorChannel;
-            this.SignalGeneratorFrequency = signalGeneratorFrequency;
-            this.SignalGeneratorVoltage = signalGeneratorVoltage;
-            this.BlockLength = blockLength;
-            this.BufferLength = bufferLength;
+            AcquisitionChannels = acquisitionChannels;
+            Samplerate = acquisitionSamplerate;
+            SignalGeneratorEnabled = signalGeneratorEnabled;
+            SignalGeneratorChannel = signalGeneratorChannel;
+            SignalGeneratorFrequency = signalGeneratorFrequency;
+            SignalGeneratorVoltage = signalGeneratorVoltage;
+            BlockLength = blockLength;
+            BufferLength = bufferLength;
 
             // Open the (first) AD2 with the 2nd configuration with 16k analog-in buffer
-            dwf.FDwfDeviceConfigOpen(-1, 1, out dwfHandle);
+            _ = dwf.FDwfDeviceConfigOpen(-1, 1, out dwfHandle);
 
-            while ((dwfHandle == dwf.hdwfNone) && (!terminateAcquisition))
+            while (dwfHandle == dwf.hdwfNone && !terminateAcquisition)
             {
-                dwf.FDwfGetLastErrorMsg(out string lastError);
+                _ = dwf.FDwfGetLastErrorMsg(out string lastError);
                 logger.LogWarning($"Failed to open device: {lastError.TrimEnd()}. Retrying in 10 seconds.");
 
                 Thread.Sleep(10000);
 
-                dwf.FDwfDeviceConfigOpen(-1, 1, out dwfHandle);
+                _ = dwf.FDwfDeviceConfigOpen(-1, 1, out dwfHandle);
             }
 
-            dwf.FDwfAnalogInBufferSizeInfo(dwfHandle, out int bufferSizeMinimum, out int bufferSizeMaximum);
+            _ = dwf.FDwfAnalogInBufferSizeInfo(dwfHandle, out int bufferSizeMinimum, out int bufferSizeMaximum);
             bufferSize = Math.Min(bufferSizeMaximum, (int)acquisitionSamplerate);
             logger.LogTrace($"Device buffer size range: {bufferSizeMinimum:N0} - {bufferSizeMaximum:N0} samples, set to {bufferSize:N0}.");
             voltData = new double[bufferSize];
 
             //set up acquisition
-            dwf.FDwfAnalogInFrequencySet(dwfHandle, acquisitionSamplerate);
-            dwf.FDwfAnalogInFrequencyGet(dwfHandle, out double realSamplerate);
+            _ = dwf.FDwfAnalogInFrequencySet(dwfHandle, acquisitionSamplerate);
+            _ = dwf.FDwfAnalogInFrequencyGet(dwfHandle, out double realSamplerate);
 
-            this.Samplerate = (float)realSamplerate;
+            Samplerate = (float)realSamplerate;
             if (acquisitionSamplerate != (int)realSamplerate)
             {
                 logger.LogWarning($"The sampling rate of {acquisitionSamplerate:N} Hz is not supported, so the effective sampling rate was set to {realSamplerate:N} Hz. Native sampling rates for AD2 are the following: 1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 128, 160, 200, 250, 256, 320, 400, 500, 625, 640, 800 Hz, 1, 1.25, 1.28, 1.6, 2, 2.5, 3.125, 3.2, 4, 5, 6.25, 6.4, 8, 10, 12.5, 15.625, 16, 20, 25, 31.250, 32, 40, 50, 62.5, 78.125, 80, 100, 125, 156.25, 160, 200, 250, 312.5, 390.625, 400, 500, 625, 781.25, 800 kHz, 1, 1.25, 1.5625, 2, 2.5, 3.125, 4, 5, 6.25, 10, 12.5, 20, 25, 50 and 100 MHz.");
@@ -127,15 +123,15 @@ namespace BBD.BodyMonitor
             }
             int blockCountInBuffer = (int)(bufferLength / blockLength);
 
-            this.BlockSize = (int)Math.Floor(this.Samplerate * blockLength);
-            this.BufferSize = blockCountInBuffer * this.BlockSize;
-            this.subscribers.Clear();
+            BlockSize = (int)Math.Floor(Samplerate * blockLength);
+            BufferSize = blockCountInBuffer * BlockSize;
+            subscribers.Clear();
 
-            dwf.FDwfAnalogInBufferSizeSet(dwfHandle, bufferSize);
-            dwf.FDwfAnalogInAcquisitionModeSet(dwfHandle, dwf.acqmodeRecord);
-            dwf.FDwfAnalogInRecordLengthSet(dwfHandle, -1);
+            _ = dwf.FDwfAnalogInBufferSizeSet(dwfHandle, bufferSize);
+            _ = dwf.FDwfAnalogInAcquisitionModeSet(dwfHandle, dwf.acqmodeRecord);
+            _ = dwf.FDwfAnalogInRecordLengthSet(dwfHandle, -1);
 
-            this.AcquisitionChannels = acquisitionChannels;
+            AcquisitionChannels = acquisitionChannels;
             foreach (byte acquisitionChannel in acquisitionChannels)
             {
                 byte acquisitionChannelIndex = 255;
@@ -148,11 +144,11 @@ namespace BBD.BodyMonitor
                     acquisitionChannelIndex = 1;
                 }
 
-                dwf.FDwfAnalogInChannelEnableSet(dwfHandle, acquisitionChannelIndex, 1);
-                dwf.FDwfAnalogInChannelRangeSet(dwfHandle, acquisitionChannelIndex, 5.0);
+                _ = dwf.FDwfAnalogInChannelEnableSet(dwfHandle, acquisitionChannelIndex, 1);
+                _ = dwf.FDwfAnalogInChannelRangeSet(dwfHandle, acquisitionChannelIndex, 5.0);
             }
 
-            if ((signalGeneratorEnabled) && (signalGeneratorChannel > 0))
+            if (signalGeneratorEnabled && signalGeneratorChannel > 0)
             {
                 // calculate the signal generator channel id
                 byte signalGeneratorChannelIndex = 255;
@@ -166,32 +162,32 @@ namespace BBD.BodyMonitor
                 }
 
                 // set up signal generation
-                dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
-                dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, dwf.funcSine);
-                dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorFrequency);
-                dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorVoltage);
+                _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
+                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, dwf.funcSine);
+                _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorFrequency);
+                _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorVoltage);
 
                 logger.LogTrace($"Generating sine wave at {signalGeneratorFrequency:N} Hz with {signalGeneratorVoltage} V of amplitude at channel {signalGeneratorChannelIndex}...");
-                dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
+                _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
 
-                this.SignalGeneratorEnabled = signalGeneratorEnabled;
-                this.SignalGeneratorChannel = signalGeneratorChannel;
-                this.SignalGeneratorFrequency = signalGeneratorFrequency;
-                this.SignalGeneratorVoltage = signalGeneratorVoltage;
+                SignalGeneratorEnabled = signalGeneratorEnabled;
+                SignalGeneratorChannel = signalGeneratorChannel;
+                SignalGeneratorFrequency = signalGeneratorFrequency;
+                SignalGeneratorVoltage = signalGeneratorVoltage;
             }
 
             //wait at least 2 seconds for the offset to stabilize
             Thread.Sleep(2000);
 
             //start data acquisition on CH0
-            dwf.FDwfAnalogInConfigure(dwfHandle, 0, 1);
+            _ = dwf.FDwfAnalogInConfigure(dwfHandle, 0, 1);
 
             return dwfHandle;
         }
 
         public void CloseDevice()
         {
-            dwf.FDwfDeviceCloseAll();
+            _ = dwf.FDwfDeviceCloseAll();
         }
 
         public int ResetDevice()
@@ -202,7 +198,7 @@ namespace BBD.BodyMonitor
             }
             catch { }
 
-            return OpenDevice(this.AcquisitionChannels, this.Samplerate, this.SignalGeneratorEnabled, this.SignalGeneratorChannel, this.SignalGeneratorFrequency, this.SignalGeneratorVoltage, this.BlockLength, this.BufferLength);
+            return OpenDevice(AcquisitionChannels, Samplerate, SignalGeneratorEnabled, SignalGeneratorChannel, SignalGeneratorFrequency, SignalGeneratorVoltage, BlockLength, BufferLength);
         }
 
         /// <summary>
@@ -211,11 +207,9 @@ namespace BBD.BodyMonitor
         public void Start()
         {
             terminateAcquisition = false;
-
-            int bufferIndex = 0;
             bool bufferError = false;
 
-            samplesBuffer = new ShiftingBuffer(this.BufferSize, this.BlockSize, this.Samplerate);
+            samplesBuffer = new ShiftingBuffer(BufferSize, BlockSize, Samplerate);
             samplesBuffer.BlockReceived += SamplesBuffer_BlockReceived;
             samplesBuffer.BufferError += SamplesBuffer_BufferError;
 
@@ -224,7 +218,7 @@ namespace BBD.BodyMonitor
             float corruptedBytes = 0;
             float lostBytes = 0;
 
-            Thread acquisitionLoopThread = new Thread(() =>
+            Thread acquisitionLoopThread = new(() =>
             {
                 int i = 0;
                 while (!terminateAcquisition)
@@ -233,7 +227,7 @@ namespace BBD.BodyMonitor
                     {
                         if (availableBytes != totalBytes)
                         {
-                            logger.LogWarning($"Data acquisition device reported some errors! Good: {(availableBytes / totalBytes).ToString("0.0%").PadLeft(6)} | Corrupted: {(corruptedBytes / totalBytes).ToString("0.0%").PadLeft(6)} | Lost: {(lostBytes / totalBytes).ToString("0.0%").PadLeft(6)}");
+                            logger.LogWarning($"Data acquisition device reported some errors! Good: {availableBytes / totalBytes,6:0.0%} | Corrupted: {corruptedBytes / totalBytes,6:0.0%} | Lost: {lostBytes / totalBytes,6:0.0%}");
                         }
 
                         totalBytes = 0;
@@ -244,7 +238,7 @@ namespace BBD.BodyMonitor
 
                     while (true)
                     {
-                        dwf.FDwfAnalogInStatus(dwfHandle, 1, out byte sts);
+                        _ = dwf.FDwfAnalogInStatus(dwfHandle, 1, out byte sts);
 
                         if (sts == dwf.DwfStateRunning)
                         {
@@ -258,7 +252,7 @@ namespace BBD.BodyMonitor
                         Thread.Sleep(100);
                     }
 
-                    dwf.FDwfAnalogInStatusRecord(dwfHandle, out int cAvailable, out int cLost, out int cCorrupted);
+                    _ = dwf.FDwfAnalogInStatusRecord(dwfHandle, out int cAvailable, out int cLost, out int cCorrupted);
 
                     if (cAvailable == 0)
                     {
@@ -274,7 +268,7 @@ namespace BBD.BodyMonitor
                     }
 
                     int cTotal = cAvailable + cLost + cCorrupted;
-                    if ((cLost > 0) || (cCorrupted > 0))
+                    if (cLost > 0 || cCorrupted > 0)
                     {
                         bufferError = true;
                     }
@@ -284,44 +278,45 @@ namespace BBD.BodyMonitor
                     lostBytes += cLost;
                     corruptedBytes += cCorrupted;
 
-                    dwf.FDwfAnalogInStatusData(dwfHandle, 0, voltData, cAvailable);     // get CH1 data chunk
+                    _ = dwf.FDwfAnalogInStatusData(dwfHandle, 0, voltData, cAvailable);     // get CH1 data chunk
 
                     if (bufferError)
                     {
-                        samplesBuffer.Error(cAvailable, cLost, cCorrupted, (int)cTotal);
+                        samplesBuffer.Error(cAvailable, cLost, cCorrupted, cTotal);
                         bufferError = false;
                         continue;
                     }
 
                     double[] voltDataAvailable = new double[cAvailable];
                     Array.Copy(voltData, voltDataAvailable, Math.Min(cAvailable, voltData.Length));
-                    samplesBuffer.Write(Array.ConvertAll<double, float>(voltDataAvailable, v => (float)v));
+                    _ = samplesBuffer.Write(Array.ConvertAll(voltDataAvailable, v => (float)v));
                 }
 
                 samplesBuffer.Clear();
                 logger.LogTrace("Acquisition done");
-            });
-
-            acquisitionLoopThread.Priority = ThreadPriority.Highest;
+            })
+            {
+                Priority = ThreadPriority.Highest
+            };
             acquisitionLoopThread.Start();
         }
 
         private void SamplesBuffer_BufferError(object sender, BufferErrorEventArgs e)
         {
-            this.BufferError?.Invoke(this, e);
+            BufferError?.Invoke(this, e);
         }
 
         private void SamplesBuffer_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
-            foreach (var subscribedActionList in subscribers)
+            foreach (KeyValuePair<int, List<Action<object, BlockReceivedEventArgs>>> subscribedActionList in subscribers)
             {
                 if (e.DataBlock.EndIndex % subscribedActionList.Key == 0)
                 {
                     DataBlock db = e.Buffer.GetBlocks(subscribedActionList.Key, e.DataBlock.EndIndex);
 
-                    foreach (var subscribedAction in subscribedActionList.Value)
+                    foreach (Action<object, BlockReceivedEventArgs> subscribedAction in subscribedActionList.Value)
                     {
-                        Task.Run(() => subscribedAction(sender, new BlockReceivedEventArgs(e.Buffer, db)));
+                        _ = Task.Run(() => subscribedAction(sender, new BlockReceivedEventArgs(e.Buffer, db)));
                     }
                 }
             }
@@ -337,16 +332,16 @@ namespace BBD.BodyMonitor
 
         public void SubscribeToBlockReceived(float interval, Action<object, BlockReceivedEventArgs> action)
         {
-            double samplesInInterval = (this.Samplerate * interval);
+            double samplesInInterval = Samplerate * interval;
 
-            if (samplesInInterval % this.BlockSize != 0)
+            if (samplesInInterval % BlockSize != 0)
             {
-                if (samplesInInterval >= this.BlockSize)
+                if (samplesInInterval >= BlockSize)
                 {
-                    double samplesInIntervalRounded = Math.Round(samplesInInterval / this.BlockSize) * this.BlockSize;
-                    float newInterval = (float)(samplesInIntervalRounded / this.Samplerate);
+                    double samplesInIntervalRounded = Math.Round(samplesInInterval / BlockSize) * BlockSize;
+                    float newInterval = (float)(samplesInIntervalRounded / Samplerate);
 
-                    logger.LogWarning($"The interval {interval} would have produced a sample count that is not a multiple of the block size {this.BlockSize}, so it was modified to {newInterval}.");
+                    logger.LogWarning($"The interval {interval} would have produced a sample count that is not a multiple of the block size {BlockSize}, so it was modified to {newInterval}.");
 
                     interval = newInterval;
                 }
@@ -356,11 +351,11 @@ namespace BBD.BodyMonitor
                 }
             }
 
-            int callingFrequency = (int)(this.Samplerate * interval / this.BlockSize);
+            int callingFrequency = (int)(Samplerate * interval / BlockSize);
 
             if (callingFrequency == 0)
             {
-                throw new ArgumentException($"The interval ({interval:N0} seconds) is too low for this block length ({this.BlockSize} samples).", "interval");
+                throw new ArgumentException($"The interval ({interval:N0} seconds) is too low for this block length ({BlockSize} samples).", "interval");
             }
 
             if (!subscribers.ContainsKey(callingFrequency))
@@ -375,11 +370,11 @@ namespace BBD.BodyMonitor
         {
             // calculate the signal generator channel id
             byte signalGeneratorChannelIndex = 255;
-            if (this.SignalGeneratorChannel == 1)
+            if (SignalGeneratorChannel == 1)
             {
                 signalGeneratorChannelIndex = 0;
             }
-            else if (this.SignalGeneratorChannel == 2)
+            else if (SignalGeneratorChannel == 2)
             {
                 signalGeneratorChannelIndex = 1;
             }
@@ -388,22 +383,24 @@ namespace BBD.BodyMonitor
             //dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
 
             // change the frequency
-            dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, frequency);
+            _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, frequency);
             //dwf.FDwfAnalogOutNodeFrequencyGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double phzFrequency);
             //dwf.FDwfAnalogOutNodeAmplitudeGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double pvAmplitude);
             //logger.LogInformation($"Signal generator output: {pvAmplitude:0.000} V @ {phzFrequency:0.00} Hz");
 
             // start the signal generator
-            dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
+            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
 
             while (true)
             {
                 logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
-                dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
+                _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
                 logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
 
                 if (psts == dwf.DwfStateRunning)
+                {
                     break;
+                }
 
                 logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
                 Thread.Sleep(500);
@@ -420,45 +417,47 @@ namespace BBD.BodyMonitor
 
             // calculate the signal generator channel id
             byte signalGeneratorChannelIndex = 255;
-            if (this.SignalGeneratorChannel == 1)
+            if (SignalGeneratorChannel == 1)
             {
                 signalGeneratorChannelIndex = 0;
             }
-            else if (this.SignalGeneratorChannel == 2)
+            else if (SignalGeneratorChannel == 2)
             {
                 signalGeneratorChannelIndex = 1;
             }
 
             // stop the signal generator
-            dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
+            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
 
             // change the frequency
-            dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
-            dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, dwf.funcSine);
-            dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, middleFrequency);
-            dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, this.SignalGeneratorVoltage);
-            dwf.FDwfAnalogOutNodeOffsetSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1.0f);
+            _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
+            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, dwf.funcSine);
+            _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, middleFrequency);
+            _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, SignalGeneratorVoltage);
+            _ = dwf.FDwfAnalogOutNodeOffsetSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1.0f);
 
-            dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1);
-            dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, dwf.funcRampUp);
-            dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1.0 / duration);
-            dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100.0 * (endFrequency - middleFrequency) / middleFrequency);
-            dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100);
+            _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1);
+            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, dwf.funcRampUp);
+            _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1.0 / duration);
+            _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100.0 * (endFrequency - middleFrequency) / middleFrequency);
+            _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100);
 
-            dwf.FDwfAnalogOutRunSet(dwfHandle, signalGeneratorChannelIndex, duration);
-            dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1);
+            _ = dwf.FDwfAnalogOutRunSet(dwfHandle, signalGeneratorChannelIndex, duration);
+            _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1);
 
             // start the signal generator
-            dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
+            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
 
             while (true)
             {
                 logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
-                dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
+                _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
                 logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
 
                 if (psts == dwf.DwfStateRunning)
+                {
                     break;
+                }
 
                 logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
                 Thread.Sleep(500);
@@ -476,20 +475,19 @@ namespace BBD.BodyMonitor
 
         public float GetSignalGeneratorFrequency()
         {
-            double frequency = 0;
 
             // calculate the signal generator channel id
             byte signalGeneratorChannelIndex = 255;
-            if (this.SignalGeneratorChannel == 1)
+            if (SignalGeneratorChannel == 1)
             {
                 signalGeneratorChannelIndex = 0;
             }
-            else if (this.SignalGeneratorChannel == 2)
+            else if (SignalGeneratorChannel == 2)
             {
                 signalGeneratorChannelIndex = 1;
             }
 
-            dwf.FDwfAnalogOutFrequencyGet(dwfHandle, signalGeneratorChannelIndex, out frequency);
+            _ = dwf.FDwfAnalogOutFrequencyGet(dwfHandle, signalGeneratorChannelIndex, out double frequency);
 
             return (float)frequency;
         }

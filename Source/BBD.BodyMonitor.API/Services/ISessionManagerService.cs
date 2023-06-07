@@ -1,4 +1,5 @@
 ﻿using BBD.BodyMonitor.Sessions;
+using BBD.BodyMonitor.Sessions.Segments;
 
 namespace BBD.BodyMonitor.Services
 {

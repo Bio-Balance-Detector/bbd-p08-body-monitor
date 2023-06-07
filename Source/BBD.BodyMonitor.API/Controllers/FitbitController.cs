@@ -2,6 +2,7 @@ using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Controllers;
 using BBD.BodyMonitor.Services;
 using BBD.BodyMonitor.Sessions;
+using BBD.BodyMonitor.Sessions.Segments;
 using Fitbit.Api.Portable;
 using Fitbit.Api.Portable.Models;
 using Fitbit.Api.Portable.OAuth2;

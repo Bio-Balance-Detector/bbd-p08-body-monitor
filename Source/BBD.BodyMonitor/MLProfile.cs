@@ -2,7 +2,7 @@
 {
     public class MLProfile
     {
-        public string Name { get; set; }
+        public required string Name { get; set; }
         public float FrequencyStep { get; set; }
         public float MinFrequency { get; set; }
         public float MaxFrequency { get; set; }

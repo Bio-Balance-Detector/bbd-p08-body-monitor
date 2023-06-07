@@ -12,10 +12,10 @@
         public event BlockReceivedEventHandler BlockReceived;
         public event BufferErrorEventHandler BufferError;
 
-        private float[] buffer;
-        private double samplerate;
+        private readonly float[] buffer;
+        private readonly double samplerate;
 
-        private Dictionary<long, DataBlock> blockRepo = new Dictionary<long, DataBlock>();
+        private readonly Dictionary<long, DataBlock> blockRepo = new();
 
         public ShiftingBuffer(long bufferSize, long blockSize, double samplerate)
         {
@@ -40,7 +40,7 @@
             }
 
             buffer = new float[bufferSize];
-            this.BlockSize = blockSize;
+            BlockSize = blockSize;
             this.samplerate = samplerate;
         }
 
@@ -48,16 +48,16 @@
         {
             lock (buffer)
             {
-                this.blockRepo.Clear();
-                this.Position = 0;
-                this.TotalWrites = 0;
+                blockRepo.Clear();
+                Position = 0;
+                TotalWrites = 0;
             }
         }
 
         public void Error(int bytesAvailable, int bytesLost, int bytesCorrupted, int bytesTotal)
         {
-            this.Clear();
-            this.BufferError?.Invoke(this, new BufferErrorEventArgs(this, bytesAvailable, bytesLost, bytesCorrupted, bytesTotal));
+            Clear();
+            BufferError?.Invoke(this, new BufferErrorEventArgs(this, bytesAvailable, bytesLost, bytesCorrupted, bytesTotal));
         }
 
         public long Write(float[] samplesToWrite)
@@ -67,53 +67,53 @@
                 long bufferLength = buffer.Length;
                 long samplesToWriteLength = samplesToWrite.Length;
 
-                if (this.Position + samplesToWriteLength > bufferLength)
+                if (Position + samplesToWriteLength > bufferLength)
                 {
                     // we are going to have an overflow
-                    long samplesToWriteFirst = bufferLength - this.Position;
-                    Array.Copy(samplesToWrite, 0, buffer, this.Position, samplesToWriteFirst);
+                    long samplesToWriteFirst = bufferLength - Position;
+                    Array.Copy(samplesToWrite, 0, buffer, Position, samplesToWriteFirst);
 
                     long samplesToWriteSecond = samplesToWriteLength - samplesToWriteFirst;
                     Array.Copy(samplesToWrite, samplesToWriteFirst, buffer, 0, samplesToWriteSecond);
-                    this.Position = samplesToWriteSecond;
+                    Position = samplesToWriteSecond;
                 }
                 else
                 {
                     // we don't have an overflow, so it's fairly straigthforward
-                    Array.Copy(samplesToWrite, 0, buffer, this.Position, samplesToWriteLength);
-                    this.Position += samplesToWriteLength;
+                    Array.Copy(samplesToWrite, 0, buffer, Position, samplesToWriteLength);
+                    Position += samplesToWriteLength;
                 }
 
-                long previousBlockIndex = (this.TotalWrites / this.BlockSize);
-                long currentBlockIndex = ((this.TotalWrites + samplesToWriteLength) / this.BlockSize);
+                long previousBlockIndex = TotalWrites / BlockSize;
+                long currentBlockIndex = (TotalWrites + samplesToWriteLength) / BlockSize;
 
-                double blockTime = this.BlockSize * (1000 / this.samplerate);
+                double blockTime = BlockSize * (1000 / samplerate);
                 DateTimeOffset endTime = DateTimeOffset.Now;
                 for (long blockIndex = currentBlockIndex; blockIndex > previousBlockIndex; blockIndex--)
                 {
                     // we have at least one new block                    
-                    long blockPosition = (blockIndex * this.BlockSize) % buffer.Length;
+                    long blockPosition = blockIndex * BlockSize % buffer.Length;
                     DateTimeOffset startTime = endTime.AddMilliseconds(-blockTime);
 
-                    DataBlock newBlock = new DataBlock(this.BlockSize, blockPosition, blockIndex, blockIndex, this.Get(this.BlockSize, blockPosition), startTime, endTime);
+                    DataBlock newBlock = new(BlockSize, blockPosition, blockIndex, blockIndex, Get(BlockSize, blockPosition), startTime, endTime);
                     blockRepo.Add(blockIndex, newBlock);
 
                     endTime = startTime;
 
-                    this.BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock));
+                    BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock));
                 }
 
-                this.TotalWrites += samplesToWriteLength;
+                TotalWrites += samplesToWriteLength;
             }
 
-            return this.Position;
+            return Position;
         }
 
         public DataBlock GetBlocks(float duration, long? endBlockIndex = null)
         {
-            int blockCount = (int)(duration * this.samplerate / this.BlockSize) + 1;
+            int blockCount = (int)(duration * samplerate / BlockSize) + 1;
 
-            return this.GetBlocks(blockCount, endBlockIndex);
+            return GetBlocks(blockCount, endBlockIndex);
         }
 
         public DataBlock GetBlocks(int blockCount, long? endBlockIndex = null)
@@ -127,7 +127,7 @@
 
                 DateTimeOffset startTime = DateTimeOffset.MaxValue;
                 DateTimeOffset endTime = DateTimeOffset.MinValue;
-                List<float> data = new List<float>();
+                List<float> data = new();
 
                 for (long i = startBlockIndex; i <= endBlockIndex.Value; i++)
                 {
@@ -147,7 +147,7 @@
                     }
                 }
 
-                result = new DataBlock(this.BlockSize, -1, startBlockIndex, endBlockIndex.Value, data.ToArray(), startTime, endTime);
+                result = new DataBlock(BlockSize, -1, startBlockIndex, endBlockIndex.Value, data.ToArray(), startTime, endTime);
             }
 
             return result;
@@ -162,7 +162,7 @@
 
             int bufferLength = buffer.Length;
             float[] result = new float[samplesToRead];
-            bufferPosition ??= this.Position;
+            bufferPosition ??= Position;
             long readStartPosition = (bufferPosition.Value - samplesToRead + bufferLength) % bufferLength;
 
             lock (buffer)

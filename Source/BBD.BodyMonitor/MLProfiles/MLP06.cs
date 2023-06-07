@@ -6,7 +6,7 @@ namespace BBD.BodyMonitor.MLProfiles
     {
         [LoadColumn(0, 149999)]
         [VectorType(150000)]
-        public float[] Features { get; set; }
+        public required float[] Features { get; set; }
 
         [LoadColumn(150000)]
         public float Label { get; set; }

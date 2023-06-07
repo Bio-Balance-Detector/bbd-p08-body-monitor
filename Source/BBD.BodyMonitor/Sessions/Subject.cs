@@ -12,7 +12,7 @@
 
         public override string ToString()
         {
-            return $"Subject {this.Alias}: '{this.Name}'";
+            return $"Subject {Alias}: '{Name}'";
         }
     }
 }

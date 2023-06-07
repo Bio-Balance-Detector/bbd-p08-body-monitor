@@ -1,4 +1,4 @@
-﻿namespace BBD.BodyMonitor.Sessions
+﻿namespace BBD.BodyMonitor.Sessions.Segments
 {
     public class Segment
     {
@@ -9,14 +9,9 @@
         {
             double duration = (End - Start).TotalSeconds;
 
-            if ((Start.Offset == TimeSpan.Zero) && (End.Offset == TimeSpan.Zero))
-            {
-                return $"Segment {Start:s} +{duration:0.00}s";
-            }
-            else
-            {
-                return $"Segment {Start:O} +{duration:0.00}s";
-            }
+            return Start.Offset == TimeSpan.Zero && End.Offset == TimeSpan.Zero
+                ? $"Segment {Start:s} +{duration:0.00}s"
+                : $"Segment {Start:O} +{duration:0.00}s";
         }
     }
 }

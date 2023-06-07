@@ -1,5 +1,6 @@
 ﻿using BBD.BodyMonitor.Sessions;
 using BBD.BodyMonitor.Sessions.CustomJsonConverters;
+using BBD.BodyMonitor.Sessions.Segments;
 using System.Text.Json;
 
 namespace BBD.BodyMonitor.Services

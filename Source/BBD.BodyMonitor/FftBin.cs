@@ -10,12 +10,12 @@
 
         public override string ToString()
         {
-            return this.MiddleFrequency.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat) + "±" + (this.Width / 2).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat) + " Hz";
+            return MiddleFrequency.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat) + "±" + (Width / 2).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat) + " Hz";
         }
 
         public string ToString(string format)
         {
-            return this.MiddleFrequency.ToString(format, System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+            return MiddleFrequency.ToString(format, System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
         }
     }
 }

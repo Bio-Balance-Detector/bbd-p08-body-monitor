@@ -44,7 +44,7 @@
 
         public long GetHash()
         {
-            return (long)(BlockSize ^ BufferPosition ^ StartIndex ^ EndIndex ^ StartTime.ToUnixTimeMilliseconds() ^ EndTime.ToUnixTimeMilliseconds());
+            return BlockSize ^ BufferPosition ^ StartIndex ^ EndIndex ^ StartTime.ToUnixTimeMilliseconds() ^ EndTime.ToUnixTimeMilliseconds();
         }
     }
 }

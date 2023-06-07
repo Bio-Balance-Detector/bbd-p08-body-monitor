@@ -1,4 +1,4 @@
-﻿namespace BBD.BodyMonitor.Sessions
+﻿namespace BBD.BodyMonitor.Sessions.Segments
 {
     public class HeartRateSegment : Segment
     {
