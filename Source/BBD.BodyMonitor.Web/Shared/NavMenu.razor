@@ -1,11 +1,11 @@
-﻿@*<div class="top-row ps-3 navbar navbar-dark">
+﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">BBD Body Monitor</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
-</div>*@
+</div>
 
 @*<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
@@ -79,6 +79,8 @@
     <div class="card-overlay" style="background-image:url(images/bg-menu.jpg);"></div>
     <div class="card-overlay bg-black opacity-80"></div>
 </div>
+
+<a href="#" class="header-icon header-icon-1" data-menu="menu-background"><i class="fas fa-bars"></i></a>
 
 @code {
     private bool collapseNavMenu = true;

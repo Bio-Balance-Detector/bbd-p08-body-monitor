@@ -1,6 +1,7 @@
 ﻿@page "/"
 @page "/dashboard"
 @using BBD.BodyMonitor.Environment;
+@using BBD.BodyMonitor.Sessions;
 @using BBD.BodyMonitor.Web.Data
 @inject BioBalanceDetectorService BBDService
 
@@ -16,54 +17,72 @@
 else
 {
     <p>
-        <div>Locations:</div>
-        @if (BioBalanceDetectorService.SystemInformation.Locations != null && BioBalanceDetectorService.SystemInformation.Locations.Any())
-        {
-            @foreach (var location in BioBalanceDetectorService.SystemInformation.Locations)
-            {
-                <div>
-                    <input type="radio" id="@location.Id" name="location" value="@location.Name">
-                    <label for="@location.Id">@location.Name</label>
-                </div>
-            }
-        }
-        else
-        {
-            <div>N/A</div>
-        }
-        <br />
-
-        <div>Subjects:</div>
-        @if (BioBalanceDetectorService.SystemInformation.Subjects != null && BioBalanceDetectorService.SystemInformation.Subjects.Any())
-        {
-            @foreach (var subject in BioBalanceDetectorService.SystemInformation.Subjects)
-            {
-                <div>
-                    <input type="radio" id="@subject.Id" name="location" value="@subject.Name">
-                    <label for="@subject.Id">@subject.Name</label>
-                </div>
-            }
-        }
-        else
-        {
-            <div>N/A</div>
-        }
-        <br />
-
         Host: @BioBalanceDetectorService.SystemInformation.CPUName with @BioBalanceDetectorService.SystemInformation.RAMSize GB RAM<br />
-        Connected Devices: @BioBalanceDetectorService.SystemInformation.Devices.Count()<br />
-        @foreach (var device in BioBalanceDetectorService.SystemInformation.Devices)
-        {
-            <div>
-                <div>@device.Brand @device.Name (@device.SerialNumber)</div>
-                @*add a button to start the data aquistion*@
-                <a @onclick="Start" class="btn btn-m btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s @(device.IsOpened ? "bg-gray-dark no-click" : "bg-green-dark")">Start</a>
-
-                @*add a button to stop the data aquistion*@
-                <a @onclick="Stop" class="btn btn-m btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s @(device.IsOpened ? "bg-red-light" : "bg-gray-dark no-click")">Stop</a>
-            </div>
-        }
         Active Sessions: @BioBalanceDetectorService.SystemInformation.Sessions.Count()<br />
+
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-location" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-location-dot color-red-dark"></i>
+                <span class="font-14">Location: @GetSelectedLocationName()</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
+        <div class="collapse" id="collapse-location" style="">
+            <div class="list-group list-custom-small ms-4 ps-2">
+                @foreach (var location in BioBalanceDetectorService.SystemInformation.Locations)
+                {
+                    <a id="@location.Id" href="#">
+                        <span class="font-400 opacity-70">@location.Name</span>
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-subject" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-duotone fa-users color-blue-dark"></i>
+                <span class="font-14">Subject: @GetSelectedSubjectName()</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
+        <div class="collapse" id="collapse-subject" style="">
+            <div class="list-group list-custom-small ms-4 ps-2">
+                @foreach (var subject in BioBalanceDetectorService.SystemInformation.Subjects)
+                {
+                    <a id="@subject.Id" href="#">
+                        <span class="font-400 opacity-70">@subject.Name</span>
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-device" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-microchip color-blue-dark"></i>
+                <span class="font-14">Device: @GetSelectedDeviceName()</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
+        <div class="collapse" id="collapse-device" style="">
+            <div class="list-group list-custom-small ms-4 ps-2">
+                @foreach (var device in BioBalanceDetectorService.SystemInformation.Devices)
+                {
+                    <a id="@device.Id" href="#">
+                        <i class="fa-solid @(device.IsOpened ? "fa-triangle-exclamation color-yelow-dark" : "fa-circle-check color-green-dark")"></i>
+                        <span class="flex-fill font-400 opacity-70">@device.Brand @device.Name (@device.SerialNumber)</span>
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+
+        @*add a button to start the data aquistion*@
+        <a @onclick="Start" class="flex-fill p-2 btn btn-s btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-green-dark">Start</a>
+
+        @*add a button to stop the data aquistion*@
+        <a @onclick="Stop" class="flex-fill p-2 btn btn-s btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-gray-dark no-click">Stop</a>
     </p>
 }
 
@@ -86,4 +105,31 @@ else
     protected void Start() => BBDService.Start();
 
     protected void Stop() => BBDService.Stop();
+
+    protected String GetSelectedLocationName()
+    {
+        var config = BBDService.GetConfigAsync().Result;
+
+        Location? location = BioBalanceDetectorService.SystemInformation?.Locations.FirstOrDefault(l => l.Alias == config?.LocationAlias);
+
+        return location?.Name ?? "N/A";
+    }
+
+    protected String GetSelectedSubjectName()
+    {
+        var config = BBDService.GetConfigAsync().Result;
+
+        Subject? subject = BioBalanceDetectorService.SystemInformation?.Subjects.FirstOrDefault(s => s.Alias == config?.SubjectAlias);
+
+        return subject?.Name ?? "N/A";
+    }
+
+    protected String GetSelectedDeviceName()
+    {
+        var config = BBDService.GetConfigAsync().Result;
+
+        ConnectedDevice? device = BioBalanceDetectorService.SystemInformation?.Devices.FirstOrDefault(d => d.SerialNumber == config?.DeviceSerialNumber);
+
+        return ($"{device.Brand} {device?.Name} ({device?.SerialNumber})") ?? "N/A";
+    }
 }

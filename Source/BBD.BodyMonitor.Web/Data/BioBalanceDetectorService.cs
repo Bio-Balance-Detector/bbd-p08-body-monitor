@@ -1,6 +1,5 @@
 using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
-using System.IO;
 using System.Text.Json;
 
 namespace BBD.BodyMonitor.Web.Data
@@ -8,7 +7,7 @@ namespace BBD.BodyMonitor.Web.Data
     public class BioBalanceDetectorService
     {
         private readonly string _address;
-        private readonly HttpClient _client = new HttpClient();
+        private readonly HttpClient _client = new();
 
         public static SystemInformation? SystemInformation = null;
 
@@ -18,25 +17,76 @@ namespace BBD.BodyMonitor.Web.Data
             _client.BaseAddress = new Uri(address);
         }
 
-        public Task<SystemInformation?> GetSystemInformationAsync() => _client.GetFromJsonAsync<SystemInformation>("system/getsysteminformation");
+        public Task<SystemInformation?> GetSystemInformationAsync()
+        {
+            return _client.GetFromJsonAsync<SystemInformation>("system/getsysteminformation");
+        }
 
-        public void Start() => _client.GetAsync("dataacquisition/start");
+        public async Task<BodyMonitorOptions?> GetConfigAsync()
+        {
+            // Send a GET request to the API endpoint
+            HttpResponseMessage responseMessage = _client.GetAsync("system/getconfig").Result;
 
-        public void Stop() => _client.GetAsync("dataacquisition/stop");
+            // Ensure the response is successful before proceeding
+            _ = responseMessage.EnsureSuccessStatusCode();
+
+            // Parse the response body as JSON
+            string json = await responseMessage.Content.ReadAsStringAsync();
+
+            JsonSerializerOptions options = new()
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true,
+            };
+
+            // Deserialize the JSON String to BodyMonitorOptions object
+            BodyMonitorOptions? bodyMonitorOptions = JsonSerializer.Deserialize<BodyMonitorOptions>(json, options);
+
+            return bodyMonitorOptions;
+
+            //return _client.GetFromJsonAsync<BodyMonitorOptions>("system/getconfig");
+        }
+
+        public async Task<BodyMonitorOptions?> SetConfigAsync(BodyMonitorOptions config)
+        {
+            // Send a POST request to the API endpoint
+            HttpResponseMessage responseMessage = _client.PostAsJsonAsync("system/setconfig", config).Result;
+
+            // Ensure the response is successful before proceeding
+            _ = responseMessage.EnsureSuccessStatusCode();
+
+            // Parse the response body as JSON
+            string json = await responseMessage.Content.ReadAsStringAsync();
+
+            // Deserialize the JSON String to BodyMonitorOptions object
+            BodyMonitorOptions bodyMonitorOptions = JsonSerializer.Deserialize<BodyMonitorOptions>(json);
+
+            return bodyMonitorOptions;
+        }
+
+        public void Start()
+        {
+            _ = _client.GetAsync("dataacquisition/start");
+        }
+
+        public void Stop()
+        {
+            _ = _client.GetAsync("dataacquisition/stop");
+        }
 
         // call the StreamSystemInformation API endpoint
         public async void StreamSystemInformationAsync(CancellationToken cancellationToken)
         {
-            var response = await _client.GetAsync("system/streamsysteminformation", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            HttpResponseMessage response = await _client.GetAsync("system/streamsysteminformation", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            _ = response.EnsureSuccessStatusCode();
 
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var reader = new StreamReader(stream);
+            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using StreamReader reader = new(stream);
 
             while (!reader.EndOfStream)
             {
-                var json = await reader.ReadLineAsync();
-                var systemInformation = JsonSerializer.Deserialize<SystemInformation>(json);
+                string? json = await reader.ReadLineAsync();
+                SystemInformation? systemInformation = JsonSerializer.Deserialize<SystemInformation>(json);
 
                 // Update a local variable with the new data as needed
                 SystemInformation = systemInformation;
