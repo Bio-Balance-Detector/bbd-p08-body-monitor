@@ -17,15 +17,17 @@ namespace BBD.BodyMonitor.Services
         public string? MetadataDirectory { get; private set; }
         public string? SessionsDirectory { get; private set; }
 
-        public Location[]? ListLocations()
+        public Location[] ListLocations()
         {
-            return aliases.Where(s => s.Value.Location != null).Select(s => s.Value.Location).ToArray();
+            return aliases.Where(s => s.Value.Location != null).Select(s => s.Value.Location).ToArray() ?? Array.Empty<Location>();
         }
-        public Subject[]? ListSubjects()
+
+        public Subject[] ListSubjects()
         {
-            return aliases.Where(s => s.Value.Subject != null).Select(s => s.Value.Subject).ToArray();
+            return aliases.Where(s => s.Value.Subject != null).Select(s => s.Value.Subject).ToArray() ?? Array.Empty<Subject>();
         }
-        public Session[]? ListSessions()
+
+        public Session[] ListSessions()
         {
             return sessions.Values.ToArray();
         }
@@ -85,14 +87,14 @@ namespace BBD.BodyMonitor.Services
 
                         session.SegmentedData.BloodTest = TruncateSegmentedData(session.SegmentedData.BloodTest, session.StartedAt.Value, session.FinishedAt.Value) as BloodTestSegment[];
                     }
-                    _ = sessions.Remove(session.Id);
+                    //_ = sessions.Remove(session.Id);
                 }
             }
 
             return session;
         }
 
-        public Session ResetSession()
+        public Session? ResetSession()
         {
             Session result;
 
@@ -100,6 +102,11 @@ namespace BBD.BodyMonitor.Services
             {
                 // get the currently running session
                 Session? session = GetSession(null);
+
+                if (session == null)
+                {
+                    return null;
+                }
 
                 // clone that session
                 result = StartSession(session.Location?.Alias, session.Subject?.Alias);

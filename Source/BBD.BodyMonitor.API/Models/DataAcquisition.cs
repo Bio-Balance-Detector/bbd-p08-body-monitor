@@ -7,6 +7,7 @@ namespace BBD.BodyMonitor.Models
     internal class DataAcquisition
     {
         public int DeviceIndex { get; internal set; }
+        public string SerialNumber { get; private set; }
         public float Samplerate { get; private set; }
         /// <summary>
         /// Number of samples to fill the buffer
@@ -23,6 +24,7 @@ namespace BBD.BodyMonitor.Models
 
         private readonly ILogger logger;
 
+        private readonly int openDeviceMaxRetryCount = 5;
         private int dwfHandle = -1;
 
         /// <summary>
@@ -94,7 +96,7 @@ namespace BBD.BodyMonitor.Models
         /// <param name="bufferLength"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public int OpenDevice(int deviceIndex, int[] acquisitionChannels, float acquisitionSamplerate, bool signalGeneratorEnabled, byte signalGeneratorChannel, float signalGeneratorFrequency, float signalGeneratorVoltage, float blockLength, float bufferLength)
+        public string? OpenDevice(int deviceIndex, int[] acquisitionChannels, float acquisitionSamplerate, bool signalGeneratorEnabled, byte signalGeneratorChannel, float signalGeneratorFrequency, float signalGeneratorVoltage, float blockLength, float bufferLength)
         {
             DeviceIndex = deviceIndex;
             AcquisitionChannels = acquisitionChannels;
@@ -106,17 +108,28 @@ namespace BBD.BodyMonitor.Models
             BlockLength = blockLength;
             BufferLength = bufferLength;
 
-            // Open the (first) AD2 with the 2nd configuration with 16k analog-in buffer
+            // get the serial number of the device
+            _ = dwf.FDwfEnumSN(deviceIndex, out string serialNumber);
+            SerialNumber = serialNumber;
+
+            // Open the AD2 with the 2nd configuration with 16k analog-in buffer
             _ = dwf.FDwfDeviceConfigOpen(deviceIndex, 1, out dwfHandle);
 
-            while (dwfHandle == dwf.hdwfNone && !terminateAcquisition)
+            int openDeviceRetryCount = 0;
+            while (dwfHandle == dwf.hdwfNone && !terminateAcquisition && (openDeviceRetryCount < openDeviceMaxRetryCount))
             {
                 _ = dwf.FDwfGetLastErrorMsg(out string lastError);
-                logger.LogWarning($"Failed to open device: {lastError.TrimEnd()}. Retrying in 10 seconds.");
+                logger.LogWarning($"Failed to open device '{SerialNumber}': {lastError.TrimEnd()}. Retrying in 10 seconds.");
 
                 Thread.Sleep(10000);
 
                 _ = dwf.FDwfDeviceConfigOpen(deviceIndex, 1, out dwfHandle);
+                openDeviceRetryCount++;
+            }
+
+            if (openDeviceRetryCount == openDeviceMaxRetryCount)
+            {
+                return null;
             }
 
             _ = dwf.FDwfAnalogInBufferSizeInfo(dwfHandle, out int bufferSizeMinimum, out int bufferSizeMaximum);
@@ -199,15 +212,15 @@ namespace BBD.BodyMonitor.Models
             //start data acquisition on CH0
             _ = dwf.FDwfAnalogInConfigure(dwfHandle, 0, 1);
 
-            return dwfHandle;
+            return serialNumber;
         }
 
         public void CloseDevice()
         {
-            _ = dwf.FDwfDeviceCloseAll();
+            _ = dwf.FDwfDeviceClose(dwfHandle);
         }
 
-        public int ResetDevice()
+        public string? ResetDevice()
         {
             try
             {
@@ -244,7 +257,7 @@ namespace BBD.BodyMonitor.Models
                     {
                         if (availableBytes != totalBytes)
                         {
-                            logger.LogWarning($"Data acquisition device reported some errors! Good: {availableBytes / totalBytes,6:0.0%} | Corrupted: {corruptedBytes / totalBytes,6:0.0%} | Lost: {lostBytes / totalBytes,6:0.0%}");
+                            logger.LogWarning($"Data acquisition device '{SerialNumber}' reported some errors! Good: {availableBytes / totalBytes,6:0.0%} | Corrupted: {corruptedBytes / totalBytes,6:0.0%} | Lost: {lostBytes / totalBytes,6:0.0%}");
                         }
 
                         totalBytes = 0;
@@ -264,7 +277,7 @@ namespace BBD.BodyMonitor.Models
 
                         if (sts != dwf.DwfStateConfig)
                         {
-                            logger.LogWarning($"Data acquisition device got into an unusual state! sts:{sts}");
+                            logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts}");
                         }
                         Thread.Sleep(100);
                     }
@@ -277,7 +290,7 @@ namespace BBD.BodyMonitor.Models
                         Thread.Sleep(500);
 
                         logger.LogTrace($"Reseting device...");
-                        dwfHandle = ResetDevice();
+                        _ = ResetDevice();
 
                         bufferError = false;
                         samplesBuffer.Clear();
@@ -309,12 +322,14 @@ namespace BBD.BodyMonitor.Models
                     _ = samplesBuffer.Write(Array.ConvertAll(voltDataAvailable, v => (float)v));
                 }
 
+                CloseDevice();
                 samplesBuffer.Clear();
-                logger.LogTrace("Acquisition done");
+                logger.LogTrace($"Acquisition done on '{SerialNumber}'");
             })
             {
                 Priority = ThreadPriority.Highest
             };
+
             acquisitionLoopThread.Start();
         }
 

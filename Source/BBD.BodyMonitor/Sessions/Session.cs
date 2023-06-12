@@ -10,6 +10,7 @@ namespace BBD.BodyMonitor.Sessions
         public DateTimeOffset? FinishedAt { get; set; }
         public Location? Location { get; set; }
         public Subject? Subject { get; set; }
+        public string? DeviceIdentifier { get; set; }
         public SegmentedData? SegmentedData { get; set; }
         public BodyMonitorOptions? Configuration { get; set; }
 

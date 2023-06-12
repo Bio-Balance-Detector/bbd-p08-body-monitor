@@ -24,7 +24,7 @@ namespace BBD.BodyMonitor.Controllers
 
         [HttpGet]
         [Route("start/{deviceSerialNumber?}/{locationAlias?}/{subjectAlias?}")]
-        public int Start(string deviceSerialNumber, string locationAlias, string subjectAlias)
+        public string Start(string? deviceSerialNumber = null, string? locationAlias = null, string? subjectAlias = null)
         {
             if (string.IsNullOrEmpty(deviceSerialNumber))
             {
@@ -47,19 +47,29 @@ namespace BBD.BodyMonitor.Controllers
 
             int taskId = Task.Run(() =>
             {
-                _ = _dataProcessor.StartDataAcquisition(deviceSerialNumber);
+                session.DeviceIdentifier = _dataProcessor.StartDataAcquisition(deviceSerialNumber);
             }).Id;
 
-            return taskId;
+            return session.Alias;
         }
 
         [HttpGet]
-        [Route("stop")]
-        public void Stop()
+        [Route("stop/{sessionAlias?}")]
+        public void Stop(string? sessionAlias = null)
         {
-            _dataProcessor.StopDataAcquisition();
+            if (_sessionManager == null)
+            {
+                return;
+            }
 
-            Sessions.Session? session = _sessionManager.FinishSession();
+            // find the right session to stop
+            IEnumerable<Sessions.Session> runningSessions = _sessionManager.ListSessions().Where(s => s.StartedAt != null && s.FinishedAt == null);
+            Sessions.Session? session = runningSessions.FirstOrDefault(s => s.Alias == sessionAlias);
+            session ??= runningSessions.First();
+
+            _ = _dataProcessor.StopDataAcquisition(session.DeviceIdentifier);
+
+            session = _sessionManager.FinishSession(session);
             _sessionManager.SaveSession(session);
         }
     }

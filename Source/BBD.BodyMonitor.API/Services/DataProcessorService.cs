@@ -91,7 +91,7 @@ namespace BBD.BodyMonitor.Services
         }
 
         [Obsolete]
-        public bool StartDataAcquisition(string deviceSerialNumber)
+        public string? StartDataAcquisition(string deviceSerialNumber)
         {
             System.Timers.Timer checkDiskSpaceTimer = new(10000);
             checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
@@ -102,7 +102,7 @@ namespace BBD.BodyMonitor.Services
             try
             {
                 dataAcquisition ??= new DataAcquisition(_logger);
-                _ = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                deviceSerialNumber = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
                 dataAcquisition.BufferError += DataAcquisition_BufferError;
 
                 if (_config.DataWriter.Enabled)
@@ -122,27 +122,40 @@ namespace BBD.BodyMonitor.Services
                     dataAcquisition.SubscribeToBlockReceived(_config.Indicators.Interval, Indicators_BlockReceived);
                 }
 
-                _logger.LogInformation($"Recording data at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ", press Ctrl+C to stop...");
+                _logger.LogInformation($"Recording data on '{dataAcquisition.SerialNumber}' at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + "...");
                 dataAcquisition.Start();
             }
             catch (Exception)
             {
-                return false;
+                return null;
             }
 
-            return true;
+            return deviceSerialNumber;
         }
 
-        public void StopDataAcquisition()
+        public bool StopDataAcquisition(string deviceSerialNumber)
         {
             if (dataAcquisition == null)
             {
-                return;
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(deviceSerialNumber))
+            {
+                // get the serail number of the default device
+                deviceSerialNumber = dataAcquisition.SerialNumber;
+            }
+
+            if (dataAcquisition.DeviceIndex != GetDeviceIndexFromSerialNumber(deviceSerialNumber))
+            {
+                return false;
             }
 
             dataAcquisition.Stop();
 
-            _logger.LogInformation($"Finished recording data at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ".");
+            _logger.LogInformation($"Finished recording data on '{dataAcquisition.SerialNumber}' at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ".");
+
+            return true;
         }
 
         private void DataAcquisition_BufferError(object sender, BufferErrorEventArgs e)
@@ -150,7 +163,7 @@ namespace BBD.BodyMonitor.Services
             _ = Task.Run(() =>
             {
                 //_logger.LogWarning($"Data error! cAvailable: {e.BytesAvailable / (float)e.BytesTotal:P}, cLost: {e.BytesLost / (float)e.BytesTotal:P}, cCorrupted: {e.BytesCorrupted / (float)e.BytesTotal:P}");
-                Sessions.Session session = _sessionManager.ResetSession();
+                _ = _sessionManager.ResetSession();
             });
         }
 
@@ -2175,7 +2188,9 @@ namespace BBD.BodyMonitor.Services
 
         private int GetDeviceIndexFromSerialNumber(string deviceSerialNumber)
         {
-            return -1;
+            ConnectedDevice? device = ListDevices().FirstOrDefault(d => d.SerialNumber.ToLowerInvariant() == deviceSerialNumber?.ToLowerInvariant());
+
+            return device != null ? device.Index : -1;
         }
     }
 }

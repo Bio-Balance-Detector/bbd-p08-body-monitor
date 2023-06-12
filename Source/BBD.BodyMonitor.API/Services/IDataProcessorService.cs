@@ -8,8 +8,8 @@ namespace BBD.BodyMonitor.Services
         BodyMonitorOptions GetConfig();
         void SetConfig(BodyMonitorOptions config);
         ConnectedDevice[] ListDevices();
-        bool StartDataAcquisition(string deviceSerialNumber);
-        void StopDataAcquisition();
+        string? StartDataAcquisition(string deviceSerialNumber);
+        bool StopDataAcquisition(string deviceSerialNumber);
         void GenerateMLCSV(string foldername, MLProfile mlProfile, bool includeHeaders, string tagFilterExpression, string validLabelExpression, string balanceOnTag, int? maxRows);
         void GenerateVideo(string foldername, MLProfile mlProfile, double framerate);
         void FrequencyResponseAnalysis(string deviceSerialNumber);
