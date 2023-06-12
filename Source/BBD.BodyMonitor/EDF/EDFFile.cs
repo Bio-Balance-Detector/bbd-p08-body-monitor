@@ -63,6 +63,7 @@
                     {
                         signalData[j] = reader.ReadSingle();
                     }
+                    signal.Data = signalData;
 
                     result.Signals.Add(signal);
                 }

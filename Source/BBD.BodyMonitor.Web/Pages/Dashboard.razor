@@ -1,0 +1,89 @@
+﻿@page "/"
+@page "/dashboard"
+@using BBD.BodyMonitor.Environment;
+@using BBD.BodyMonitor.Web.Data
+@inject BioBalanceDetectorService BBDService
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>System Information</h1>
+
+@*show the current status of the BBD service*@
+@if (BioBalanceDetectorService.SystemInformation == null)
+{
+    <p><em>Connecting to a Bio Balance Detector service...</em></p>
+}
+else
+{
+    <p>
+        <div>Locations:</div>
+        @if (BioBalanceDetectorService.SystemInformation.Locations != null && BioBalanceDetectorService.SystemInformation.Locations.Any())
+        {
+            @foreach (var location in BioBalanceDetectorService.SystemInformation.Locations)
+            {
+                <div>
+                    <input type="radio" id="@location.Id" name="location" value="@location.Name">
+                    <label for="@location.Id">@location.Name</label>
+                </div>
+            }
+        }
+        else
+        {
+            <div>N/A</div>
+        }
+        <br />
+
+        <div>Subjects:</div>
+        @if (BioBalanceDetectorService.SystemInformation.Subjects != null && BioBalanceDetectorService.SystemInformation.Subjects.Any())
+        {
+            @foreach (var subject in BioBalanceDetectorService.SystemInformation.Subjects)
+            {
+                <div>
+                    <input type="radio" id="@subject.Id" name="location" value="@subject.Name">
+                    <label for="@subject.Id">@subject.Name</label>
+                </div>
+            }
+        }
+        else
+        {
+            <div>N/A</div>
+        }
+        <br />
+
+        Host: @BioBalanceDetectorService.SystemInformation.CPUName with @BioBalanceDetectorService.SystemInformation.RAMSize GB RAM<br />
+        Connected Devices: @BioBalanceDetectorService.SystemInformation.Devices.Count()<br />
+        @foreach (var device in BioBalanceDetectorService.SystemInformation.Devices)
+        {
+            <div>
+                <div>@device.Brand @device.Name (@device.SerialNumber)</div>
+                @*add a button to start the data aquistion*@
+                <a @onclick="Start" class="btn btn-m btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s @(device.IsOpened ? "bg-gray-dark no-click" : "bg-green-dark")">Start</a>
+
+                @*add a button to stop the data aquistion*@
+                <a @onclick="Stop" class="btn btn-m btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s @(device.IsOpened ? "bg-red-light" : "bg-gray-dark no-click")">Stop</a>
+            </div>
+        }
+        Active Sessions: @BioBalanceDetectorService.SystemInformation.Sessions.Count()<br />
+    </p>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        BBDService.StreamSystemInformationAsync(new CancellationToken());
+
+        Timer timer = new Timer((state) =>
+        {
+            // Get the system information from the BBD service
+            //BBDService.StreamSystemInformationAsync(new CancellationToken());
+            //systemInformation = BBDService.GetSystemInformationAsync().Result;
+
+            // Invoke the StateHasChanged method to update the Blazor page
+            InvokeAsync(StateHasChanged);
+        }, null, 0, 500);
+    }
+
+    protected void Start() => BBDService.Start();
+
+    protected void Stop() => BBDService.Stop();
+}
