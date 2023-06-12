@@ -5,21 +5,21 @@ namespace BBD.BodyMonitor.Configuration
 {
     public class BodyMonitorOptions
     {
-        public string DataDirectory { get; } = string.Empty;
+        public string DataDirectory { get; set; } = string.Empty;
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
-        public long MinimumAvailableFreeSpace { get; } = 0;
-        public string DeviceSerialNumber { get; } = string.Empty;
-        public string LocationAlias { get; } = string.Empty;
-        public string SubjectAlias { get; } = string.Empty;
-        public AcqusitionOptions Acquisition { get; }
+        public long MinimumAvailableFreeSpace { get; set; } = 0;
+        public string DeviceSerialNumber { get; set; } = string.Empty;
+        public string LocationAlias { get; set; } = string.Empty;
+        public string SubjectAlias { get; set; } = string.Empty;
+        public AcqusitionOptions Acquisition { get; set; }
         public SignalGeneratorOptions SignalGenerator { get; set; }
-        public DataWriterOptions DataWriter { get; }
-        public PostprocessingOptions Postprocessing { get; }
-        public AudioRecordingOptions AudioRecording { get; }
-        public IndicatorsOptions Indicators { get; }
-        public MachineLearningOptions MachineLearning { get; }
-        public FitbitOptions Fitbit { get; }
-        public ThingSpeakOptions ThingSpeak { get; }
+        public DataWriterOptions DataWriter { get; set; }
+        public PostprocessingOptions Postprocessing { get; set; }
+        public AudioRecordingOptions AudioRecording { get; set; }
+        public IndicatorsOptions Indicators { get; set; }
+        public MachineLearningOptions MachineLearning { get; set; }
+        public FitbitOptions Fitbit { get; set; }
+        public ThingSpeakOptions ThingSpeak { get; set; }
         public BodyMonitorOptions() { }
 
         [Obsolete]
@@ -27,6 +27,9 @@ namespace BBD.BodyMonitor.Configuration
         {
             DataDirectory = config["DataDirectory"];
             MinimumAvailableFreeSpace = (long)ParseNumber(config["MinimumAvailableFreeSpace"]);
+            DeviceSerialNumber = config["DeviceSerialNumber"];
+            LocationAlias = config["LocationAlias"];
+            SubjectAlias = config["SubjectAlias"];
 
             Acquisition = new AcqusitionOptions()
             {
