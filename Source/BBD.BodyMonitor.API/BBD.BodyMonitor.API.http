@@ -12,6 +12,8 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/DataAcquisition/stop
 
 ###
 
-GET {{BBD.BodyMonitor.API_HostAddress}}/system/getconfig
+GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getconfig
 
 ###
+
+GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getsysteminformation
