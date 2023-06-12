@@ -1,7 +1,7 @@
 using BBD.BodyMonitor.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BBD.BodyMonitor.API.Controllers
+namespace BBD.BodyMonitor.Controllers
 {
     /// <summary>
     /// Controller for data acquisition
@@ -23,16 +23,16 @@ namespace BBD.BodyMonitor.API.Controllers
         }
 
         [HttpGet]
-        [Route("start")]
-        public int Start()
+        [Route("start/{deviceSerialNumber}/{locationAlias}/{subjectAlias}")]
+        public int Start(string deviceSerialNumber, string locationAlias, string subjectAlias)
         {
-            var session = _sessionManager.StartSession("0x4A75C1F7", "0xBAC08836");
+            Sessions.Session session = _sessionManager.StartSession("0x4A75C1F7", "0xBAC08836");
             session.Configuration = _dataProcessor.GetConfig();
             //_sessionManager.SaveSession(session);
 
             int taskId = Task.Run(() =>
             {
-                _dataProcessor.StartDataAcquisition();
+                _ = _dataProcessor.StartDataAcquisition(deviceSerialNumber);
             }).Id;
 
             return taskId;
@@ -44,7 +44,7 @@ namespace BBD.BodyMonitor.API.Controllers
         {
             _dataProcessor.StopDataAcquisition();
 
-            var session = _sessionManager.FinishSession();
+            Sessions.Session? session = _sessionManager.FinishSession();
             _sessionManager.SaveSession(session);
         }
     }

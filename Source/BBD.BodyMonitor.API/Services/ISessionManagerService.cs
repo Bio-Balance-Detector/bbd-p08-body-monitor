@@ -8,7 +8,8 @@ namespace BBD.BodyMonitor.Services
         string? DataDirectory { get; }
         string? MetadataDirectory { get; }
         string? SessionsDirectory { get; }
-
+        Location[]? ListLocations();
+        Subject[]? ListSubjects();
         Session[]? ListSessions();
         Session StartSession(string? locationAlias, string? subjectAlias);
         Session? FinishSession(Session? session = null);

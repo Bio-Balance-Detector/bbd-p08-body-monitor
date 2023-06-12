@@ -7,9 +7,9 @@ namespace BBD.BodyMonitor.Services
 {
     public class SessionManagerService : ISessionManagerService
     {
-        private Dictionary<Guid, Session> sessions = new Dictionary<Guid, Session>();
+        private readonly Dictionary<Guid, Session> sessions = new();
 
-        private Dictionary<string, Session> aliases = new Dictionary<string, Session>();
+        private readonly Dictionary<string, Session> aliases = new();
 
         private Session? globalSettings;
 
@@ -17,6 +17,14 @@ namespace BBD.BodyMonitor.Services
         public string? MetadataDirectory { get; private set; }
         public string? SessionsDirectory { get; private set; }
 
+        public Location[]? ListLocations()
+        {
+            return aliases.Where(s => s.Value.Location != null).Select(s => s.Value.Location).ToArray();
+        }
+        public Subject[]? ListSubjects()
+        {
+            return aliases.Where(s => s.Value.Subject != null).Select(s => s.Value.Subject).ToArray();
+        }
         public Session[]? ListSessions()
         {
             return sessions.Values.ToArray();
@@ -44,7 +52,7 @@ namespace BBD.BodyMonitor.Services
 
         public Session StartSession(string? locationAlias, string? subjectAlias)
         {
-            var result = StartSession();
+            Session result = StartSession();
 
             if (locationAlias != null)
             {
@@ -63,12 +71,9 @@ namespace BBD.BodyMonitor.Services
         {
             lock (sessions)
             {
-                if (session == null)
-                {
-                    session = GetSession(null);
-                }
+                session ??= GetSession(null);
 
-                if ((session != null) && (session.StartedAt.HasValue))
+                if ((session != null) && session.StartedAt.HasValue)
                 {
                     session.FinishedAt = DateTimeOffset.Now;
 
@@ -80,7 +85,7 @@ namespace BBD.BodyMonitor.Services
 
                         session.SegmentedData.BloodTest = TruncateSegmentedData(session.SegmentedData.BloodTest, session.StartedAt.Value, session.FinishedAt.Value) as BloodTestSegment[];
                     }
-                    sessions.Remove(session.Id);
+                    _ = sessions.Remove(session.Id);
                 }
             }
 
@@ -94,10 +99,10 @@ namespace BBD.BodyMonitor.Services
             lock (sessions)
             {
                 // get the currently running session
-                var session = GetSession(null);
+                Session? session = GetSession(null);
 
                 // clone that session
-                result = this.StartSession(session.Location?.Alias, session.Subject?.Alias);
+                result = StartSession(session.Location?.Alias, session.Subject?.Alias);
                 result.StartedAt = DateTimeOffset.Now;
                 result.Name = session.Name;
                 result.SegmentedData = new SegmentedData()
@@ -108,7 +113,7 @@ namespace BBD.BodyMonitor.Services
                 };
                 result.Configuration = session.Configuration;
 
-                session = this.FinishSession(session);
+                session = FinishSession(session);
                 //this.SaveSession(session);
 
                 //this.SaveSession(result);
@@ -131,7 +136,7 @@ namespace BBD.BodyMonitor.Services
         {
             if (sessionId == null)
             {
-                var sessions = this.ListSessions();
+                Session[]? sessions = ListSessions();
                 if ((sessions != null) && (sessions.Length == 1))
                 {
                     return sessions[0];
@@ -139,7 +144,7 @@ namespace BBD.BodyMonitor.Services
             }
             else
             {
-                if (sessions.TryGetValue(sessionId.Value, out var session))
+                if (sessions.TryGetValue(sessionId.Value, out Session? session))
                 {
                     return session;
                 }
@@ -155,67 +160,47 @@ namespace BBD.BodyMonitor.Services
 
         public float? GetSessionValueProperty(Guid sessionId, string path)
         {
-            var session = GetSession(sessionId);
-            var propertyValue = GetProperty(session, path) as Single?;
+            Session? session = GetSession(sessionId);
+            float? propertyValue = GetProperty(session, path) as float?;
 
-            if (propertyValue == null)
-            {
-                throw new Exception($"Property {path} is not a float.");
-            }
-
-            return propertyValue;
+            return propertyValue == null ? throw new Exception($"Property {path} is not a float.") : propertyValue;
         }
 
         public string GetSessionTextProperty(Guid sessionId, string path)
         {
-            var session = GetSession(sessionId);
-            var propertyValue = GetProperty(session, path) as String;
+            Session? session = GetSession(sessionId);
 
-            if (propertyValue == null)
-            {
-                throw new Exception($"Property {path} is not a String.");
-            }
-
-            return propertyValue;
+            return GetProperty(session, path) is not string propertyValue ? throw new Exception($"Property {path} is not a String.") : propertyValue;
         }
 
         public Segment? GetSessionSegmentedProperty(Guid sessionId, string path, DateTimeOffset dateTimeOffset)
         {
-            var session = GetSession(sessionId);
-            var propertyValue = GetProperty(session, path) as Segment[];
+            Session? session = GetSession(sessionId);
 
-            if (propertyValue == null)
-            {
-                throw new Exception($"Property {path} is not an array of Segment.");
-            }
-
-            return GetSegment(propertyValue, dateTimeOffset);
+            return GetProperty(session, path) is not Segment[] propertyValue
+                ? throw new Exception($"Property {path} is not an array of Segment.")
+                : GetSegment(propertyValue, dateTimeOffset);
         }
 
         private Segment? GetSegment(Segment[] propertyValue, DateTimeOffset dateTimeOffset)
         {
-            var segment = propertyValue.FirstOrDefault(s => s.Start <= dateTimeOffset && s.End >= dateTimeOffset);
+            Segment? segment = propertyValue.FirstOrDefault(s => s.Start <= dateTimeOffset && s.End >= dateTimeOffset);
 
-            if (segment == null)
-            {
-                throw new Exception($"No segment found for {dateTimeOffset}.");
-            }
-
-            return segment;
+            return segment ?? throw new Exception($"No segment found for {dateTimeOffset}.");
         }
 
         private object? GetProperty(object? root, string path)
         {
-            var pathSegments = path.Split('.');
+            string[] pathSegments = path.Split('.');
 
-            foreach (var propertyName in pathSegments)
+            foreach (string propertyName in pathSegments)
             {
                 if (root == null)
                 {
                     return null;
                 }
 
-                var property = root.GetType().GetProperty(propertyName);
+                System.Reflection.PropertyInfo? property = root.GetType().GetProperty(propertyName);
                 if (property == null)
                 {
                     throw new Exception($"Property '{propertyName}' not found in '{root.GetType().Name}'.");
@@ -228,9 +213,9 @@ namespace BBD.BodyMonitor.Services
         }
         public Session MergeSessionWith(Session session, string alias)
         {
-            if (aliases.TryGetValue(alias, out var aliasSession))
+            if (aliases.TryGetValue(alias, out Session? aliasSession))
             {
-                MergeObjects<Session>(session, aliasSession);
+                _ = MergeObjects<Session>(session, aliasSession);
             }
 
             return session;
@@ -243,25 +228,25 @@ namespace BBD.BodyMonitor.Services
                 return objectToMergeInto;
             }
 
-            var sessionType = objectToMergeInto.GetType();
-            foreach (var property in sessionType.GetProperties())
+            Type sessionType = objectToMergeInto.GetType();
+            foreach (System.Reflection.PropertyInfo property in sessionType.GetProperties())
             {
-                var originalValue = property.GetValue(objectToMergeInto);
-                var newValue = property.GetValue(objectToMerge);
+                object? originalValue = property.GetValue(objectToMergeInto);
+                object? newValue = property.GetValue(objectToMerge);
                 if (originalValue == null)
                 {
                     property.SetValue(objectToMergeInto, newValue);
                 }
                 else
                 {
-                    if ((property.PropertyType.IsClass) && (property.PropertyType.Name != "String") && (newValue != null))
+                    if (property.PropertyType.IsClass && (property.PropertyType.Name != "String") && (newValue != null))
                     {
                         if (property.PropertyType.IsArray)
                         {
                             // if we have to arrays, we need to append them
-                            var originalArray = ((Array)originalValue);
-                            var newArray = ((Array)newValue);
-                            var mergedArray = Array.CreateInstance(property.PropertyType.GetElementType(), originalArray.Length + newArray.Length);
+                            Array originalArray = (Array)originalValue;
+                            Array newArray = (Array)newValue;
+                            Array mergedArray = Array.CreateInstance(property.PropertyType.GetElementType(), originalArray.Length + newArray.Length);
                             Array.Copy(originalArray, mergedArray, originalArray.Length);
                             Array.Copy(newArray, 0, mergedArray, originalArray.Length, newArray.Length);
                             property.SetValue(objectToMergeInto, mergedArray);
@@ -269,9 +254,9 @@ namespace BBD.BodyMonitor.Services
                         else
                         {
                             // we should look into the properties of the sub-class and merge it
-                            var miMergeObjects = this.GetType().GetMethod("MergeObjects");
-                            var genericMergeObjects = miMergeObjects?.MakeGenericMethod(property.PropertyType);
-                            genericMergeObjects?.Invoke(this, new object[] { originalValue, newValue });
+                            System.Reflection.MethodInfo? miMergeObjects = GetType().GetMethod("MergeObjects");
+                            System.Reflection.MethodInfo? genericMergeObjects = miMergeObjects?.MakeGenericMethod(property.PropertyType);
+                            _ = (genericMergeObjects?.Invoke(this, new object[] { originalValue, newValue }));
                         }
                     }
                 }
@@ -295,7 +280,7 @@ namespace BBD.BodyMonitor.Services
                     throw new Exception("The session starting time must be specified if you don't define an exact filename.");
                 }
 
-                filename = $"BBD_{session.StartedAt.Value.ToString("yyyyMMdd_HHmmss")}_{session.Alias}.json";
+                filename = $"BBD_{session.StartedAt.Value:yyyyMMdd_HHmmss}_{session.Alias}.json";
                 path = Path.Combine(SessionsDirectory, filename);
             }
             else
@@ -303,7 +288,7 @@ namespace BBD.BodyMonitor.Services
                 path = Path.Combine(MetadataDirectory, filename);
             }
 
-            var sessionJson = JsonSerializer.Serialize(session, new JsonSerializerOptions
+            string sessionJson = JsonSerializer.Serialize(session, new JsonSerializerOptions
             {
                 WriteIndented = true
             });
@@ -318,56 +303,56 @@ namespace BBD.BodyMonitor.Services
                 throw new FileNotFoundException($"Data directory {dataDirectory} does not exist");
             }
 
-            this.DataDirectory = Path.GetFullPath(dataDirectory);
-            this.MetadataDirectory = Path.Combine(this.DataDirectory, "Metadata");
-            this.SessionsDirectory = Path.Combine(this.MetadataDirectory, "Sessions");
+            DataDirectory = Path.GetFullPath(dataDirectory);
+            MetadataDirectory = Path.Combine(DataDirectory, "Metadata");
+            SessionsDirectory = Path.Combine(MetadataDirectory, "Sessions");
 
-            string locationsDirectory = Path.Combine(this.MetadataDirectory, "Locations");
-            string subjectsDirectory = Path.Combine(this.MetadataDirectory, "Subjects");
+            string locationsDirectory = Path.Combine(MetadataDirectory, "Locations");
+            string subjectsDirectory = Path.Combine(MetadataDirectory, "Subjects");
 
-            if (!Directory.Exists(this.MetadataDirectory))
+            if (!Directory.Exists(MetadataDirectory))
             {
-                Directory.CreateDirectory(this.MetadataDirectory);
+                _ = Directory.CreateDirectory(MetadataDirectory);
             }
-            if (!Directory.Exists(this.SessionsDirectory))
+            if (!Directory.Exists(SessionsDirectory))
             {
-                Directory.CreateDirectory(this.SessionsDirectory);
+                _ = Directory.CreateDirectory(SessionsDirectory);
             }
             if (!Directory.Exists(locationsDirectory))
             {
-                Directory.CreateDirectory(locationsDirectory);
+                _ = Directory.CreateDirectory(locationsDirectory);
             }
             if (!Directory.Exists(subjectsDirectory))
             {
-                Directory.CreateDirectory(subjectsDirectory);
+                _ = Directory.CreateDirectory(subjectsDirectory);
             }
 
 
-            globalSettings = LoadSessionFromFile(Path.Combine(this.MetadataDirectory, "GlobalSettings.json"));
+            globalSettings = LoadSessionFromFile(Path.Combine(MetadataDirectory, "GlobalSettings.json"));
 
-            foreach (var file in Directory.GetFiles(locationsDirectory, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (string file in Directory.GetFiles(locationsDirectory, "*.json", SearchOption.TopDirectoryOnly))
             {
-                var locationSession = LoadSessionFromFile(file);
+                Session? locationSession = LoadSessionFromFile(file);
 
                 if ((locationSession != null) && (locationSession.Location != null))
                 {
                     if (aliases.ContainsKey(locationSession.Location.Alias))
                     {
-                        aliases.Remove(locationSession.Location.Alias);
+                        _ = aliases.Remove(locationSession.Location.Alias);
                     }
                     aliases.Add(locationSession.Location.Alias, locationSession);
                 }
             }
 
-            foreach (var file in Directory.GetFiles(subjectsDirectory, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (string file in Directory.GetFiles(subjectsDirectory, "*.json", SearchOption.TopDirectoryOnly))
             {
-                var subjectSession = LoadSessionFromFile(file);
+                Session? subjectSession = LoadSessionFromFile(file);
 
                 if ((subjectSession != null) && (subjectSession.Subject != null))
                 {
                     if (aliases.ContainsKey(subjectSession.Subject.Alias))
                     {
-                        aliases.Remove(subjectSession.Subject.Alias);
+                        _ = aliases.Remove(subjectSession.Subject.Alias);
                     }
                     aliases.Add(subjectSession.Subject.Alias, subjectSession);
 
@@ -375,9 +360,9 @@ namespace BBD.BodyMonitor.Services
 
                     if (Directory.Exists(subjectSubdirectory))
                     {
-                        foreach (var partialSubjectFile in Directory.GetFiles(subjectSubdirectory, "*.json", SearchOption.AllDirectories))
+                        foreach (string partialSubjectFile in Directory.GetFiles(subjectSubdirectory, "*.json", SearchOption.AllDirectories))
                         {
-                            var partialSubject = LoadSessionFromFile(partialSubjectFile);
+                            Session? partialSubject = LoadSessionFromFile(partialSubjectFile);
 
                             if (partialSubject != null)
                             {
@@ -391,9 +376,9 @@ namespace BBD.BodyMonitor.Services
 
         public void RefreshDataDirectory()
         {
-            if (this.DataDirectory != null)
+            if (DataDirectory != null)
             {
-                this.aliases.Clear();
+                aliases.Clear();
                 SetDataDirectory(DataDirectory);
             }
         }
@@ -401,21 +386,22 @@ namespace BBD.BodyMonitor.Services
         private Session? LoadSessionFromFile(string file)
         {
             Session? result = null;
-
             try
             {
-                JsonSerializerOptions options = new JsonSerializerOptions();
-                options.PropertyNameCaseInsensitive = true;
+                JsonSerializerOptions options = new()
+                {
+                    PropertyNameCaseInsensitive = true
+                };
                 options.Converters.Add(new CustomJsonConverterForNullableString());
                 options.Converters.Add(new CustomJsonConverterForNullableDateTime());
                 options.Converters.Add(new CustomJsonConverterForDateTimeOffset());
                 options.Converters.Add(new CustomJsonConverterForNullableDateTimeOffset());
 
-                var sessionJson = File.ReadAllText(file);
+                string sessionJson = File.ReadAllText(file);
 
                 result = JsonSerializer.Deserialize<Session>(sessionJson, options);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 // it's alright if we can't deserialize the file
             }
@@ -425,22 +411,12 @@ namespace BBD.BodyMonitor.Services
 
         public Subject? GetSubject(string alias)
         {
-            if (aliases.TryGetValue(alias, out var session))
-            {
-                return session.Subject;
-            }
-
-            return null;
+            return aliases.TryGetValue(alias, out Session? session) ? session.Subject : null;
         }
 
         public Location? GetLocation(string alias)
         {
-            if (aliases.TryGetValue(alias, out var session))
-            {
-                return session.Location;
-            }
-
-            return null;
+            return aliases.TryGetValue(alias, out Session? session) ? session.Location : null;
         }
     }
 }

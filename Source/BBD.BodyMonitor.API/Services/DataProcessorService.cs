@@ -1,8 +1,8 @@
 ﻿using BBD.BodyMonitor.Buffering;
 using BBD.BodyMonitor.Configuration;
+using BBD.BodyMonitor.Environment;
 using BBD.BodyMonitor.MLProfiles;
 using BBD.BodyMonitor.Models;
-using BBD.BodyMonitor.Environment;
 using EDFCSharp;
 using Microsoft.Extensions.Options;
 using Microsoft.ML;
@@ -11,11 +11,9 @@ using NWaves.Audio;
 using NWaves.Signals;
 using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
 using Xabe.FFmpeg;
 
 namespace BBD.BodyMonitor.Services
@@ -24,46 +22,40 @@ namespace BBD.BodyMonitor.Services
     {
         private readonly ILogger _logger;
         private BodyMonitorOptions _config;
-        private ISessionManagerService _sessionManager;
-        private float _inputAmplification = Int16.MaxValue / 1.0f;
+        private readonly ISessionManagerService _sessionManager;
+        private readonly float _inputAmplification = short.MaxValue / 1.0f;
+        private DataAcquisition? dataAcquisition;
+        private DataAcquisition? calibration;
+        private FftDataV3? calibrationFftData;
+        private FftDataBlockCache fftDataBlockCache;
+        private FftDataV3? frequencyResponseAnalysisFftData;
+        private int lastMaxIndex = 0;
+        private readonly Random rnd = new();
+        private readonly string[] audioFrameworks = { "dshow", "alsa", "openal", "oss" };
+        private readonly string ffmpegAudioRecordingExtension = "wav";
+        private readonly string ffmpegAudioRecordingParameters = "-c:a pcm_s16le -ac 1 -ar 44100";
+        private readonly string ffmpegAudioEncodingExtension = "mp3";
+        private readonly string ffmpegAudioEncodingParameters = "-c:a mp3 -ac 1 -ar 44100 -q:a 9 -filter:a loudnorm";
+        private readonly float[] selfCalibrationAmplitudes = new float[] { 0.01f, 0.1f, 0.5f, 0.75f, 1.0f };
+        private readonly float[] selfCalibrationFrequencies = new float[] { 0.1234f, 1.234f, 123.4f, 12340f, 123400f };
+        private readonly int[] selfCalibrationFFTSizes = new int[] { 1 * 1024, 8 * 1024, 64 * 1024, 256 * 1024, 8192 * 1024 };
+        private readonly DriveInfo? spaceCheckDrive;
+        private readonly List<float> maxValues = new();
+        private Pen[]? chartPens;
+        private readonly List<string> disabledIndicators = new();
 
-        DataAcquisition? dataAcquisition;
-        DataAcquisition? calibration;
-        FftDataV3? calibrationFftData;
-        FftDataBlockCache fftDataBlockCache;
-        FftDataV3? frequencyResponseAnalysisFftData;
-        int lastMaxIndex = 0;
-        Random rnd = new Random();
-
-        string[] audioFrameworks = { "dshow", "alsa", "openal", "oss" };
-
-        string ffmpegAudioRecordingExtension = "wav";
-        string ffmpegAudioRecordingParameters = "-c:a pcm_s16le -ac 1 -ar 44100";
-        string ffmpegAudioEncodingExtension = "mp3";
-        string ffmpegAudioEncodingParameters = "-c:a mp3 -ac 1 -ar 44100 -q:a 9 -filter:a loudnorm";
-
-        float[] selfCalibrationAmplitudes = new float[] { 0.01f, 0.1f, 0.5f, 0.75f, 1.0f };
-        float[] selfCalibrationFrequencies = new float[] { 0.1234f, 1.234f, 123.4f, 12340f, 123400f };
-        int[] selfCalibrationFFTSizes = new int[] { 1 * 1024, 8 * 1024, 64 * 1024, 256 * 1024, 8192 * 1024 };
-
-        DriveInfo? spaceCheckDrive;
-
-        List<float> maxValues = new List<float>();
-
-        Pen[]? chartPens;
-        List<string> disabledIndicators = new List<string>();
-
+        [Obsolete]
         public DataProcessorService(ILogger<DataProcessorService> logger, IConfiguration configRoot, IOptionsMonitor<BodyMonitorOptions> bodyMonitorOptions, ISessionManagerService sessionManager)
         {
             _logger = logger;
             _config = new BodyMonitorOptions(configRoot.GetSection("BodyMonitor"));
             _sessionManager = sessionManager;
             _sessionManager.SetDataDirectory(_config.DataDirectory);
-            _inputAmplification = Int16.MaxValue / _config.DataWriter.OutputRange;
+            _inputAmplification = short.MaxValue / _config.DataWriter.OutputRange;
 
             //var bmo = bodyMonitorOptions.CurrentValue;
 
-            foreach (var d in DriveInfo.GetDrives())
+            foreach (DriveInfo d in DriveInfo.GetDrives())
             {
                 if (Path.GetFullPath(AppendDataDir("")).ToLower().StartsWith(d.RootDirectory.FullName.ToLower()) && (spaceCheckDrive == null || d.Name.Length > spaceCheckDrive.Name.Length))
                 {
@@ -73,22 +65,23 @@ namespace BBD.BodyMonitor.Services
 
             fftDataBlockCache = new FftDataBlockCache(_config.Acquisition.Samplerate, _config.Postprocessing.FFTSize, _config.Postprocessing.DataBlock, _config.Postprocessing.ResampleFFTResolutionToHz);
 
-            GetFFMPEGAudioDevices();
+            _ = GetFFMPEGAudioDevices();
 
             //ProcessCommandLineArguments(args);
         }
 
+        [Obsolete]
         public void PreprareMachineLearningModels()
         {
             _logger.LogInformation("Preparing machine learning models, please wait...");
-            var dummnyFftData = new FftDataV3()
+            FftDataV3 dummnyFftData = new()
             {
                 FirstFrequency = 0,
                 LastFrequency = float.MaxValue,
                 FftSize = _config.Postprocessing.FFTSize,
                 MagnitudeData = new float[_config.Postprocessing.FFTSize]
             };
-            EvaluateIndicators(_logger, 0, dummnyFftData);
+            _ = EvaluateIndicators(_logger, 0, dummnyFftData);
         }
 
         public ConnectedDevice[] ListDevices()
@@ -97,17 +90,19 @@ namespace BBD.BodyMonitor.Services
             return dataAcquisition.ListDevices();
         }
 
-        public bool StartDataAcquisition()
+        [Obsolete]
+        public bool StartDataAcquisition(string deviceSerialNumber)
         {
-            System.Timers.Timer checkDiskSpaceTimer = new System.Timers.Timer(10000);
+            System.Timers.Timer checkDiskSpaceTimer = new(10000);
             checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
             checkDiskSpaceTimer.AutoReset = true;
             checkDiskSpaceTimer.Enabled = true;
+            int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
 
             try
             {
                 dataAcquisition ??= new DataAcquisition(_logger);
-                dataAcquisition.OpenDevice(_config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                _ = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
                 dataAcquisition.BufferError += DataAcquisition_BufferError;
 
                 if (_config.DataWriter.Enabled)
@@ -127,7 +122,7 @@ namespace BBD.BodyMonitor.Services
                     dataAcquisition.SubscribeToBlockReceived(_config.Indicators.Interval, Indicators_BlockReceived);
                 }
 
-                _logger.LogInformation($"Recording data at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {(dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2)).ToString("0.00")} Hz" : "") + ", press Ctrl+C to stop...");
+                _logger.LogInformation($"Recording data at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ", press Ctrl+C to stop...");
                 dataAcquisition.Start();
             }
             catch (Exception)
@@ -147,20 +142,22 @@ namespace BBD.BodyMonitor.Services
 
             dataAcquisition.Stop();
 
-            _logger.LogInformation($"Finished recording data at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {(dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2)).ToString("0.00")} Hz" : "") + ".");
+            _logger.LogInformation($"Finished recording data at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ".");
         }
 
         private void DataAcquisition_BufferError(object sender, BufferErrorEventArgs e)
         {
-            Task.Run(() =>
+            _ = Task.Run(() =>
             {
                 //_logger.LogWarning($"Data error! cAvailable: {e.BytesAvailable / (float)e.BytesTotal:P}, cLost: {e.BytesLost / (float)e.BytesTotal:P}, cCorrupted: {e.BytesCorrupted / (float)e.BytesTotal:P}");
-                var session = _sessionManager.ResetSession();
+                Sessions.Session session = _sessionManager.ResetSession();
             });
         }
 
-        public void CalibrateDevice()
+        public void CalibrateDevice(string deviceSerialNumber)
         {
+            int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
+
             calibration = new DataAcquisition(_logger);
             calibration.SubscribeToBlockReceived(1.0f, FrequencyResponseAnalysis_SamplesReceived);
 
@@ -177,7 +174,7 @@ namespace BBD.BodyMonitor.Services
             {
                 signalAmplitude = selfCalibrationAmplitudes[ai];
 
-                calibration.OpenDevice(new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -191,9 +188,9 @@ namespace BBD.BodyMonitor.Services
                 calibration.Start();
                 calibration.CloseDevice();
 
-                var maxMagnitude = calibrationFftData.MagnitudeData.Max();
-                var maxIndex = Array.FindIndex(calibrationFftData.MagnitudeData, md => md == maxMagnitude);
-                frequencyErrors[ai] = (calibrationFftData.FirstFrequency + maxIndex * calibrationFftData.FrequencyStep - signalFrequency) * 1000;
+                float maxMagnitude = calibrationFftData.MagnitudeData.Max();
+                int maxIndex = Array.FindIndex(calibrationFftData.MagnitudeData, md => md == maxMagnitude);
+                frequencyErrors[ai] = (calibrationFftData.FirstFrequency + (maxIndex * calibrationFftData.FrequencyStep) - signalFrequency) * 1000;
                 amplitudeErrors[ai] = (maxMagnitude - signalAmplitude) * 1000;
             }
             _logger.LogInformation($"Errors are ({string.Join(" | ", amplitudeErrors.Select(e => e.ToString("0.0").PadLeft(7)))}) mV and ({string.Join(" | ", frequencyErrors.Select(e => e.ToString("0.0").PadLeft(9)))}) mHz at ({string.Join(" | ", selfCalibrationAmplitudes.Select(a => a.ToString().PadLeft(7)))}) V amplitudes respectively.");
@@ -203,7 +200,7 @@ namespace BBD.BodyMonitor.Services
             {
                 signalFrequency = selfCalibrationFrequencies[fi];
 
-                calibration.OpenDevice(new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -217,9 +214,9 @@ namespace BBD.BodyMonitor.Services
                 calibration.Start();
                 calibration.CloseDevice();
 
-                var maxMagnitude = calibrationFftData.MagnitudeData.Max();
-                var maxIndex = Array.FindIndex(calibrationFftData.MagnitudeData, md => md == maxMagnitude);
-                frequencyErrors[fi] = (calibrationFftData.FirstFrequency + maxIndex * calibrationFftData.FrequencyStep - signalFrequency) * 1000;
+                float maxMagnitude = calibrationFftData.MagnitudeData.Max();
+                int maxIndex = Array.FindIndex(calibrationFftData.MagnitudeData, md => md == maxMagnitude);
+                frequencyErrors[fi] = (calibrationFftData.FirstFrequency + (maxIndex * calibrationFftData.FrequencyStep) - signalFrequency) * 1000;
                 amplitudeErrors[fi] = (maxMagnitude - signalAmplitude) * 1000;
             }
             _logger.LogInformation($"Errors are ({string.Join(" | ", amplitudeErrors.Select(e => e.ToString("0.0").PadLeft(7)))}) mV and ({string.Join(" | ", frequencyErrors.Select(e => e.ToString("0.0").PadLeft(9)))}) mHz at ({string.Join(" | ", selfCalibrationFrequencies.Select(a => a.ToString().PadLeft(7)))}) Hz respectively.");
@@ -229,7 +226,7 @@ namespace BBD.BodyMonitor.Services
             {
                 fftSize = selfCalibrationFFTSizes[si];
 
-                calibration.OpenDevice(new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -243,24 +240,25 @@ namespace BBD.BodyMonitor.Services
                 calibration.Start();
                 calibration.CloseDevice();
 
-                var maxMagnitude = calibrationFftData.MagnitudeData.Max();
-                var maxIndex = Array.FindIndex(calibrationFftData.MagnitudeData, md => md == maxMagnitude);
-                frequencyErrors[si] = (calibrationFftData.FirstFrequency + maxIndex * calibrationFftData.FrequencyStep - signalFrequency) * 1000;
+                float maxMagnitude = calibrationFftData.MagnitudeData.Max();
+                int maxIndex = Array.FindIndex(calibrationFftData.MagnitudeData, md => md == maxMagnitude);
+                frequencyErrors[si] = (calibrationFftData.FirstFrequency + (maxIndex * calibrationFftData.FrequencyStep) - signalFrequency) * 1000;
                 amplitudeErrors[si] = (maxMagnitude - signalAmplitude) * 1000;
             }
             _logger.LogInformation($"Errors are ({string.Join(" | ", amplitudeErrors.Select(e => e.ToString("0.0").PadLeft(7)))}) mV and ({string.Join(" | ", frequencyErrors.Select(e => e.ToString("0.0").PadLeft(9)))}) mHz at ({string.Join(" | ", selfCalibrationFFTSizes.Select(a => a.ToString().PadLeft(7)))}) FFT sizes respectively.");
         }
 
-        public void FrequencyResponseAnalysis()
+        public void FrequencyResponseAnalysis(string deviceSerialNumber)
         {
             if (!_config.Acquisition.Enabled || !_config.SignalGenerator.Enabled)
             {
                 throw new Exception("Acquisition and signal generator must be enabled for the frequnecy response analysis.");
             }
 
-            var frada = new DataAcquisition(_logger);
+            DataAcquisition frada = new(_logger);
+            int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
 
-            var frequencyAnalysisSettings = new FrequencyAnalysisSettings()
+            FrequencyAnalysisSettings frequencyAnalysisSettings = new()
             {
                 StartFrequency = 1 / _config.Acquisition.Block,
                 EndFrequency = _config.Acquisition.Samplerate / 2,
@@ -270,7 +268,7 @@ namespace BBD.BodyMonitor.Services
                 BlockLength = _config.Acquisition.Block
             };
 
-            int frSampleNumber = (int)((frequencyAnalysisSettings.Samplerate / 2) / frequencyAnalysisSettings.FrequencyStep);
+            int frSampleNumber = (int)(frequencyAnalysisSettings.Samplerate / 2 / frequencyAnalysisSettings.FrequencyStep);
             float[] result = new float[frSampleNumber];
 
 
@@ -291,13 +289,13 @@ namespace BBD.BodyMonitor.Services
 
             while (frequencyAnalysisSettings.Samplerate <= _config.Acquisition.Samplerate)
             {
-                float currentFftFrequencyStep = frequencyAnalysisSettings.Samplerate / (float)frequencyAnalysisSettings.FftSize;
+                float currentFftFrequencyStep = frequencyAnalysisSettings.Samplerate / frequencyAnalysisSettings.FftSize;
                 _logger.LogInformation($"The frequency response analysis between {frequencyAnalysisSettings.StartFrequency} and {frequencyAnalysisSettings.EndFrequency} Hz will be performed with a sampling rate of {frequencyAnalysisSettings.Samplerate} Hz and a FFT size of {frequencyAnalysisSettings.FftSize} ({currentFftFrequencyStep} Hz per bin).");
 
-                RunPartialFrequencyAnalysis(frada, frequencyAnalysisSettings, result);
+                RunPartialFrequencyAnalysis(deviceIndex, frada, frequencyAnalysisSettings, result);
 
                 frequencyAnalysisSettings.Samplerate *= 2;
-                frada.OpenDevice(_config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
                 frequencyAnalysisSettings.Samplerate = frada.Samplerate;
                 frada.CloseDevice();
                 frequencyAnalysisSettings.StartFrequency = frequencyAnalysisSettings.EndFrequency;
@@ -316,24 +314,21 @@ namespace BBD.BodyMonitor.Services
 
                 // save the result data
                 string[] columnNames = Enumerable.Range(0, frSampleNumber).Select(i => "Freq_" + frequencyResponseAnalysisFftData.GetBinFromIndex(i).ToString("0.00").Replace(".", "p") + "_Hz").ToArray();
-                File.WriteAllText(fraFilename, String.Join(",", columnNames) + System.Environment.NewLine);
-                File.AppendAllText(fraFilename, String.Join(",", result.Select(md => md.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture.NumberFormat))));
+                File.WriteAllText(fraFilename, string.Join(",", columnNames) + System.Environment.NewLine);
+                File.AppendAllText(fraFilename, string.Join(",", result.Select(md => md.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture.NumberFormat))));
             }
         }
 
-        private void RunPartialFrequencyAnalysis(DataAcquisition frada, FrequencyAnalysisSettings frequencyAnalysisSettings, float[] result)
+        private void RunPartialFrequencyAnalysis(int deviceIndex, DataAcquisition frada, FrequencyAnalysisSettings frequencyAnalysisSettings, float[] result)
         {
             fftDataBlockCache = new FftDataBlockCache((int)frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
 
-            frada.OpenDevice(_config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, frequencyAnalysisSettings.BlockLength, _config.Acquisition.Buffer);
+            _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, frequencyAnalysisSettings.BlockLength, _config.Acquisition.Buffer);
             //frada.SubscribeToBlockReceived(frequencyAnalysisSettings.FftSize / frequencyAnalysisSettings.Samplerate, FrequencyResponseAnalysis_SamplesReceived);
             frada.SubscribeToBlockReceived(0.05f, FrequencyResponseAnalysis_SamplesReceived);
             fftDataBlockCache = new FftDataBlockCache((int)frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
 
-            Task.Run(() =>
-            {
-                frada.Start();
-            });
+            _ = Task.Run(frada.Start);
 
             frada.SweepSingalGeneratorFrequency(frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, 45.0f);
             //frada.ChangeSingalGeneratorFrequency(frequencyAnalysisSettings.EndFrequency);
@@ -353,7 +348,7 @@ namespace BBD.BodyMonitor.Services
                 //result[i] = Math.Max(frequencyResponseAnalysisFftData.MagnitudeData[i], Math.Max(frequencyResponseAnalysisFftData.MagnitudeData[i - 1], frequencyResponseAnalysisFftData.MagnitudeData[i + 1])) * valueMultiplier;
 
                 //int maxIndex = Array.IndexOf(frequencyResponseAnalysisFftData.MagnitudeData, frequencyResponseAnalysisFftData.MagnitudeData.Max());
-                var magnitudeData = frequencyResponseAnalysisFftData.MagnitudeData.TakeLast(frequencyResponseAnalysisFftData.MagnitudeData.Length - lastMaxIndex).ToArray();
+                float[] magnitudeData = frequencyResponseAnalysisFftData.MagnitudeData.TakeLast(frequencyResponseAnalysisFftData.MagnitudeData.Length - lastMaxIndex).ToArray();
                 int maxIndex = Array.IndexOf(magnitudeData, magnitudeData.Max());
                 float maxValue = frequencyResponseAnalysisFftData.MagnitudeData[lastMaxIndex + maxIndex] * valueMultiplier;
                 float maxFreq = frequencyResponseAnalysisFftData.GetBinFromIndex(lastMaxIndex + maxIndex).MiddleFrequency;
@@ -410,10 +405,10 @@ namespace BBD.BodyMonitor.Services
 
                 string pathToFile = GeneratePathToFile(DateTimeOffset.Now.ToUniversalTime().DateTime);
 
-                FileStream waveFileStream = new FileStream(AppendDataDir($"{pathToFile}_{rnd.Next(999999):000000}__{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav"), FileMode.Create);
-                DiscreteSignal signalToSave = new DiscreteSignal(_config.Acquisition.Samplerate, e.DataBlock.Data, true);
+                FileStream waveFileStream = new(AppendDataDir($"{pathToFile}_{rnd.Next(999999):000000}__{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav"), FileMode.Create);
+                DiscreteSignal signalToSave = new(_config.Acquisition.Samplerate, e.DataBlock.Data, true);
                 signalToSave.Amplify(_inputAmplification);
-                WaveFile waveFile = new WaveFile(signalToSave, 16);
+                WaveFile waveFile = new(signalToSave, 16);
                 waveFile.SaveTo(waveFileStream, false);
 
                 waveFileStream.Close();
@@ -444,7 +439,7 @@ namespace BBD.BodyMonitor.Services
             string waveFilename;
             if (_config.DataWriter.SingleFile)
             {
-                var session = _sessionManager.GetSession(null);
+                Sessions.Session session = _sessionManager.GetSession(null);
                 if ((session == null) || (!session.StartedAt.HasValue))
                 {
                     return;
@@ -459,7 +454,7 @@ namespace BBD.BodyMonitor.Services
             }
             waveFilename = AppendDataDir(waveFilename);
 
-            Task.Run(() =>
+            _ = Task.Run(() =>
             {
                 string threadId = e.DataBlock.EndIndex.ToString("0000DW");
                 _logger.LogTrace($"Data writer thread #{threadId} begin");
@@ -470,24 +465,24 @@ namespace BBD.BodyMonitor.Services
                 {
                     sw.Restart();
                     // and save samples to a WAV file
-                    FileStream waveFileStream = new FileStream(waveFilename, FileMode.OpenOrCreate);
-                    DiscreteSignal signalToSave = new DiscreteSignal((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
+                    FileStream waveFileStream = new(waveFilename, FileMode.OpenOrCreate);
+                    DiscreteSignal signalToSave = new((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
                     signalToSave.Amplify(_inputAmplification);
 
                     // force the values to fit into the 16-bit range
-                    signalToSave = new DiscreteSignal((int)dataAcquisition.Samplerate, signalToSave.Samples.Select(v => v < Int16.MinValue ? Int16.MinValue : v > Int16.MaxValue ? Int16.MaxValue : v).ToArray(), true);
+                    signalToSave = new DiscreteSignal((int)dataAcquisition.Samplerate, signalToSave.Samples.Select(v => v < short.MinValue ? short.MinValue : v > short.MaxValue ? short.MaxValue : v).ToArray(), true);
 
-                    var minSignal = signalToSave.Samples.Min();
-                    var maxSignal = signalToSave.Samples.Max();
+                    float minSignal = signalToSave.Samples.Min();
+                    float maxSignal = signalToSave.Samples.Max();
 
-                    if ((minSignal == Int16.MinValue) || (maxSignal == Int16.MaxValue))
+                    if ((minSignal == short.MinValue) || (maxSignal == short.MaxValue))
                     {
                         _logger.LogWarning("The samples in the WAV file are clipped. This is usually caused by the input signal being too strong.");
                     }
 
-                    var maxAbsSignal = (float)Math.Max(-minSignal, maxSignal);
+                    float maxAbsSignal = (float)Math.Max(-minSignal, maxSignal);
                     int bitsLost = 0;
-                    while (maxAbsSignal <= Int16.MaxValue)
+                    while (maxAbsSignal <= short.MaxValue)
                     {
                         maxAbsSignal *= 2;
                         bitsLost++;
@@ -504,7 +499,7 @@ namespace BBD.BodyMonitor.Services
                     }
                     else
                     {
-                        WaveFile waveFile = new WaveFile(signalToSave, 16);
+                        WaveFile waveFile = new(signalToSave, 16);
                         waveFile.SaveTo(waveFileStream, false);
                     }
 
@@ -519,6 +514,7 @@ namespace BBD.BodyMonitor.Services
             );
         }
 
+        [Obsolete]
         public void Postprocessing_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
             if (dataAcquisition == null)
@@ -531,7 +527,7 @@ namespace BBD.BodyMonitor.Services
 
             if (_config.Postprocessing.Enabled)
             {
-                Task.Run(() =>
+                _ = Task.Run(() =>
                 {
                     string threadId = dataBlock.EndIndex.ToString("0000PP");
                     _logger.LogTrace($"Postprocessing thread #{threadId} begin");
@@ -578,7 +574,7 @@ namespace BBD.BodyMonitor.Services
                     string fftRange = resampledFFTData.GetFFTRange();
                     if (_config.Postprocessing.SaveAsFFT)
                     {
-                        Task.Run(() =>
+                        _ = Task.Run(() =>
                         {
                             Stopwatch sw = Stopwatch.StartNew();
 
@@ -592,7 +588,7 @@ namespace BBD.BodyMonitor.Services
 
                     if (_config.Postprocessing.SaveAsCompressedFFT)
                     {
-                        Task.Run(() =>
+                        _ = Task.Run(() =>
                         {
                             Stopwatch sw = Stopwatch.StartNew();
 
@@ -606,7 +602,7 @@ namespace BBD.BodyMonitor.Services
 
                     if (_config.Postprocessing.SaveAsBinaryFFT)
                     {
-                        Task.Run(() =>
+                        _ = Task.Run(() =>
                         {
                             Stopwatch sw = Stopwatch.StartNew();
 
@@ -621,7 +617,7 @@ namespace BBD.BodyMonitor.Services
 
                     if (_config.Postprocessing.SaveAsPNG.Enabled)
                     {
-                        var mlProfile = _config.MachineLearning.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(_config.Postprocessing.SaveAsPNG.MLProfile) && p.Name.StartsWith(_config.Postprocessing.SaveAsPNG.MLProfile));
+                        MLProfile? mlProfile = _config.MachineLearning.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(_config.Postprocessing.SaveAsPNG.MLProfile) && p.Name.StartsWith(_config.Postprocessing.SaveAsPNG.MLProfile));
                         if (mlProfile == null)
                         {
                             _logger.LogError($"The profile '{_config.Postprocessing.SaveAsPNG.MLProfile}' was not found in the machine learning profile list. Make sure that you have it defined in the appsettings.json file.");
@@ -629,7 +625,7 @@ namespace BBD.BodyMonitor.Services
                         }
                         else
                         {
-                            Task.Run(() =>
+                            _ = Task.Run(() =>
                             {
                                 Stopwatch sw = Stopwatch.StartNew();
 
@@ -649,6 +645,7 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        [Obsolete]
         public void Indicators_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
             if (dataAcquisition == null)
@@ -661,7 +658,7 @@ namespace BBD.BodyMonitor.Services
 
             if (_config.Indicators.Enabled)
             {
-                Task.Run(() =>
+                _ = Task.Run(() =>
                 {
                     string threadId = e.DataBlock.EndIndex.ToString("0000IN");
                     _logger.LogTrace($"Indicators thread #{threadId} begin");
@@ -687,7 +684,7 @@ namespace BBD.BodyMonitor.Services
 
                     if (_config.Indicators.Enabled)
                     {
-                        var evaluationResults = EvaluateIndicators(_logger, dataBlock.EndIndex, resampledFFTData);
+                        IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(_logger, dataBlock.EndIndex, resampledFFTData);
 
                         if (evaluationResults.Length > 0)
                         {
@@ -708,7 +705,7 @@ namespace BBD.BodyMonitor.Services
 
             if (_config.AudioRecording.Enabled)
             {
-                Task.Run(() =>
+                _ = Task.Run(() =>
                 {
                     TimeSpan tp = captureTime.Add(new TimeSpan(0, 0, (int)_config.Postprocessing.Interval * 2)) - DateTime.UtcNow;
 
@@ -723,7 +720,7 @@ namespace BBD.BodyMonitor.Services
 
                     try
                     {
-                        FFmpeg.Conversions.New().Start(audioRecordingCommandLine)
+                        _ = FFmpeg.Conversions.New().Start(audioRecordingCommandLine)
                             .ContinueWith((cr) =>
                             {
                                 try
@@ -733,7 +730,7 @@ namespace BBD.BodyMonitor.Services
 
                                     float waveRms = 0;
                                     float wavePeak = 0;
-                                    using (var waveStream = new FileStream(recFilename, FileMode.Open))
+                                    using (FileStream waveStream = new(recFilename, FileMode.Open))
                                     {
                                         DiscreteSignal recordedAudio = new WaveFile(waveStream).Signals[0];
                                         waveRms = recordedAudio.Rms();
@@ -743,7 +740,7 @@ namespace BBD.BodyMonitor.Services
                                     //if (waveRms >= config.AudioRecording.SilenceThreshold)
                                     if (wavePeak >= _config.AudioRecording.SilenceThreshold)
                                     {
-                                        string finalFilename = AppendDataDir($"{pathToAudioFile}_{wavePeak.ToString("00.0")}%.{ffmpegAudioEncodingExtension}");
+                                        string finalFilename = AppendDataDir($"{pathToAudioFile}_{wavePeak:00.0}%.{ffmpegAudioEncodingExtension}");
                                         string audioEncodingCommandLine = $"-i {recFilename} {ffmpegAudioEncodingParameters} \"{finalFilename}\"";
 
                                         _logger.LogDebug($"ffmpeg {audioEncodingCommandLine}");
@@ -770,7 +767,7 @@ namespace BBD.BodyMonitor.Services
 
         public List<string> GetFFMPEGAudioDevices()
         {
-            var ffmpegAudioNames = new List<string>();
+            List<string> ffmpegAudioNames = new();
 
             ffmpegAudioNames.Clear();
             foreach (string audioFramework in audioFrameworks)
@@ -779,7 +776,7 @@ namespace BBD.BodyMonitor.Services
                 {
                     string listDevicesCommandLine = $"-list_devices true -f {audioFramework} -i dummy";
                     _logger.LogDebug($"ffmpeg {listDevicesCommandLine}");
-                    var listDevicesConversion = FFmpeg.Conversions.New();
+                    IConversion listDevicesConversion = FFmpeg.Conversions.New();
                     //listDevicesConversion.OnDataReceived += ListDevicesConversion_OnDataReceived;
                     listDevicesConversion.Start(listDevicesCommandLine).Wait();
                 }
@@ -794,7 +791,10 @@ namespace BBD.BodyMonitor.Services
                                 string listedAudioFramework = audioDeviceDetails.Split(new char[] { '[', '@' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
                                 string listedAudioDevice = audioDeviceDetails.Split(new char[] { ']', '\"' }, StringSplitOptions.RemoveEmptyEntries)[^1].Trim();
 
-                                if (audioDeviceDetails.Contains("Alternative name") || !audioDeviceDetails.Contains("\"")) continue;
+                                if (audioDeviceDetails.Contains("Alternative name") || !audioDeviceDetails.Contains("\""))
+                                {
+                                    continue;
+                                }
 
                                 ffmpegAudioNames.Add($"{listedAudioFramework}/{listedAudioDevice}");
                             }
@@ -822,9 +822,10 @@ namespace BBD.BodyMonitor.Services
             return ffmpegAudioNames;
         }
 
+        [Obsolete]
         public IndicatorEvaluationResult[] EvaluateIndicators(ILogger? logger, long blockIndex, FftDataV3 inputData)
         {
-            List<IndicatorEvaluationResult> result = new List<IndicatorEvaluationResult>();
+            List<IndicatorEvaluationResult> result = new();
 
             IndicatorEvaluationTaskDescriptor[] taskDescriptors = new IndicatorEvaluationTaskDescriptor[]
             {
@@ -958,15 +959,15 @@ namespace BBD.BodyMonitor.Services
 
             inputData.Load();
 
-            Stopwatch sw = new Stopwatch();
+            Stopwatch sw = new();
             sw.Start();
 
-            var tasks = new List<Task>();
+            List<Task> tasks = new();
             foreach (IndicatorEvaluationTaskDescriptor td in taskDescriptors)
             {
-                var task = Task.Run(() =>
+                Task task = Task.Run(() =>
                 {
-                    var evalResult = EvaluateIndicator(blockIndex, td.IndicatorIndex, td.IndicatorName, td.DisplayText, td.MLModelFilename, inputData.ApplyMLProfile(td.MLProfile));
+                    IndicatorEvaluationResult evalResult = EvaluateIndicator(blockIndex, td.IndicatorIndex, td.IndicatorName, td.DisplayText, td.MLModelFilename, inputData.ApplyMLProfile(td.MLProfile));
                     if (evalResult != null)
                     {
                         lock (result)
@@ -985,7 +986,7 @@ namespace BBD.BodyMonitor.Services
             return result.OrderBy(r => r.IndicatorIndex).ToArray();
         }
 
-        public IndicatorEvaluationResult EvaluateIndicator(long blockIndex, int indicatorIndex, string indicatorName, string displayText, String mlModelFilename, FftDataV3 inputData)
+        public IndicatorEvaluationResult? EvaluateIndicator(long blockIndex, int indicatorIndex, string indicatorName, string displayText, string mlModelFilename, FftDataV3 inputData)
         {
             if (!System.IO.File.Exists(mlModelFilename))
             {
@@ -998,62 +999,43 @@ namespace BBD.BodyMonitor.Services
             }
 
             //Create MLContext
-            MLContext mlContext = new MLContext();
+            MLContext mlContext = new();
 
             // Load Trained Model
-            DataViewSchema predictionPipelineSchema;
-            var transformer = mlContext.Model.Load(mlModelFilename, out predictionPipelineSchema);
+            ITransformer transformer = mlContext.Model.Load(mlModelFilename, out _);
 
             //var predictionEngine = mlContext.Model.CreatePredictionEngine<MLP09, MLP09Output>(transformer);
 
             // Input Data
             Stopwatch sw = Stopwatch.StartNew();
-
-            IDataView? data = null;
-
-            if (String.IsNullOrEmpty(inputData.MLProfileName))
+            if (string.IsNullOrEmpty(inputData.MLProfileName))
             {
                 throw new Exception($"The input data for the ML models must be profiled first.");
             }
 
-            if (inputData.MLProfileName.StartsWith("MLP09"))
-            {
-                data = mlContext.Data.LoadFromEnumerable(new MLP09[1] { new MLP09() { Features = inputData.MagnitudeData } });
-            }
-            else if (inputData.MLProfileName.StartsWith("MLP10"))
-            {
-                data = mlContext.Data.LoadFromEnumerable(new MLP10[1] { new MLP10() { Features = inputData.MagnitudeData } });
-            }
-            else if (inputData.MLProfileName.StartsWith("MLP12"))
-            {
-                data = mlContext.Data.LoadFromEnumerable(new MLP12[1] { new MLP12() { Features = inputData.MagnitudeData } });
-            }
-            else if (inputData.MLProfileName.StartsWith("MLP14"))
-            {
-                data = mlContext.Data.LoadFromEnumerable(new MLP14[1] { new MLP14() { Features = inputData.MagnitudeData } });
-            }
-            else if (inputData.MLProfileName.StartsWith("MLP15"))
-            {
-                data = mlContext.Data.LoadFromEnumerable(new MLP15[1] { new MLP15() { Features = inputData.MagnitudeData } });
-            }
-            else if (inputData.MLProfileName.StartsWith("MLP16"))
-            {
-                data = mlContext.Data.LoadFromEnumerable(new MLP16[1] { new MLP16() { Features = inputData.MagnitudeData } });
-            }
-            else
-            {
-                throw new Exception($"ML Profile '{inputData.MLProfileName}' is not supported yet.");
-            }
 
+            IDataView? data = inputData.MLProfileName.StartsWith("MLP09")
+                ? mlContext.Data.LoadFromEnumerable(new MLP09[1] { new MLP09() { Features = inputData.MagnitudeData } })
+                : inputData.MLProfileName.StartsWith("MLP10")
+                    ? mlContext.Data.LoadFromEnumerable(new MLP10[1] { new MLP10() { Features = inputData.MagnitudeData } })
+                    : inputData.MLProfileName.StartsWith("MLP12")
+                                    ? mlContext.Data.LoadFromEnumerable(new MLP12[1] { new MLP12() { Features = inputData.MagnitudeData } })
+                                    : inputData.MLProfileName.StartsWith("MLP14")
+                                                    ? mlContext.Data.LoadFromEnumerable(new MLP14[1] { new MLP14() { Features = inputData.MagnitudeData } })
+                                                    : inputData.MLProfileName.StartsWith("MLP15")
+                                                                    ? mlContext.Data.LoadFromEnumerable(new MLP15[1] { new MLP15() { Features = inputData.MagnitudeData } })
+                                                                    : inputData.MLProfileName.StartsWith("MLP16")
+                                                                                    ? mlContext.Data.LoadFromEnumerable(new MLP16[1] { new MLP16() { Features = inputData.MagnitudeData } })
+                                                                                    : throw new Exception($"ML Profile '{inputData.MLProfileName}' is not supported yet.");
             sw.Stop();
             _logger.LogTrace($"#{blockIndex:0000} Input data setting was completed in {sw.ElapsedMilliseconds:N0} ms.");
 
             // Get Prediction
             sw.Restart();
-            var eval = transformer.Transform(data);
-            var scoreColumn = eval.GetColumn<float>("Score");
-            var score = scoreColumn.GetEnumerator().Current;
-            var metric = mlContext.Regression.Evaluate(eval, "Label");
+            IDataView eval = transformer.Transform(data);
+            IEnumerable<float> scoreColumn = eval.GetColumn<float>("Score");
+            _ = scoreColumn.GetEnumerator().Current;
+            RegressionMetrics metric = mlContext.Regression.Evaluate(eval, "Label");
 
             //var modelOutput = predictionEngine.Predict(new MLP09() { Features = inputData.MagnitudeData });
             sw.Stop();
@@ -1074,11 +1056,11 @@ namespace BBD.BodyMonitor.Services
         {
             if (!Directory.Exists(AppendDataDir(captureTime.ToString("yyyy-MM-dd"))))
             {
-                Directory.CreateDirectory(AppendDataDir(captureTime.ToString("yyyy-MM-dd")));
+                _ = Directory.CreateDirectory(AppendDataDir(captureTime.ToString("yyyy-MM-dd")));
             }
 
-            string foldername = $"{captureTime.ToString("yyyy-MM-dd")}";
-            string filename = $"AD2_{captureTime.ToString("yyyyMMdd_HHmmss")}";
+            string foldername = $"{captureTime:yyyy-MM-dd}";
+            string filename = $"AD2_{captureTime:yyyyMMdd_HHmmss}";
             return Path.Combine(foldername, filename);
         }
 
@@ -1086,17 +1068,18 @@ namespace BBD.BodyMonitor.Services
         {
             string fftRangeString = $"__{fftData.GetFFTRange()}";
             string mlProfileString = $"__{fftData.MLProfileName.Split("_")[0]}";
-            string profileOrRangeString = String.IsNullOrEmpty(mlProfileString) ? fftRangeString : mlProfileString;
+            string profileOrRangeString = string.IsNullOrEmpty(mlProfileString) ? fftRangeString : mlProfileString;
             string frameCounterString = frameCounter.HasValue ? $"__fr{frameCounter.Value.ToString(frameCounterFormatterString)}" : "";
-            return $"AD2_{fftData.Start.Value.ToString("yyyyMMdd_HHmmss")}{profileOrRangeString}{frameCounterString}.bfft";
+            return $"AD2_{fftData.Start.Value:yyyyMMdd_HHmmss}{profileOrRangeString}{frameCounterString}.bfft";
         }
 
+        [Obsolete]
         public void GenerateVideo(string foldername, MLProfile mlProfile, double framerate)
         {
-            var totalFrameCount = EnumerateFFTDataInFolder(foldername).Count();
-            var frameCounter = 0;
+            int totalFrameCount = EnumerateFFTDataInFolder(foldername).Count();
+            int frameCounter = 0;
 
-            Stopwatch sw = new Stopwatch();
+            Stopwatch sw = new();
             sw.Start();
             foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
             {
@@ -1111,7 +1094,7 @@ namespace BBD.BodyMonitor.Services
                         continue;
                     }
 
-                    var evaluationResults = EvaluateIndicators(null, 0, fftData);
+                    IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(null, 0, fftData);
                     string evaluationResultsString = string.Join(System.Environment.NewLine, evaluationResults.Select(er => er.DisplayText + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00")));
 
                     fftData.ApplyMedianFilter();
@@ -1122,8 +1105,8 @@ namespace BBD.BodyMonitor.Services
 
                     if (frameCounter % 50 == 0)
                     {
-                        float percentCompleted = ((float)frameCounter / totalFrameCount) * 100;
-                        float totalTimeToFinish = (sw.ElapsedMilliseconds / (percentCompleted / 100));
+                        float percentCompleted = (float)frameCounter / totalFrameCount * 100;
+                        float totalTimeToFinish = sw.ElapsedMilliseconds / (percentCompleted / 100);
                         _logger.LogInformation($"Generated {percentCompleted:0.00}% of the PNG files, {(totalTimeToFinish - sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes remaining.");
                     }
                 }
@@ -1154,12 +1137,13 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        [Obsolete]
         public void GenerateMLCSV(string foldername, MLProfile mlProfile, bool includeHeaders, string tagFilterExpression, string validLabelExpression, string balanceOnTag, int? maxRows)
         {
-            HashSet<string> validTags = new HashSet<string>();
+            HashSet<string> validTags = new();
             string[] requiredTags = tagFilterExpression.Split("||", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             string[] validLabels = validLabelExpression.Split("+", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            List<FftDataV3> fftFilesToConvert = new List<FftDataV3>();
+            List<FftDataV3> fftFilesToConvert = new();
             List<FftDataV3> fftFilesTemp;
 
             if (mlProfile == null)
@@ -1181,7 +1165,7 @@ namespace BBD.BodyMonitor.Services
 
             // Read all data files from the folder and its subfolders
             int fftFilesToConvertCount = 0;
-            foreach (var fftData in EnumerateFFTDataInFolder(foldername))
+            foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
             {
                 fftFilesToConvert.Add(fftData);
                 fftFilesToConvertCount++;
@@ -1193,7 +1177,7 @@ namespace BBD.BodyMonitor.Services
             fftFilesTemp = new List<FftDataV3>();
             if (requiredTags.Length > 0)
             {
-                foreach (var fftData in fftFilesToConvert)
+                foreach (FftDataV3 fftData in fftFilesToConvert)
                 {
                     if (requiredTags.All(rt => fftData.Tags.Any(t => t.Contains(rt))))
                     {
@@ -1206,14 +1190,14 @@ namespace BBD.BodyMonitor.Services
 
             // Balance the data if requested
             // TODO: data balancing should be done with the final, downsampled FFT file list
-            if (!String.IsNullOrWhiteSpace(balanceOnTag))
+            if (!string.IsNullOrWhiteSpace(balanceOnTag))
             {
                 int hasBalanceTagCount = fftFilesToConvert.Count(d => d.Tags.Contains(balanceOnTag));
                 int hasNoBalanceTagCount = fftFilesToConvert.Count(d => !d.Tags.Contains(balanceOnTag));
 
                 int smallerCount = Math.Min(hasBalanceTagCount, hasNoBalanceTagCount);
 
-                if ((maxRows.HasValue) && (maxRows.Value > 0))
+                if (maxRows.HasValue && (maxRows.Value > 0))
                 {
                     maxRows = (((maxRows.Value - 1) / 2) + 1) * 2;
                     smallerCount = Math.Min(smallerCount, maxRows.Value / 2);
@@ -1223,12 +1207,12 @@ namespace BBD.BodyMonitor.Services
                 {
                     fftFilesTemp = new List<FftDataV3>();
 
-                    Random rnd = new Random();
+                    Random rnd = new();
                     fftFilesToConvert = fftFilesToConvert.OrderBy(a => rnd.Next()).ToList();
 
                     hasBalanceTagCount = 0;
                     hasNoBalanceTagCount = 0;
-                    foreach (var fftData in fftFilesToConvert)
+                    foreach (FftDataV3 fftData in fftFilesToConvert)
                     {
                         bool hasBalanceTag = fftData.Tags.Contains(balanceOnTag);
 
@@ -1253,42 +1237,41 @@ namespace BBD.BodyMonitor.Services
 
             List<FftDataV3> convertedFFTDataCache = ConvertFFTFilesToMLProfile(mlProfile, validTags, fftFilesToConvert);
 
-            string[] featureColumnNames, labelColumnNames;
-            string filenameRoot, csvFilename;
 
             // We have all the FFT data in downsampledFFTDataCache converted to the requested ML profile
 
-            Dictionary<string, List<float>> labelValues = SaveMLCSVFile(foldername, mlProfile, includeHeaders, validTags, ref validLabels, convertedFFTDataCache, out featureColumnNames, out labelColumnNames, out filenameRoot, out csvFilename);
+            Dictionary<string, List<float>> labelValues = SaveMLCSVFile(foldername, mlProfile, includeHeaders, validTags, ref validLabels, convertedFFTDataCache, out string[] featureColumnNames, out string[] labelColumnNames, out string filenameRoot, out string csvFilename);
 
             //SaveMBConfigFile(featureColumnNames, labelColumnNames, filenameRoot, csvFilename);
 
             GenerateLabelDistribution(labelValues);
         }
 
+        [Obsolete]
         private List<FftDataV3> ConvertFFTFilesToMLProfile(MLProfile mlProfile, HashSet<string> validTags, List<FftDataV3> fftFilesToConvert)
         {
-            Stopwatch sw = new Stopwatch();
+            Stopwatch sw = new();
             sw.Start();
 
-            List<FftDataV3> downsampledFFTDataCache = new List<FftDataV3>();
+            List<FftDataV3> downsampledFFTDataCache = new();
 
             int fftFilesToConvertCount = fftFilesToConvert.Count();
             int fftDataLoadCompleteCount = 0;
             long fftDataBytesLoaded = 0;
 
-            Task.Run(() =>
+            _ = Task.Run(() =>
             {
                 while (fftDataLoadCompleteCount < fftFilesToConvertCount)
                 {
                     if (fftDataBytesLoaded > 0)
                     {
-                        _logger.LogInformation($"{((float)fftDataLoadCompleteCount / fftFilesToConvertCount * 100.0f).ToString("0.0")}% of FFT data was converted with the effective speed of {(float)fftDataBytesLoaded / (1024 * 1024) / ((float)sw.ElapsedMilliseconds / 1000):0.0} MB/s.");
+                        _logger.LogInformation($"{(float)fftDataLoadCompleteCount / fftFilesToConvertCount * 100.0f:0.0}% of FFT data was converted with the effective speed of {(float)fftDataBytesLoaded / (1024 * 1024) / ((float)sw.ElapsedMilliseconds / 1000):0.0} MB/s.");
                     }
                     Thread.Sleep(1000);
                 }
             });
 
-            var plr = Parallel.ForEach(fftFilesToConvert, new ParallelOptions { MaxDegreeOfParallelism = 3 },
+            ParallelLoopResult plr = Parallel.ForEach(fftFilesToConvert, new ParallelOptions { MaxDegreeOfParallelism = 3 },
                 fftData =>
                 {
                     // Load the raw .bfft file into the memory
@@ -1302,7 +1285,7 @@ namespace BBD.BodyMonitor.Services
                         {
                             lock (validTags)
                             {
-                                validTags.Add(tag);
+                                _ = validTags.Add(tag);
                             }
                         }
                     }
@@ -1311,7 +1294,7 @@ namespace BBD.BodyMonitor.Services
                     {
                         try
                         {
-                            var downsampledFFTData = fftData.ApplyMLProfile(mlProfile);
+                            FftDataV3 downsampledFFTData = fftData.ApplyMLProfile(mlProfile);
 
                             lock (fftFilesToConvert)
                             {
@@ -1356,7 +1339,7 @@ namespace BBD.BodyMonitor.Services
 
         private Dictionary<string, List<float>> SaveMLCSVFile(string foldername, MLProfile mlProfile, bool includeHeaders, HashSet<string> validTags, ref string[] validLabels, List<FftDataV3> fftDataCache, out string[] featureColumnNames, out string[] labelColumnNames, out string filenameRoot, out string csvFilename)
         {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new();
             int featureColumnIndexStart = 0;
             int featureColumnIndexEnd = 0;
             DateTimeOffset nextConsoleFeedback = DateTime.UtcNow;
@@ -1368,7 +1351,7 @@ namespace BBD.BodyMonitor.Services
                 throw new Exception($"There are no valid FFT files in the '{foldername}' folder.");
             }
 
-            Dictionary<string, List<float>> labelValues = new Dictionary<string, List<float>>();
+            Dictionary<string, List<float>> labelValues = new();
 
             FftDataV3? templateFftData = fftDataCache[0];
             featureColumnIndexStart = 0;
@@ -1386,10 +1369,10 @@ namespace BBD.BodyMonitor.Services
                 string header = string.Join(",", featureColumnNames);
                 header += "," + string.Join(",", labelColumnNames);
 
-                sb.AppendLine(header);
+                _ = sb.AppendLine(header);
             }
 
-            filenameRoot = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value).ToString("yyyyMMdd")}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{fftDataCount}rows";
+            filenameRoot = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value):yyyyMMdd}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{fftDataCount}rows";
             csvFilename = filenameRoot + ".csv";
             _logger.LogInformation($"Generating machine learning CSV file '{csvFilename}' with {featureColumnIndexEnd - featureColumnIndexStart + validLabels.Length} columns and {fftDataCount + 1} rows.");
             try
@@ -1400,20 +1383,23 @@ namespace BBD.BodyMonitor.Services
             {
                 _logger.LogError($"There was an error while generating headers for CSV file '{csvFilename}': {ex.Message}");
             }
-            sb.Clear();
+            _ = sb.Clear();
 
             int i = 0;
             int missingLabelValue = 0;
-            foreach (var fftData in fftDataCache.OrderBy(d => d.Start))
+            foreach (FftDataV3? fftData in fftDataCache.OrderBy(d => d.Start))
             {
-                if (fftData == null) continue;
+                if (fftData == null)
+                {
+                    continue;
+                }
 
                 // load a new location if needed
                 string? locationAlias = null;
                 string? locationTag = fftData.Tags?.FirstOrDefault(t => t.StartsWith("Location_"));
                 if (locationTag != null)
                 {
-                    locationAlias = locationTag.Substring("Location_".Length);
+                    locationAlias = locationTag["Location_".Length..];
                 }
 
                 // load a new subject if needed
@@ -1421,15 +1407,15 @@ namespace BBD.BodyMonitor.Services
                 string? subjectTag = fftData.Tags?.FirstOrDefault(t => t.StartsWith("Subject_"));
                 if (subjectTag != null)
                 {
-                    subjectAlias = subjectTag.Substring("Subject_".Length);
+                    subjectAlias = subjectTag["Subject_".Length..];
                 }
 
-                var session = _sessionManager.StartSession(locationAlias, subjectAlias);
+                Sessions.Session session = _sessionManager.StartSession(locationAlias, subjectAlias);
 
 
                 if (nextConsoleFeedback < DateTime.UtcNow)
                 {
-                    _logger.LogInformation($"Adding '{fftData.Name}' to the machine learning CSV file. {((float)i / fftDataCount * 100.0f).ToString("0.0")}% done.");
+                    _logger.LogInformation($"Adding '{fftData.Name}' to the machine learning CSV file. {(float)i / fftDataCount * 100.0f:0.0}% done.");
                     nextConsoleFeedback = DateTime.UtcNow.AddSeconds(3);
 
                     try
@@ -1440,7 +1426,7 @@ namespace BBD.BodyMonitor.Services
                     {
                         _logger.LogError($"There was an error while appending to CSV file '{csvFilename}': {ex.Message}");
                     }
-                    sb.Clear();
+                    _ = sb.Clear();
                 }
 
                 bool skipDataset = false;
@@ -1457,7 +1443,7 @@ namespace BBD.BodyMonitor.Services
                     else
                     {
                         // B, the validLabel isn't a known tag so we suppose that it is a property in metadata
-                        if ((fftData.Start.HasValue) && (fftData.End.HasValue))
+                        if (fftData.Start.HasValue && fftData.End.HasValue)
                         {
                             //DateTimeOffset timeUtc = new DateTimeOffset((fftData.Start.Value.Ticks + fftData.End.Value.Ticks) / 2, TimeSpan.Zero);
 
@@ -1487,7 +1473,7 @@ namespace BBD.BodyMonitor.Services
 
                 if (!skipDataset)
                 {
-                    sb.AppendLine(datasetString);
+                    _ = sb.AppendLine(datasetString);
                     dataRowsWritten++;
                 }
                 i++;
@@ -1502,7 +1488,7 @@ namespace BBD.BodyMonitor.Services
             {
                 File.AppendAllText(AppendDataDir(csvFilename), sb.ToString());
 
-                string newCsvFilename = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value).ToString("yyyyMMdd")}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{dataRowsWritten}rows.csv";
+                string newCsvFilename = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value):yyyyMMdd}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{dataRowsWritten}rows.csv";
                 File.Move(AppendDataDir(csvFilename), AppendDataDir(newCsvFilename));
                 csvFilename = newCsvFilename;
             }
@@ -1510,7 +1496,7 @@ namespace BBD.BodyMonitor.Services
             {
                 _logger.LogError($"There was an error while appending to CSV file '{csvFilename}': {ex.Message}");
             }
-            sb.Clear();
+            _ = sb.Clear();
 
             return labelValues;
         }
@@ -1521,7 +1507,7 @@ namespace BBD.BodyMonitor.Services
             _logger.LogInformation($"Generating mbconfig file '{mbconfigFilename}'.");
             try
             {
-                MBConfig mbConfig = new MBConfig(AppendDataDir(csvFilename), featureColumnNames, labelColumnNames);
+                MBConfig mbConfig = new(AppendDataDir(csvFilename), featureColumnNames, labelColumnNames);
                 string mbConfigJson = JsonSerializer.Serialize(mbConfig, new JsonSerializerOptions() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } });
                 File.WriteAllText(AppendDataDir(mbconfigFilename), mbConfigJson);
             }
@@ -1543,7 +1529,7 @@ namespace BBD.BodyMonitor.Services
                     int bucketCount = 10;
                     float bucketWidth = (labelValues[labelName].Max() - labelValues[labelName].Min()) / bucketCount;
 
-                    _logger.LogInformation($" min = {labelValues[labelName].Min().ToString("0.0000")} | avg = {labelValues[labelName].Average().ToString("0.0000")} | max = {labelValues[labelName].Max().ToString("0.0000")} | count = {labelValues[labelName].Count()} | non-zero = {labelValues[labelName].Count(v => v > 0)} | distinct = {distinctValueCount}");
+                    _logger.LogInformation($" min = {labelValues[labelName].Min():0.0000} | avg = {labelValues[labelName].Average():0.0000} | max = {labelValues[labelName].Max():0.0000} | count = {labelValues[labelName].Count()} | non-zero = {labelValues[labelName].Count(v => v > 0)} | distinct = {distinctValueCount}");
                     _logger.LogInformation($" Distribution");
 
                     for (int j = 0; j < bucketCount; j++)
@@ -1553,49 +1539,68 @@ namespace BBD.BodyMonitor.Services
                         int bucketItemCount = labelValues[labelName].Count(v => (v > bucketMin) && (v <= bucketMax));
                         if (j == 0)
                         {
-                            bucketItemCount += labelValues[labelName].Count(v => (v == bucketMin));
+                            bucketItemCount += labelValues[labelName].Count(v => v == bucketMin);
                         }
-                        _logger.LogInformation($"  {bucketMin.ToString("0.0000")} - {bucketMax.ToString("0.0000")}: {bucketItemCount.ToString().PadLeft(7)}");
+                        _logger.LogInformation($"  {bucketMin:0.0000} - {bucketMax:0.0000}: {bucketItemCount,7}");
                     }
                 }
             }
         }
 
+        [Obsolete]
         public void TestAllModels(string foldername, float percentageToTest)
         {
             _logger.LogInformation($"Evaluating models based on {percentageToTest}% of the data in the '{foldername}' folder.");
 
-            Random rnd = new Random();
-            Dictionary<string, int[]> confusionMatrix = new Dictionary<string, int[]>();
+            Random rnd = new();
+            Dictionary<string, int[]> confusionMatrix = new();
             foldername = AppendDataDir(foldername);
 
             if (Directory.Exists(foldername))
             {
                 int i = 0;
-                foreach (var fftData in EnumerateFFTDataInFolder(foldername))
+                foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
                 {
-                    if (rnd.NextDouble() > percentageToTest / 100.0) continue;
+                    if (rnd.NextDouble() > percentageToTest / 100.0)
+                    {
+                        continue;
+                    }
 
                     _logger.LogInformation($"Evaluating {fftData.Name}.");
-                    var evaluationResults = EvaluateIndicators(_logger, i++, fftData);
+                    IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(_logger, i++, fftData);
 
-                    foreach (var er in evaluationResults)
+                    foreach (IndicatorEvaluationResult er in evaluationResults)
                     {
                         if (!confusionMatrix.ContainsKey(er.IndicatorName))
                         {
                             confusionMatrix.Add(er.IndicatorName, new int[4]);
                         }
 
-                        if (er.IsTruePositive) confusionMatrix[er.IndicatorName][0]++;
-                        if (er.IsFalseNegative) confusionMatrix[er.IndicatorName][1]++;
-                        if (er.IsFalsePositive) confusionMatrix[er.IndicatorName][2]++;
-                        if (er.IsTrueNegative) confusionMatrix[er.IndicatorName][3]++;
+                        if (er.IsTruePositive)
+                        {
+                            confusionMatrix[er.IndicatorName][0]++;
+                        }
+
+                        if (er.IsFalseNegative)
+                        {
+                            confusionMatrix[er.IndicatorName][1]++;
+                        }
+
+                        if (er.IsFalsePositive)
+                        {
+                            confusionMatrix[er.IndicatorName][2]++;
+                        }
+
+                        if (er.IsTrueNegative)
+                        {
+                            confusionMatrix[er.IndicatorName][3]++;
+                        }
                     }
                 }
             }
 
             _logger.LogInformation($"");
-            foreach (var cm in confusionMatrix)
+            foreach (KeyValuePair<string, int[]> cm in confusionMatrix)
             {
                 _logger.LogInformation($"Confusion matrix for the '{cm.Key}' indicator:");
                 _logger.LogInformation($"    +--------------------------------+");
@@ -1608,16 +1613,19 @@ namespace BBD.BodyMonitor.Services
                 _logger.LogInformation($"| c |----------|----------|----------|");
                 _logger.LogInformation($"| t | negative |FP:{string.Format("{0,7}", cm.Value[2])}|TN:{string.Format("{0,7}", cm.Value[3])}|");
                 _logger.LogInformation($"+---+----------+----------+----------+");
-                _logger.LogInformation($"Accuracy: {((cm.Value[0] + cm.Value[3]) / (double)(cm.Value[0] + cm.Value[1] + cm.Value[2] + cm.Value[3]) * 100).ToString("##0.00")}%");
+                _logger.LogInformation($"Accuracy: {(cm.Value[0] + cm.Value[3]) / (double)(cm.Value[0] + cm.Value[1] + cm.Value[2] + cm.Value[3]) * 100:##0.00}%");
                 _logger.LogInformation($"");
             }
 
         }
         public IEnumerable<FftDataV3> EnumerateFFTDataInFolder(string foldername, string[]? applyTags = null)
         {
-            if (applyTags == null) applyTags = Array.Empty<string>();
+            applyTags ??= Array.Empty<string>();
 
-            if (Path.GetFileName(foldername).StartsWith(".")) yield break;
+            if (Path.GetFileName(foldername).StartsWith("."))
+            {
+                yield break;
+            }
 
             if (Directory.Exists(AppendDataDir(foldername)))
             {
@@ -1625,7 +1633,7 @@ namespace BBD.BodyMonitor.Services
                 {
                     string pathToFile = Path.GetFullPath(filename);
 
-                    if (Path.GetExtension(filename) != ".bfft" && Path.GetExtension(filename) != ".fft" && Path.GetExtension(filename) != ".zip")
+                    if (Path.GetExtension(filename) is not ".bfft" and not ".fft" and not ".zip")
                     {
                         continue;
                     }
@@ -1633,35 +1641,34 @@ namespace BBD.BodyMonitor.Services
                     FftDataV3? fftData = null;
                     try
                     {
-                        var fi = new FileInfo(pathToFile);
+                        FileInfo fi = new(pathToFile);
 
-                        fftData = new FftDataV3();
-                        fftData.Filename = pathToFile;
-                        fftData.FileSize = fi.Length;
-                        fftData.FileModificationTimeUtc = fi.LastWriteTimeUtc;
+                        fftData = new FftDataV3
+                        {
+                            Filename = pathToFile,
+                            FileSize = fi.Length,
+                            FileModificationTimeUtc = fi.LastWriteTimeUtc
+                        };
 
-                        if (String.IsNullOrEmpty(fftData.Name))
+                        if (string.IsNullOrEmpty(fftData.Name))
                         {
                             fftData.Name = Path.GetFileNameWithoutExtension(pathToFile);
                         }
 
                         if (applyTags != null)
                         {
-                            var allTags = new List<string>(fftData.Tags);
+                            List<string> allTags = new(fftData.Tags);
                             allTags.AddRange(applyTags);
                             fftData.Tags = allTags.ToArray();
                         }
                         else
                         {
-                            if (fftData.Tags == null)
-                            {
-                                fftData.Tags = new string[0];
-                            }
+                            fftData.Tags ??= new string[0];
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        throw e;
+                        throw;
                     }
 
                     if (fftData != null)
@@ -1672,14 +1679,14 @@ namespace BBD.BodyMonitor.Services
 
                 foreach (string directoryName in Directory.GetDirectories(AppendDataDir(foldername)).OrderBy(n => n))
                 {
-                    var tags = new List<string>(applyTags);
+                    List<string> tags = new(applyTags);
                     string newTag = Path.GetFileName(directoryName);
                     if (newTag.StartsWith("#"))
                     {
                         tags.Add(newTag[1..]);
                     }
 
-                    foreach (var fftData in EnumerateFFTDataInFolder(directoryName, tags.ToArray()))
+                    foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(directoryName, tags.ToArray()))
                     {
                         yield return fftData;
                     }
@@ -1689,20 +1696,16 @@ namespace BBD.BodyMonitor.Services
 
         public string AppendDataDir(string filename)
         {
-            if (!string.IsNullOrWhiteSpace(_config.DataDirectory))
-            {
-                return Path.Combine(_config.DataDirectory, filename);
-            }
-            else
-            {
-                return Path.Combine(Directory.GetCurrentDirectory(), filename);
-            }
+            return !string.IsNullOrWhiteSpace(_config.DataDirectory)
+                ? Path.Combine(_config.DataDirectory, filename)
+                : Path.Combine(Directory.GetCurrentDirectory(), filename);
         }
 
+        [Obsolete]
         public void SaveSignalAsPng(string filename, FftDataV3 fftData, SaveAsPngOptions config, MLProfile mlProfile, string? notes = null)
         {
-            Size targetResolution = new Size(config.TargetWidth, config.TargetHeight);
-            float idealAspectRatio = targetResolution.Width / (float)targetResolution.Height;
+            Size targetResolution = new(config.TargetWidth, config.TargetHeight);
+            _ = targetResolution.Width / (float)targetResolution.Height;
 
             fftData.Load();
             fftData = fftData.ApplyMLProfile(mlProfile);
@@ -1748,7 +1751,7 @@ namespace BBD.BodyMonitor.Services
                 throw new Exception($"We supposed to generate a bitmap with {rowCount * rowHeight} pixel height. Height must be less than 55000 pixels.");
             }
 
-            Bitmap spectrumBitmap = new Bitmap(samplesPerRow, rowHeight * rowCount, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            Bitmap spectrumBitmap = new(samplesPerRow, rowHeight * rowCount, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
             Graphics graphics = Graphics.FromImage(spectrumBitmap);
             graphics.FillRectangle(new SolidBrush(bgColor), new Rectangle(0, 0, samplesPerRow, rowHeight * rowCount));
@@ -1772,18 +1775,21 @@ namespace BBD.BodyMonitor.Services
 
                 for (int i = 0; i < samplesPerRow; i++)
                 {
-                    int dataPointIndex = (r - 1) * samplesPerRow + i;
-                    if (dataPointIndex >= samples.Length) continue;
+                    int dataPointIndex = ((r - 1) * samplesPerRow) + i;
+                    if (dataPointIndex >= samples.Length)
+                    {
+                        continue;
+                    }
 
                     if (samples[dataPointIndex] > 0)
                     {
-                        int valueToShow = (int)Math.Min(((samples[dataPointIndex] - config.RangeY.Min) * sampleAmplification), rowHeight);
+                        int valueToShow = (int)Math.Min((samples[dataPointIndex] - config.RangeY.Min) * sampleAmplification, rowHeight);
                         if (valueToShow < 0)
                         {
                             valueToShow = 0;
                         }
 
-                        int penIndex = (int)Math.Min(chartPens.Length - 1, ((float)valueToShow / rowHeight) * 5);
+                        int penIndex = (int)Math.Min(chartPens.Length - 1, (float)valueToShow / rowHeight * 5);
 
                         graphics.DrawLine(chartPens[penIndex], new Point(i, bottomLine), new Point(i, bottomLine - valueToShow));
                     }
@@ -1792,42 +1798,42 @@ namespace BBD.BodyMonitor.Services
 
             int scaledDownWidth = (int)(spectrumBitmap.Width / resoltionScaleDownFactor) / 2 * 2;
             int scaledDownHeight = (int)(spectrumBitmap.Height / resoltionScaleDownFactor) / 2 * 2;
-            var scaledDownBitmap = new Bitmap(spectrumBitmap, new Size(scaledDownWidth, scaledDownHeight));
+            Bitmap scaledDownBitmap = new(spectrumBitmap, new Size(scaledDownWidth, scaledDownHeight));
 
-            Font font = new Font("Georgia", 10.0f);
+            Font font = new("Georgia", 10.0f);
             graphics = Graphics.FromImage(scaledDownBitmap);
-            graphics.DrawString($"{Path.GetFileName(filename)}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + font.Height * 0));
-            graphics.DrawString($"{tags}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + font.Height * 1.1f));
-            graphics.DrawString($"Y range: {config.RangeY.Min.ToString(config.RangeY.Format)}-{config.RangeY.Max.ToString(config.RangeY.Format)} {config.RangeY.Unit}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + font.Height * 2.2f));
-            graphics.DrawString($"Max value: {maxValue.ToString(config.RangeY.Format)} {config.RangeY.Unit} @ {fftData.GetBinFromIndex(maxValueAtIndex)}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + font.Height * 3.3f));
+            graphics.DrawString($"{Path.GetFileName(filename)}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + (font.Height * 0)));
+            graphics.DrawString($"{tags}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + (font.Height * 1.1f)));
+            graphics.DrawString($"Y range: {config.RangeY.Min.ToString(config.RangeY.Format)}-{config.RangeY.Max.ToString(config.RangeY.Format)} {config.RangeY.Unit}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + (font.Height * 2.2f)));
+            graphics.DrawString($"Max value: {maxValue.ToString(config.RangeY.Format)} {config.RangeY.Unit} @ {fftData.GetBinFromIndex(maxValueAtIndex)}", font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + (font.Height * 3.3f)));
 
-            if (!String.IsNullOrEmpty(notes))
+            if (!string.IsNullOrEmpty(notes))
             {
                 int noteIndex = 0;
                 foreach (string note in notes.Split(System.Environment.NewLine))
                 {
                     noteIndex++;
-                    graphics.DrawString(note, font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + font.Height * (5.5f + (noteIndex * 1.1f))));
+                    graphics.DrawString(note, font, Brushes.White, new PointF(scaledDownWidth * 0.75f, 10.0f + (font.Height * (5.5f + (noteIndex * 1.1f)))));
                 }
             }
 
             int scaledDownRowHeight = scaledDownHeight / rowCount;
             for (int r = 1; r <= rowCount; r++)
             {
-                var fftBinStart = fftData.GetBinFromIndex((r - 1) * samplesPerRow);
-                var fftBinEnd = fftData.GetBinFromIndex(r * samplesPerRow - 1);
+                FftBin fftBinStart = fftData.GetBinFromIndex((r - 1) * samplesPerRow);
+                FftBin fftBinEnd = fftData.GetBinFromIndex((r * samplesPerRow) - 1);
                 string freqStart = SimplifyNumber(fftBinStart.StartFrequency) + "Hz";
                 string freqEnd = SimplifyNumber(fftBinEnd.EndFrequency) + "Hz";
                 int bottomLine = r * scaledDownRowHeight;
 
                 // string on the left side of the row
-                graphics.DrawString($"{freqStart}", font, Brushes.White, new PointF(10.0f, bottomLine - scaledDownRowHeight * 0.25f));
+                graphics.DrawString($"{freqStart}", font, Brushes.White, new PointF(10.0f, bottomLine - (scaledDownRowHeight * 0.25f)));
 
                 // string on the right side of the row
-                graphics.DrawString($"{freqEnd}", font, Brushes.White, new PointF(scaledDownWidth - 75.0f, bottomLine - scaledDownRowHeight * 0.25f));
+                graphics.DrawString($"{freqEnd}", font, Brushes.White, new PointF(scaledDownWidth - 75.0f, bottomLine - (scaledDownRowHeight * 0.25f)));
             }
 
-            FileStream pngFile = new FileStream(filename, FileMode.Create);
+            FileStream pngFile = new(filename, FileMode.Create);
             scaledDownBitmap.Save(pngFile, System.Drawing.Imaging.ImageFormat.Png);
             pngFile.Close();
         }
@@ -1883,13 +1889,14 @@ namespace BBD.BodyMonitor.Services
             Console.WriteLine();
         }
 
+        [Obsolete]
         internal void ProcessCommandLineArguments(string[] args)
         {
             if (args.Length > 0)
             {
                 if (args[0] == "--video")
                 {
-                    var mlProfile = _config.MachineLearning.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(_config.Postprocessing.SaveAsPNG.MLProfile) && p.Name.StartsWith(_config.Postprocessing.SaveAsPNG.MLProfile));
+                    MLProfile? mlProfile = _config.MachineLearning.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(_config.Postprocessing.SaveAsPNG.MLProfile) && p.Name.StartsWith(_config.Postprocessing.SaveAsPNG.MLProfile));
 
                     if (args.Length > 2 && !string.IsNullOrWhiteSpace(args[2]))
                     {
@@ -1904,10 +1911,8 @@ namespace BBD.BodyMonitor.Services
 
                     if (args.Length > 3 && !string.IsNullOrWhiteSpace(args[3]) && args[3].Contains("x"))
                     {
-                        int width = 0;
-                        int height = 0;
 
-                        if (int.TryParse(args[3].Split("x")[0], out width) && int.TryParse(args[3].Split("x")[1], out height))
+                        if (int.TryParse(args[3].Split("x")[0], out int width) && int.TryParse(args[3].Split("x")[1], out int height))
                         {
                             _config.Postprocessing.SaveAsPNG.TargetWidth = width;
                             _config.Postprocessing.SaveAsPNG.TargetHeight = height;
@@ -1927,7 +1932,7 @@ namespace BBD.BodyMonitor.Services
                         return;
                     }
 
-                    float percentageToTest = float.Parse(args[2].Substring(0, args[2].Length - 1));
+                    float percentageToTest = float.Parse(args[2][..^1]);
 
                     PreprareMachineLearningModels();
                     TestAllModels(args[1], percentageToTest);
@@ -1936,18 +1941,30 @@ namespace BBD.BodyMonitor.Services
 
                 if (args[0] == "--calibrate")
                 {
-                    CalibrateDevice();
+                    string deviceSerialNumber = string.Empty;
+                    if (args.Length > 1)
+                    {
+                        deviceSerialNumber = args[1];
+                    }
+
+                    CalibrateDevice(deviceSerialNumber);
                     return;
                 }
 
                 if (args[0] == "--dataacquisition")
                 {
+                    string deviceSerialNumber = string.Empty;
+                    if (args.Length > 1)
+                    {
+                        deviceSerialNumber = args[1];
+                    }
+
                     if (_config.Indicators.Enabled)
                     {
                         PreprareMachineLearningModels();
                     }
 
-                    StartDataAcquisition();
+                    _ = StartDataAcquisition(deviceSerialNumber);
                 }
             }
         }
@@ -1983,20 +2000,20 @@ namespace BBD.BodyMonitor.Services
                     {
                         string wavFilename = Path.GetFullPath(filename);
 
-                        FileInfo fi = new FileInfo(wavFilename);
+                        FileInfo fi = new(wavFilename);
                         totalBytesToProcess += fi.Length;
                     }
                 }
 
-                Stopwatch sw = new Stopwatch();
-                Task.Run(() =>
+                Stopwatch sw = new();
+                _ = Task.Run(() =>
                 {
                     while (totalBytesProcessed < totalBytesToProcess)
                     {
                         if (totalBytesProcessed > 0)
                         {
-                            float percentCompleted = ((float)totalBytesProcessed / totalBytesToProcess) * 100;
-                            float totalTimeToFinish = (sw.ElapsedMilliseconds / (percentCompleted / 100));
+                            float percentCompleted = (float)totalBytesProcessed / totalBytesToProcess * 100;
+                            float totalTimeToFinish = sw.ElapsedMilliseconds / (percentCompleted / 100);
                             _logger.LogInformation($"Generated {percentCompleted:0.00}% of the FFT files, {(totalTimeToFinish - sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes remaining.");
                         }
                         Thread.Sleep(1000);
@@ -2009,31 +2026,31 @@ namespace BBD.BodyMonitor.Services
 
                     try
                     {
-                        FileInfo fi = new FileInfo(wavFilename);
+                        FileInfo fi = new(wavFilename);
                         totalBytesProcessed += fi.Length;
 
-                        FileStream waveFileStream = new FileStream(wavFilename, FileMode.Open);
-                        var waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
+                        FileStream waveFileStream = new(wavFilename, FileMode.Open);
+                        WavePcmFormat waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
 
-                        var fftDataBlockCacheTemp = new FftDataBlockCache((int)waveHeader.SampleRate, _config.Postprocessing.FFTSize, dataBlockLength, _config.Postprocessing.ResampleFFTResolutionToHz);
+                        FftDataBlockCache fftDataBlockCacheTemp = new((int)waveHeader.SampleRate, _config.Postprocessing.FFTSize, dataBlockLength, _config.Postprocessing.ResampleFFTResolutionToHz);
 
                         float waveFileTotalLength = (float)waveHeader.DataChuckSize / (waveHeader.SampleRate * waveHeader.BytesPerSample);
-                        var lastWriteTime = File.GetLastWriteTimeUtc(wavFilename);
-                        var estimatedStartTime = lastWriteTime.AddSeconds(-waveFileTotalLength);
+                        DateTime lastWriteTime = File.GetLastWriteTimeUtc(wavFilename);
+                        DateTime estimatedStartTime = lastWriteTime.AddSeconds(-waveFileTotalLength);
 
                         int frameCounter = 0;
                         int totalFrameCount = (int)(waveFileTotalLength / interval);
-                        string frameCounterFormatterString = new String('0', totalFrameCount.ToString().Length);
+                        string frameCounterFormatterString = new('0', totalFrameCount.ToString().Length);
 
                         sw.Start();
                         for (float position = 0.0f; position + dataBlockLength < waveFileTotalLength; position += interval)
                         {
                             frameCounter++;
 
-                            var currentTime = estimatedStartTime.AddSeconds(position);
+                            DateTime currentTime = estimatedStartTime.AddSeconds(position);
 
                             DiscreteSignal ds = WaveFileExtensions.ReadAsDiscreateSignal(waveFileStream, position, dataBlockLength);
-                            var fftData = fftDataBlockCacheTemp.CreateFftData(ds, currentTime, (int)(waveHeader.SampleRate * dataBlockLength));
+                            FftDataV3 fftData = fftDataBlockCacheTemp.CreateFftData(ds, currentTime, (int)(waveHeader.SampleRate * dataBlockLength));
                             fftData = fftData.ApplyMLProfile(mlProfile);
                             string pathToFile = Path.Combine(Path.GetDirectoryName(wavFilename), GenerateBinaryFftFilename(fftData, frameCounter, frameCounterFormatterString));
                             FftDataV3.SaveAsBinary(fftData, pathToFile, false);
@@ -2046,7 +2063,7 @@ namespace BBD.BodyMonitor.Services
                         throw new Exception($"There was an error while generating FFT files for {wavFilename}: {ex.Message}");
                     }
                 }
-                _logger.LogInformation($"Generated 100% of the FFT files in {(sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes.");
+                _logger.LogInformation($"Generated 100% of the FFT files in {sw.ElapsedMilliseconds / 1000 / 60:0.0} minutes.");
             }
         }
 
@@ -2059,7 +2076,7 @@ namespace BBD.BodyMonitor.Services
         public void GenerateEDF(string dataFoldername, DateTime fromDateTime, DateTime toDateTime)
         {
             string folderFullPath = AppendDataDir(dataFoldername);
-            SortedDictionary<DateTime, string> filesToAppend = new SortedDictionary<DateTime, string>();
+            SortedDictionary<DateTime, string> filesToAppend = new();
 
             DateTime minFileCreationTime = DateTime.MaxValue;
             DateTime maxFileCreationTime = DateTime.MinValue;
@@ -2073,7 +2090,7 @@ namespace BBD.BodyMonitor.Services
                     {
                         string wavFilename = Path.GetFullPath(filename);
 
-                        FileInfo fi = new FileInfo(wavFilename);
+                        FileInfo fi = new(wavFilename);
 
                         if ((fi.CreationTimeUtc >= fromDateTime) && (fi.CreationTimeUtc <= toDateTime))
                         {
@@ -2095,15 +2112,15 @@ namespace BBD.BodyMonitor.Services
 
                 _logger.LogInformation($"Generating EDF file from {filesToAppend.Count} WAV files.");
 
-                Stopwatch sw = new Stopwatch();
-                Task.Run(() =>
+                Stopwatch sw = new();
+                _ = Task.Run(() =>
                 {
                     while (totalBytesProcessed < totalBytesToProcess)
                     {
                         if (totalBytesProcessed > 0)
                         {
-                            float percentCompleted = ((float)totalBytesProcessed / totalBytesToProcess) * 100;
-                            float totalTimeToFinish = (sw.ElapsedMilliseconds / (percentCompleted / 100));
+                            float percentCompleted = (float)totalBytesProcessed / totalBytesToProcess * 100;
+                            float totalTimeToFinish = sw.ElapsedMilliseconds / (percentCompleted / 100);
                             _logger.LogInformation($"Generated {percentCompleted:0.00}% of the EDF file, {(totalTimeToFinish - sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes remaining.");
                         }
                         Thread.Sleep(1000);
@@ -2111,22 +2128,23 @@ namespace BBD.BodyMonitor.Services
                 });
 
                 sw.Start();
-                List<EDFSignal> edfSignals = new List<EDFSignal>();
+                List<EDFSignal> edfSignals = new();
                 EDFSignal signal = null;
-                WaveFormat waveFormat = new WaveFormat();
+                WaveFormat waveFormat = new();
                 foreach (string filename in filesToAppend.Values)
                 {
                     try
                     {
-                        FileInfo fi = new FileInfo(filename);
-                        WaveFile waveFile = new WaveFile(File.ReadAllBytes(filename));
+                        FileInfo fi = new(filename);
+                        WaveFile waveFile = new(File.ReadAllBytes(filename));
                         totalBytesProcessed += fi.Length;
 
                         if (waveFormat.BitsPerSample == 0)
                         {
                             waveFormat = waveFile.WaveFmt;
                             signal = new EDFSignal(edfSignals.Count, waveFormat.SamplingRate);
-                        } else
+                        }
+                        else
                         {
                             if ((waveFormat.BitsPerSample != waveFile.WaveFmt.BitsPerSample)
                                 || (waveFormat.ChannelCount != waveFile.WaveFmt.ChannelCount)
@@ -2145,14 +2163,19 @@ namespace BBD.BodyMonitor.Services
                 }
                 edfSignals.Add(signal);
 
-                EDFHeader edfHeader = new EDFHeader("0", "", "", minFileCreationTime.ToString("dd.MM.yy"), minFileCreationTime.ToString("HH.mm.ss"), 768, "EDF", 1, 1.0, 1, new string[0], new string[0], new string[1] { "mV" }, new double[1] { -1000 }, new double[1] { +1000 }, new int[1] { -32767 }, new int[1] { +32767 }, new string[1] { "" }, new int[1] { signal.Samples.Count }, new string[1] { "" });
-                
-                EDFFile edfFile = new EDFFile(edfHeader, edfSignals.ToArray(), new List<AnnotationSignal>());
+                EDFHeader edfHeader = new("0", "", "", minFileCreationTime.ToString("dd.MM.yy"), minFileCreationTime.ToString("HH.mm.ss"), 768, "EDF", 1, 1.0, 1, new string[0], new string[0], new string[1] { "mV" }, new double[1] { -1000 }, new double[1] { +1000 }, new int[1] { -32767 }, new int[1] { +32767 }, new string[1] { "" }, new int[1] { signal.Samples.Count }, new string[1] { "" });
+
+                EDFFile edfFile = new(edfHeader, edfSignals.ToArray(), new List<AnnotationSignal>());
                 edfFile.Save(AppendDataDir($"EDF_{minFileCreationTime:yyyyMMdd_HHmmss}__{maxFileCreationTime:yyyyMMdd_HHmmss}.edf"));
 
                 _logger.LogInformation($"Generated 100% of the EDF file in {((float)sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes.");
                 sw.Stop();
             }
+        }
+
+        private int GetDeviceIndexFromSerialNumber(string deviceSerialNumber)
+        {
+            return -1;
         }
     }
 }

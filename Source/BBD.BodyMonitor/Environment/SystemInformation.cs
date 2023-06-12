@@ -14,6 +14,8 @@ namespace BBD.BodyMonitor.Environment
         public float RAMSize { get; set; }
         public ConnectedDevice[] Devices { get; set; }
         public BodyMonitorOptions Configuration { get; set; }
+        public Location[] Locations { get; set; }
+        public Subject[] Subjects { get; set; }
         public Session[] Sessions { get; set; }
 
         public SystemInformation()

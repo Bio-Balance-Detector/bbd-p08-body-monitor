@@ -1,7 +1,7 @@
 using BBD.BodyMonitor.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BBD.BodyMonitor.API.Controllers
+namespace BBD.BodyMonitor.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -17,13 +17,13 @@ namespace BBD.BodyMonitor.API.Controllers
         }
 
         [HttpGet]
-        [Route("frequencyresponseanalysis")]
-        public int FrequencyResponseAnalysis()
+        [Route("frequencyresponseanalysis/{deviceSerialNumber}")]
+        public int FrequencyResponseAnalysis(string deviceSerialNumber)
         {
             int taskId = Task.Run(() =>
             {
                 _logger.LogInformation($"Starting frequency analysis.");
-                _helpers.FrequencyResponseAnalysis();
+                _helpers.FrequencyResponseAnalysis(deviceSerialNumber);
             }).Id;
 
             return taskId;

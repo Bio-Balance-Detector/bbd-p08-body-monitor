@@ -6,6 +6,7 @@ namespace BBD.BodyMonitor.Models
 {
     internal class DataAcquisition
     {
+        public int DeviceIndex { get; internal set; }
         public float Samplerate { get; private set; }
         /// <summary>
         /// Number of samples to fill the buffer
@@ -64,6 +65,7 @@ namespace BBD.BodyMonitor.Models
                 {
                     Brand = "Digilent",
                     Library = "DWF v" + dwfVersion,
+                    Index = idxDevice,
                     Id = deviceId,
                     Revision = deviceRevision,
                     IsOpened = isOpened == 1,
@@ -78,8 +80,23 @@ namespace BBD.BodyMonitor.Models
             return result.ToArray();
         }
 
-        public int OpenDevice(int[] acquisitionChannels, float acquisitionSamplerate, bool signalGeneratorEnabled, byte signalGeneratorChannel, float signalGeneratorFrequency, float signalGeneratorVoltage, float blockLength, float bufferLength)
+        /// <summary>
+        /// Open the device and set up the acquisition.
+        /// </summary>
+        /// <param name="deviceIndex">Index of the device, or -1 for the default device</param>
+        /// <param name="acquisitionChannels"></param>
+        /// <param name="acquisitionSamplerate"></param>
+        /// <param name="signalGeneratorEnabled"></param>
+        /// <param name="signalGeneratorChannel"></param>
+        /// <param name="signalGeneratorFrequency"></param>
+        /// <param name="signalGeneratorVoltage"></param>
+        /// <param name="blockLength"></param>
+        /// <param name="bufferLength"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public int OpenDevice(int deviceIndex, int[] acquisitionChannels, float acquisitionSamplerate, bool signalGeneratorEnabled, byte signalGeneratorChannel, float signalGeneratorFrequency, float signalGeneratorVoltage, float blockLength, float bufferLength)
         {
+            DeviceIndex = deviceIndex;
             AcquisitionChannels = acquisitionChannels;
             Samplerate = acquisitionSamplerate;
             SignalGeneratorEnabled = signalGeneratorEnabled;
@@ -90,7 +107,7 @@ namespace BBD.BodyMonitor.Models
             BufferLength = bufferLength;
 
             // Open the (first) AD2 with the 2nd configuration with 16k analog-in buffer
-            _ = dwf.FDwfDeviceConfigOpen(-1, 1, out dwfHandle);
+            _ = dwf.FDwfDeviceConfigOpen(deviceIndex, 1, out dwfHandle);
 
             while (dwfHandle == dwf.hdwfNone && !terminateAcquisition)
             {
@@ -99,7 +116,7 @@ namespace BBD.BodyMonitor.Models
 
                 Thread.Sleep(10000);
 
-                _ = dwf.FDwfDeviceConfigOpen(-1, 1, out dwfHandle);
+                _ = dwf.FDwfDeviceConfigOpen(deviceIndex, 1, out dwfHandle);
             }
 
             _ = dwf.FDwfAnalogInBufferSizeInfo(dwfHandle, out int bufferSizeMinimum, out int bufferSizeMaximum);
@@ -198,7 +215,7 @@ namespace BBD.BodyMonitor.Models
             }
             catch { }
 
-            return OpenDevice(AcquisitionChannels, Samplerate, SignalGeneratorEnabled, SignalGeneratorChannel, SignalGeneratorFrequency, SignalGeneratorVoltage, BlockLength, BufferLength);
+            return OpenDevice(DeviceIndex, AcquisitionChannels, Samplerate, SignalGeneratorEnabled, SignalGeneratorChannel, SignalGeneratorFrequency, SignalGeneratorVoltage, BlockLength, BufferLength);
         }
 
         /// <summary>

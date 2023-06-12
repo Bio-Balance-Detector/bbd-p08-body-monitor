@@ -44,6 +44,20 @@ namespace BBD.BodyMonitor.Controllers
         }
 
         [HttpGet]
+        [Route("listlocations")]
+        public Location[] ListLocations()
+        {
+            return _sessionManager.ListLocations() ?? new Location[0];
+        }
+
+        [HttpGet]
+        [Route("listsubjects")]
+        public Subject[] ListSubjects()
+        {
+            return _sessionManager.ListSubjects() ?? new Subject[0];
+        }
+
+        [HttpGet]
         [Route("listsessions")]
         public Session[] ListSessions()
         {
@@ -78,6 +92,26 @@ namespace BBD.BodyMonitor.Controllers
 
             try
             {
+                // get locations
+                result.Locations = ListLocations();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get locations");
+            }
+
+            try
+            {
+                // get subjects
+                result.Subjects = ListSubjects();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get subjects");
+            }
+
+            try
+            {
                 // get current sessions
                 result.Sessions = ListSessions();
             }
@@ -85,7 +119,6 @@ namespace BBD.BodyMonitor.Controllers
             {
                 _logger.LogError(ex, "Failed to get sessions");
             }
-
             return result;
         }
 
