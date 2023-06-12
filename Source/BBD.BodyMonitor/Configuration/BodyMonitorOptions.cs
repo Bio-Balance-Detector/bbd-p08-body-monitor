@@ -8,6 +8,9 @@ namespace BBD.BodyMonitor.Configuration
         public string DataDirectory { get; } = string.Empty;
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public long MinimumAvailableFreeSpace { get; } = 0;
+        public string DeviceSerialNumber { get; } = string.Empty;
+        public string LocationAlias { get; } = string.Empty;
+        public string SubjectAlias { get; } = string.Empty;
         public AcqusitionOptions Acquisition { get; }
         public SignalGeneratorOptions SignalGenerator { get; set; }
         public DataWriterOptions DataWriter { get; }

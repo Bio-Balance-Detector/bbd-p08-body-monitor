@@ -23,10 +23,25 @@ namespace BBD.BodyMonitor.Controllers
         }
 
         [HttpGet]
-        [Route("start/{deviceSerialNumber}/{locationAlias}/{subjectAlias}")]
+        [Route("start/{deviceSerialNumber?}/{locationAlias?}/{subjectAlias?}")]
         public int Start(string deviceSerialNumber, string locationAlias, string subjectAlias)
         {
-            Sessions.Session session = _sessionManager.StartSession("0x4A75C1F7", "0xBAC08836");
+            if (string.IsNullOrEmpty(deviceSerialNumber))
+            {
+                deviceSerialNumber = _dataProcessor.GetConfig().DeviceSerialNumber;
+            }
+
+            if (string.IsNullOrEmpty(locationAlias))
+            {
+                locationAlias = _dataProcessor.GetConfig().LocationAlias;
+            }
+
+            if (string.IsNullOrEmpty(subjectAlias))
+            {
+                subjectAlias = _dataProcessor.GetConfig().SubjectAlias;
+            }
+
+            Sessions.Session session = _sessionManager.StartSession(locationAlias, subjectAlias);
             session.Configuration = _dataProcessor.GetConfig();
             //_sessionManager.SaveSession(session);
 
