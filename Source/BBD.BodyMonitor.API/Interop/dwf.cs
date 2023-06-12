@@ -198,7 +198,7 @@ public class dwf
 
     public static int FDwfGetLastErrorMsg(out string szError)
     {
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(512);
+        System.Text.StringBuilder sb = new(512);
         int ret = _FDwfGetLastErrorMsg(sb);
         szError = sb.ToString();
         return ret;
@@ -210,7 +210,7 @@ public class dwf
 
     public static int FDwfGetVersion(out string szVersion)
     {
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(32);
+        System.Text.StringBuilder sb = new(32);
         int ret = _FDwfGetVersion(sb);
         szVersion = sb.ToString();
         return ret;
@@ -239,7 +239,7 @@ public class dwf
 
     public static int FDwfEnumUserName(int idxDevice, out string szUserName)
     {
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(32);
+        System.Text.StringBuilder sb = new(32);
         int ret = _FDwfEnumUserName(idxDevice, sb);
         szUserName = sb.ToString();
         return ret;
@@ -250,7 +250,7 @@ public class dwf
 
     public static int FDwfEnumDeviceName(int idxDevice, out string szDeviceName)
     {
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(32);
+        System.Text.StringBuilder sb = new(32);
         int ret = _FDwfEnumDeviceName(idxDevice, sb);
         szDeviceName = sb.ToString();
         return ret;
@@ -261,7 +261,7 @@ public class dwf
 
     public static int FDwfEnumSN(int idxDevice, out string szSN)
     {
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(32);
+        System.Text.StringBuilder sb = new(32);
         int ret = _FDwfEnumSN(idxDevice, sb);
         szSN = sb.ToString();
         return ret;
@@ -278,9 +278,21 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfDeviceOpen", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDeviceOpen(int idxDevice, out int phdwf);
 
+    /// <summary>
+    /// Opens a device identified by the enumeration index with the selected configuration and retrieves a handle.
+    /// </summary>
+    /// <param name="idxDev">Index of the enumerated device.</param>
+    /// <param name="idxCfg">Index of the device configuration.</param>
+    /// <param name="phdwf">Pointer to HDWF variable to receive opened interface handle by reference.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfDeviceConfigOpen", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDeviceConfigOpen(int idxDev, int idxCfg, out int phdwf);
 
+    /// <summary>
+    /// Closes an interface handle when access to the device is no longer needed. Once the function above has returned, the specified interface handle can no longer be used to access the device.
+    /// </summary>
+    /// <param name="hdwf">Interface handle to be closed.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfDeviceClose", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDeviceClose(int hdwf);
 
@@ -860,8 +872,8 @@ public class dwf
 
     public static int FDwfAnalogIOChannelName(int hdwf, int idxChannel, out string szName, out string szLabel)
     {
-        System.Text.StringBuilder sb1 = new System.Text.StringBuilder(32);
-        System.Text.StringBuilder sb2 = new System.Text.StringBuilder(16);
+        System.Text.StringBuilder sb1 = new(32);
+        System.Text.StringBuilder sb2 = new(16);
         int ret = _FDwfAnalogIOChannelName(hdwf, idxChannel, sb1, sb2);
         szName = sb1.ToString();
         szLabel = sb2.ToString();
@@ -876,8 +888,8 @@ public class dwf
 
     public static int FDwfAnalogIOChannelNodeName(int hdwf, int idxChannel, int idxNode, out string szNodeName, out string szNodeUnits)
     {
-        System.Text.StringBuilder sb1 = new System.Text.StringBuilder(32);
-        System.Text.StringBuilder sb2 = new System.Text.StringBuilder(16);
+        System.Text.StringBuilder sb1 = new(32);
+        System.Text.StringBuilder sb2 = new(16);
         int ret = _FDwfAnalogIOChannelNodeName(hdwf, idxChannel, idxNode, sb1, sb2);
         szNodeName = sb1.ToString();
         szNodeUnits = sb2.ToString();
