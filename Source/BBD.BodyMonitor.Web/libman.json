@@ -1,26 +1,6 @@
 {
   "version": "1.0",
   "defaultProvider": "cdnjs",
-  "libraries": [
-    {
-      "provider": "unpkg",
-      "library": "bootstrap@5.3.0",
-      "destination": "wwwroot/bootstrap/"
-    },
-    {
-      "provider": "unpkg",
-      "library": "open-iconic@1.1.1",
-      "destination": "wwwroot/open-iconic/"
-    },
-    {
-      "provider": "unpkg",
-      "library": "font-awesome@4.7.0",
-      "destination": "wwwroot/font-awesome/"
-    },
-    {
-      "provider": "unpkg",
-      "library": "@swup/plugin@2.0.2",
-      "destination": "wwwroot/swup/plugin/"
-    }
+  "libraries": [    
   ]
 }
