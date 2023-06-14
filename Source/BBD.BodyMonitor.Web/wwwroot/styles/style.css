@@ -1,4 +1,16 @@
 @charset "UTF-8";
+
+:root {
+    --color-gradient-1: #c9fbfa;
+    --color-gradient-2: #a5dbed;
+    --color-gradient-3: #94b7dc;
+    --color-gradient-4: #9492bf;
+    --color-gradient-5: #966c95;
+    --color-gradient-6: #8d4960;
+    --light-background-color: #231218;
+    --dark-background-color: #180c10;
+}
+
 /*Typography Settings*/
 body {
   font-size: 13px;
