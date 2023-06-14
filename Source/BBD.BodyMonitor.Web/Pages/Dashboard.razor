@@ -130,6 +130,6 @@ else
 
         ConnectedDevice? device = BioBalanceDetectorService.SystemInformation?.Devices.FirstOrDefault(d => d.SerialNumber == config?.DeviceSerialNumber);
 
-        return ($"{device.Brand} {device?.Name} ({device?.SerialNumber})") ?? "N/A";
+        return device == null ? "N/A" : ($"{device?.Brand} {device?.Name} ({device?.SerialNumber})");
     }
 }
