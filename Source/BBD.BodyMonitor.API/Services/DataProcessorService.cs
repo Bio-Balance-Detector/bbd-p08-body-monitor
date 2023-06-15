@@ -2142,8 +2142,15 @@ namespace BBD.BodyMonitor.Services
 
                 sw.Start();
                 List<EDFSignal> edfSignals = new();
-                EDFSignal signal = null;
+                AnnotationSignal annotations = new(64);
+                EDFSignal? signal = null;
                 WaveFormat waveFormat = new();
+
+                int numberOfSamplesPerRecord = 0;
+                double recordDurationInSeconds = 0.1;
+
+                DateTime? edfStartTime = null;
+
                 foreach (string filename in filesToAppend.Values)
                 {
                     try
@@ -2154,11 +2161,19 @@ namespace BBD.BodyMonitor.Services
 
                         if (waveFormat.BitsPerSample == 0)
                         {
+                            // this is the first file, so we can set the start time of the EDF file
+                            edfStartTime = fi.CreationTimeUtc;
+
+                            // The first file defines the technical parameters of the EDF file
                             waveFormat = waveFile.WaveFmt;
                             signal = new EDFSignal(edfSignals.Count, waveFormat.SamplingRate);
+                            // The EDF file will contain 0.1 seconds of data in each data record
+                            numberOfSamplesPerRecord = (int)(waveFormat.SamplingRate * recordDurationInSeconds);
+                            signal.NumberOfSamplesInDataRecord.Value = numberOfSamplesPerRecord;
                         }
                         else
                         {
+                            // The other files must match the technical parameters of the first file
                             if ((waveFormat.BitsPerSample != waveFile.WaveFmt.BitsPerSample)
                                 || (waveFormat.ChannelCount != waveFile.WaveFmt.ChannelCount)
                                 || (waveFormat.SamplingRate != waveFile.WaveFmt.SamplingRate))
@@ -2167,21 +2182,67 @@ namespace BBD.BodyMonitor.Services
                             }
                         }
 
-                        signal.Samples.AddRange(waveFile.Signals.First().Samples.Select(s => (short)(s * 32767)).ToArray());
+                        short[] samplesToWrite = waveFile.Signals.First().Samples.Select(s => (short)(s * 32767)).ToArray();
+
+                        double durationSeconds = samplesToWrite.Length / waveFormat.SamplingRate;
+                        annotations.Samples.Add(new TAL((fi.CreationTimeUtc - edfStartTime.Value).TotalSeconds, durationSeconds, fi.Name));
+                        signal?.Samples.AddRange(samplesToWrite);
                     }
                     catch (Exception ex)
                     {
                         throw new Exception($"There was an error while appending {filename}: {ex.Message}");
                     }
                 }
-                edfSignals.Add(signal);
 
-                EDFHeader edfHeader = new("0", "", "", minFileCreationTime.ToString("dd.MM.yy"), minFileCreationTime.ToString("HH.mm.ss"), 768, "EDF", 1, 1.0, 1, new string[0], new string[0], new string[1] { "mV" }, new double[1] { -1000 }, new double[1] { +1000 }, new int[1] { -32767 }, new int[1] { +32767 }, new string[1] { "" }, new int[1] { signal.Samples.Count }, new string[1] { "" });
+                if (signal != null)
+                {
+                    signal.Label.Value = "Right forearm";
+                    signal.TransducerType.Value = "TENS contact - forearm";
+                    signal.PhysicalDimension.Value = "uV";
+                    signal.PhysicalMinimum.Value = -1000;
+                    signal.PhysicalMaximum.Value = +1000;
+                    signal.DigitalMinimum.Value = -32767;
+                    signal.DigitalMaximum.Value = +32767;
+                    signal.Prefiltering.Value = "N/A";
+                    signal.NumberOfSamplesInDataRecord.Value = numberOfSamplesPerRecord;
+                    signal.Reserved.Value = "";
 
-                EDFFile edfFile = new(edfHeader, edfSignals.ToArray(), new List<AnnotationSignal>());
-                edfFile.Save(AppendDataDir($"EDF_{minFileCreationTime:yyyyMMdd_HHmmss}__{maxFileCreationTime:yyyyMMdd_HHmmss}.edf"));
+                    edfSignals.Add(signal);
 
-                _logger.LogInformation($"Generated 100% of the EDF file in {((float)sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes.");
+                    int numberOfDataRecords = (int)Math.Ceiling((double)signal.Samples.Count / signal.NumberOfSamplesInDataRecord.Value);
+                    short numberOfSignalsInRecord = 1;
+
+                    string subjectCode = "MCH-0234567";
+                    string subjectName = "Jane_Frank";
+                    string subjectSex = "F";
+                    string subjectBirthdate = "02-MAY-1951";
+                    string patientId = subjectCode + " " + subjectSex + " " + subjectBirthdate + " " + subjectName;
+                    patientId = patientId[..Math.Min(80, patientId.Length)];
+
+                    string recordStartdate = "Startdate " + edfStartTime.Value.ToString("dd-MMM-yyyy").ToUpperInvariant().Replace(".", "");
+                    string recordAdminCode = "EMG987";
+                    string recordTechnician = "KL/HIJ";
+                    string recordDevice = "Digilent_AD2";
+                    string recordAdditionalInfo = "MNC_R_Median_Nerve";
+                    string recordId = recordStartdate + " " + recordAdminCode + " " + recordTechnician + " " + recordDevice + " " + recordAdditionalInfo;
+                    recordId = recordId[..Math.Min(80, recordId.Length)];
+
+                    EDFHeader edfHeader = new("0", patientId, recordId, minFileCreationTime.ToString("dd.MM.yy"), minFileCreationTime.ToString("HH.mm.ss"), 768, "EDF+D", numberOfDataRecords, recordDurationInSeconds, numberOfSignalsInRecord, new string[1] { "Right forearm" }, new string[1] { "TENS contact - forearm" }, new string[1] { "uV" }, new double[1] { -1000 }, new double[1] { +1000 }, new int[1] { -32767 }, new int[1] { +32767 }, new string[1] { "N/A" }, new int[1] { numberOfSamplesPerRecord }, new string[1] { "" });
+
+                    EDFFile edfFile = new(edfHeader, edfSignals.ToArray(), new List<AnnotationSignal>(new[] { annotations }));
+
+                    try
+                    {
+                        edfFile.Save(AppendDataDir($"EDF_{minFileCreationTime:yyyyMMdd_HHmmss}__{maxFileCreationTime:yyyyMMdd_HHmmss}.edf"));
+                    }
+                    catch (IOException ex)
+                    {
+                        throw new Exception($"There was an error while saving the EDF file: {ex.Message}");
+                    }
+
+                    _logger.LogInformation($"Generated 100% of the EDF file in {((float)sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes.");
+                }
+
                 sw.Stop();
             }
         }

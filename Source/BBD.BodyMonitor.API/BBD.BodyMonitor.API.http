@@ -47,3 +47,8 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_Train
 
 # Balanced, randomized CSV data source trained for 1800 seconds
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_AndrasFuchs_1000rows.csv/MLP09/1800
+
+###
+
+# Generate an EDF file from multiple WAV files
+GET {{BBD.BodyMonitor.Web_HostAddress}}/Postprocessor/generateedf/2022-12-08/2022-12-08/2022-12-09
