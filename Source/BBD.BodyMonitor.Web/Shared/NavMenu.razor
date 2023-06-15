@@ -11,7 +11,7 @@
     <nav class="flex-column">
         <div class="list-group list-custom-small list-group-menu">
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <NavLink class="nav-link" href="dashboard" Match="NavLinkMatch.All">
                     <i class="fa font-16 fa-house color-white"></i>
                     <span>Dashboard</span>
                     <i class="fa fa-angle-right"></i>
@@ -56,67 +56,12 @@
     </nav>
 </div>
 
-<div class="menu-hider"></div>
-
-<div id="menu-background" class="menu menu-box-left menu-bg bg-11" data-menu-width="280" data-menu-active="nav-welcome" data-menu-effect="menu-parallax" style="display: block; width: 280px;">
-    <div class="card-body notch-clear">
-
-        <a href="~/">
-            <h1 class="color-white px-3 py-3 font-36 line-height-xl">BBD</h1>
-        </a>
-
-        <p class="text-uppercase font-10 color-theme font-600 px-3 mb-1">Navigation</p>
-        <div class="list-group list-custom-small list-group-menu">
-            <a href="/dashboard" class="active-nav">
-                <i class="fa font-16 fa-house color-white"></i>
-                <span>Dashboard</span>
-                <i class="fa fa-angle-right"></i>
-            </a>
-            <a href="/acquisition">
-                <i class="fa font-16 fa-record-vinyl color-white"></i>
-                <span>Acquisition</span>
-                <i class="fa fa-angle-right"></i>
-            </a>
-            <a href="/signalgeneration">
-                <i class="fa font-16 fa-play color-white"></i>
-                <span>Signal generation</span>
-                <i class="fa fa-angle-right"></i>
-            </a>
-            <a href="/postprocessing">
-                <i class="fa font-16 fa-file color-white"></i>
-                <span>Post-processing</span>
-                <i class="fa fa-angle-right"></i>
-            </a>
-            <a href="/settings">
-                <i class="fa font-16 fa-gear color-white"></i>
-                <span>Settings</span>
-                <i class="fa fa-angle-right"></i>
-            </a>
-            <a href="/contact">
-                <i class="fa font-16 fa-envelope color-white"></i>
-                <span>Contact</span>
-                <i class="fa fa-angle-right"></i>
-            </a>
-        </div>
-        <div class="d-flex pt-4">
-            <div class="align-self-center"><a href="#" class="icon-l text-center"><i class="font-20 fas fa-caret-square-left color-red-light"></i></a></div>
-            <div class="align-self-center"><a href="#" class="icon-l text-center"><i class="font-20 fab fa-facebook-square color-white"></i></a></div>
-            <div class="align-self-center"><a href="#" class="icon-l text-center"><i class="font-20 fab fa-twitter-square color-white"></i></a></div>
-            <div class="align-self-center"><a href="#" class="icon-l text-center"><i class="font-20 fab fa-whatsapp-square color-white"></i></a></div>
-        </div>
-    </div>
-    <div class="card-overlay" style="background-image:url(images/bg-menu.jpg);"></div>
-    <div class="card-overlay bg-black opacity-80"></div>
-</div>
-
-<a href="#" class="header-icon header-icon-1" data-menu="menu-background"><i class="fas fa-bars"></i></a>
-
 @code {
     private bool collapseNavMenu = true;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    private void ToggleNavMenu()
+    public void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
     }
