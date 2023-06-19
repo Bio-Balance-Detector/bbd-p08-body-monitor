@@ -98,6 +98,10 @@ namespace BBD.BodyMonitor.Services
             checkDiskSpaceTimer.AutoReset = true;
             checkDiskSpaceTimer.Enabled = true;
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
+            if (deviceIndex == -1)
+            {
+                _logger.LogWarning($"Device with serial number '{deviceSerialNumber}' not found, using default device.");
+            }
 
             try
             {

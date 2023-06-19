@@ -15,7 +15,7 @@ namespace BBD.BodyMonitor.Services
         Session? FinishSession(Session? session = null);
         Session ResetSession();
         Session GetSession(Guid? sessionId);
-        Session[]? GetRunningSessions();
+        Session[]? ListRunningSessions();
         float? GetSessionValueProperty(Guid sessionId, string path);
         string GetSessionTextProperty(Guid sessionId, string path);
         Segment? GetSessionSegmentedProperty(Guid sessionId, string path, DateTimeOffset dateTimeOffset);

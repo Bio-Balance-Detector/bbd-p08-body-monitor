@@ -27,11 +27,6 @@ namespace BBD.BodyMonitor.Services
             return aliases.Where(s => s.Value.Subject != null).Select(s => s.Value.Subject).ToArray() ?? Array.Empty<Subject>();
         }
 
-        public Session[] ListSessions()
-        {
-            return sessions.Values.ToArray();
-        }
-
         public Session StartSession()
         {
             Session session;
@@ -109,6 +104,7 @@ namespace BBD.BodyMonitor.Services
                 }
 
                 // clone that session
+                session = FinishSession(session);
                 result = StartSession(session.Location?.Alias, session.Subject?.Alias);
                 result.StartedAt = DateTimeOffset.Now;
                 result.Name = session.Name;
@@ -120,7 +116,7 @@ namespace BBD.BodyMonitor.Services
                 };
                 result.Configuration = session.Configuration;
 
-                session = FinishSession(session);
+                //session = FinishSession(session);
                 //this.SaveSession(session);
 
                 //this.SaveSession(result);
@@ -143,7 +139,7 @@ namespace BBD.BodyMonitor.Services
         {
             if (sessionId == null)
             {
-                Session[]? sessions = ListSessions();
+                Session[]? sessions = ListRunningSessions();
                 if ((sessions != null) && (sessions.Length == 1))
                 {
                     return sessions[0];
@@ -160,7 +156,12 @@ namespace BBD.BodyMonitor.Services
             return null;
         }
 
-        public Session[]? GetRunningSessions()
+        public Session[] ListSessions()
+        {
+            return sessions.Values.ToArray();
+        }
+
+        public Session[]? ListRunningSessions()
         {
             return sessions.Values.Where(s => s.FinishedAt == null).ToArray();
         }

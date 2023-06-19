@@ -108,6 +108,19 @@ namespace BBD.BodyMonitor.Models
             BlockLength = blockLength;
             BufferLength = bufferLength;
 
+            if (deviceIndex == -1)
+            {
+                // get the default device
+                _ = dwf.FDwfEnum(dwf.enumfilterAll, out int deviceCount);
+                if (deviceCount == 0)
+                {
+                    logger.LogError("No device found.");
+                    return null;
+                }
+
+                deviceIndex = 0;
+            }
+
             // get the serial number of the device
             _ = dwf.FDwfEnumSN(deviceIndex, out string serialNumber);
             SerialNumber = serialNumber;
