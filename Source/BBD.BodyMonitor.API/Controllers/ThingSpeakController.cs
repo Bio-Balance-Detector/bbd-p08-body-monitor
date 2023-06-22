@@ -50,7 +50,7 @@ namespace BBD.BodyMonitor.Controllers
             }
 
             HttpClient httpClient = new();
-            Task<SensorSegment[]> request = httpClient.GetAsync($"{_thingSpeakOptions.APIEndpoint}/channels/{channelId}/feeds.json?api_key={_thingSpeakOptions.APIKey}&results={entryCount}").ContinueWith((response) =>
+            Task<SensorSegment[]> request = httpClient.GetAsync($"{_thingSpeakOptions.APIEndpoint}/channels/{channelId}/feeds.json?api_key={_thingSpeakOptions.APIKey}&results={entryCount}&timezone=Etc%2FUTC").ContinueWith((response) =>
             {
                 string result = response.Result.Content.ReadAsStringAsync().Result;
                 FeedsResponse? feed = JsonSerializer.Deserialize<FeedsResponse>(result, new JsonSerializerOptions() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString });
