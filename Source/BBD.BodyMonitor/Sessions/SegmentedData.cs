@@ -7,5 +7,6 @@ namespace BBD.BodyMonitor.Sessions
         public SleepSegment[]? Sleep { get; set; }
         public HeartRateSegment[]? HeartRate { get; set; }
         public BloodTestSegment[]? BloodTest { get; set; }
+        public SensorSegment[]? Sensors { get; set; }
     }
 }

@@ -1,18 +1,13 @@
 using BBD.BodyMonitor.Configuration;
-using BBD.BodyMonitor.Controllers;
-using BBD.BodyMonitor.Models;
 using BBD.BodyMonitor.Models.ThingSpeak;
 using BBD.BodyMonitor.Services;
+using BBD.BodyMonitor.Sessions;
 using BBD.BodyMonitor.Sessions.Segments;
-using Fitbit.Api.Portable;
-using Fitbit.Api.Portable.Models;
-using Fitbit.Api.Portable.OAuth2;
-using Fitbit.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
-namespace BBD.BodyMonitor.API.Controllers
+namespace BBD.BodyMonitor.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -37,95 +32,104 @@ namespace BBD.BodyMonitor.API.Controllers
 
             _thingSpeakOptions.APIEndpoint = new Uri(_config["BodyMonitor:ThingSpeak:APIEndpoint"]);
             _thingSpeakOptions.APIKey = _config["BodyMonitor:ThingSpeak:APIKey"];
-            _thingSpeakOptions.Channel = Int32.Parse(_config["BodyMonitor:ThingSpeak:Channel"]);
         }
 
+        /// <summary>
+        /// Get entries from a ThingSpeak channel. The maximum number of entries is 8000.
+        /// </summary>
+        /// <param name="channelId"></param>
+        /// <param name="entryCount"></param>
+        /// <returns></returns>
         [HttpGet]
-        [Route("getsensordata/{channelId?}/{entryCount?}")]
-        public SensorSegment[] GetSensorData(string? channelId, int entryCount = 10)
+        [Route("getsensordata/{channelId}/{entryCount?}")]
+        public SensorSegment[] GetSensorData(string channelId, int entryCount = 8000)
         {
-            if (String.IsNullOrWhiteSpace(channelId) && (_thingSpeakOptions.Channel.HasValue))
+            if (string.IsNullOrWhiteSpace(channelId))
             {
-                channelId = _thingSpeakOptions.Channel.ToString();
+                throw new ArgumentNullException(nameof(channelId));
             }
 
-            HttpClient httpClient = new HttpClient();
-            httpClient.GetAsync($"{_thingSpeakOptions.APIEndpoint}/channels/{channelId}/feeds.json?api_key={_thingSpeakOptions.APIKey}&results={entryCount}").ContinueWith((response) =>
+            HttpClient httpClient = new();
+            Task<SensorSegment[]> request = httpClient.GetAsync($"{_thingSpeakOptions.APIEndpoint}/channels/{channelId}/feeds.json?api_key={_thingSpeakOptions.APIKey}&results={entryCount}").ContinueWith((response) =>
             {
-                var result = response.Result.Content.ReadAsStringAsync().Result;
-                var feed = JsonSerializer.Deserialize<FeedsResponse>(result, new JsonSerializerOptions() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString });
-                var segments = new List<SensorSegment>();
-                foreach (var entry in feed.Feeds)
+                string result = response.Result.Content.ReadAsStringAsync().Result;
+                FeedsResponse? feed = JsonSerializer.Deserialize<FeedsResponse>(result, new JsonSerializerOptions() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString });
+                List<SensorSegment> segments = new();
+                foreach (Feed entry in feed.Feeds)
                 {
-                    var segment = new SensorSegment();
-                    segment.Start = new DateTimeOffset(entry.CreatedAt, TimeSpan.Zero);
-                    segment.End = new DateTimeOffset(entry.CreatedAt, TimeSpan.Zero).AddSeconds(15);
-                    segment.SensorNames = new string?[4] { feed.Channel.Field1, feed.Channel.Field2, feed.Channel.Field3, feed.Channel.Field4 };
-                    segment.SensorValues = new float?[4] { entry.Field1, entry.Field2, entry.Field3, entry.Field4 };
+                    SensorSegment segment = new()
+                    {
+                        Start = new DateTimeOffset(entry.CreatedAt, TimeSpan.Zero),
+                        End = new DateTimeOffset(entry.CreatedAt, TimeSpan.Zero).AddSeconds(15),
+                        SensorNames = new string?[4] { feed.Channel.Field1, feed.Channel.Field2, feed.Channel.Field3, feed.Channel.Field4 },
+                        SensorValues = new float?[4] { entry.Field1, entry.Field2, entry.Field3, entry.Field4 }
+                    };
                     segments.Add(segment);
                 }
                 return segments.ToArray();
             });
 
-            return new SensorSegment[0];
+            request.Wait();
+
+            return request.IsCompletedSuccessfully ? request.Result : (new SensorSegment[0]);
         }
 
         [HttpGet]
-        [Route("savedata/{subjectAlias}/{date?}")]
-        public void SaveFitbitData(string subjectAlias, DateTime? date)
+        [Route("savedata/{subjectAlias}")]
+        public void SaveThingSpeakData(string subjectAlias)
         {
-            //var subject = _sessionManager.GetSubject(subjectAlias);
-            //if (subject == null)
-            //{
-            //    throw new Exception($"Subject '{subjectAlias}' not found.");
-            //}
+            Sessions.Subject? subject = _sessionManager.GetSubject(subjectAlias);
+            if (subject == null)
+            {
+                throw new Exception($"Subject '{subjectAlias}' not found.");
+            }
 
-            //if (subject.FitbitEncodedID == null)
-            //{
-            //    throw new Exception($"The subject '{subject.Alias}' doesn't have a Fitbit ID defined.");
-            //}
+            if (subject.ThingSpeakChannel == null)
+            {
+                throw new Exception($"The subject '{subject.Alias}' doesn't have a ThingSpeak channel defined.");
+            }
 
-            //string encodedUserId = subject.FitbitEncodedID;
+            SensorSegment[] latestEntries = GetSensorData(subject.ThingSpeakChannel);
+            IEnumerable<IGrouping<DateTime, SensorSegment>> entryStartDateGroups = latestEntries.OrderBy(e => e.Start).GroupBy(e => e.Start.Date);
 
-            //if (date == null)
-            //{
-            //    date = DateTime.UtcNow.AddDays(-30);
-            //}
+            foreach (IGrouping<DateTime, SensorSegment> ssg in entryStartDateGroups)
+            {
+                DateTime currentDate = ssg.Key;
+                SensorSegment[] entriesInGroup = ssg.ToArray();
 
-            //int daysToGet = (int)(DateTime.UtcNow.Subtract(date.Value).TotalDays + 1.5);
+                Session? thingSpeakSession = null;
 
-            //for (int i = 0; i <= daysToGet; i++)
-            //{
-            //    var currentDate = date.Value.AddDays(i);
-            //    string fitbitSessionFilename = $"Subjects\\{subject.Alias}\\{subject.Alias}_{currentDate.ToString("yyyyMMdd_HHmmss")}__Fitbit.json";
-            //    string fullpathToSessionFile = Path.Combine(_sessionManager.MetadataDirectory, fitbitSessionFilename);
-            //    if (System.IO.File.Exists(fullpathToSessionFile))
-            //    {
-            //        if (currentDate.AddDays(3) < System.IO.File.GetLastWriteTimeUtc(fullpathToSessionFile))
-            //        {
-            //            // We have a supposedly complete file so we don't need to download the Fitbit data again.
-            //            _logger.LogInformation($"Fitbit data on '{currentDate.ToString("yyyy-MM-dd")}' for subject '{subjectAlias}' seems to be up-to-date, so we don't download it.");
-            //            continue;
-            //        }
-            //    }
+                // try to load the session file
+                string thingSpeakSessionFilename = $"Subjects\\{subject.Alias}\\{subject.Alias}_{currentDate:yyyyMMdd_HHmmss}__ThingSpeak.json";
+                string fullpathToSessionFile = Path.Combine(_sessionManager.MetadataDirectory, thingSpeakSessionFilename);
+                if (System.IO.File.Exists(fullpathToSessionFile))
+                {
+                    // Read the session file
+                    thingSpeakSession = _sessionManager.LoadSessionFromFile(thingSpeakSessionFilename);
+                }
 
-            //    _logger.LogInformation($"Downloading Fitbit data on '{currentDate.ToString("yyyy-MM-dd")}' for subject '{subjectAlias}'.");
+                // Create a new session if we didn't/couldn't load one
+                thingSpeakSession ??= new()
+                {
+                    Version = 1,
+                    SegmentedData = new SegmentedData()
+                    {
+                        Sensors = new SensorSegment[0]
+                    }
+                };
 
-            //    var sleepData = GetSleepData(encodedUserId, currentDate);
-            //    var heartRateData = GetHeartRate(encodedUserId, currentDate);
+                _logger.LogInformation($"Saving ThingSpeak sensor data on '{currentDate:yyyy-MM-dd}' for subject '{subjectAlias}'.");
 
-            //    var fitbitSession = new Session()
-            //    {
-            //        Version = 1,
-            //        SegmentedData = new SegmentedData()
-            //        {
-            //            PotentialOfHydrogenSleep = sleepData,
-            //            Temperature = heartRateData
-            //        }
-            //    };
+                // Merge the new entries with the existing ones
+                List<SensorSegment> entriesToSave = new(thingSpeakSession.SegmentedData.Sensors);
+                entriesToSave.AddRange(entriesInGroup);
 
-            //    _sessionManager.SaveSession(fitbitSession, fitbitSessionFilename);
-            //}
+                // Remove dupicates from the merged entries, sort them by start time
+                thingSpeakSession.SegmentedData.Sensors = entriesToSave.GroupBy(e => e.Start).Select(g => g.First()).OrderBy(e => e.Start).ToArray();
+
+                // Save the session file
+                _sessionManager.SaveSession(thingSpeakSession, thingSpeakSessionFilename);
+            }
 
             //_sessionManager.RefreshDataDirectory();
         }

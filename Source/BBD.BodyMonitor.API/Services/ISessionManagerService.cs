@@ -20,6 +20,7 @@ namespace BBD.BodyMonitor.Services
         string GetSessionTextProperty(Guid sessionId, string path);
         Segment? GetSessionSegmentedProperty(Guid sessionId, string path, DateTimeOffset dateTimeOffset);
         Session MergeSessionWith(Session session, string alias);
+        public Session? LoadSessionFromFile(string file);
         void SaveSession(Session session, string? filename = null);
         void SetDataDirectory(string dataDirectory);
         Subject? GetSubject(string alias);

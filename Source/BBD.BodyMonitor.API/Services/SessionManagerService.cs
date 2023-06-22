@@ -301,6 +301,14 @@ namespace BBD.BodyMonitor.Services
                 WriteIndented = true
             });
 
+            // create the folder if it does not exist
+            string folder = Path.GetDirectoryName(path);
+            if (!Directory.Exists(folder))
+            {
+                _ = Directory.CreateDirectory(folder);
+            }
+
+            // write the file
             File.WriteAllText(path, sessionJson);
         }
 
@@ -391,7 +399,7 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
-        private Session? LoadSessionFromFile(string file)
+        public Session? LoadSessionFromFile(string file)
         {
             Session? result = null;
             try
