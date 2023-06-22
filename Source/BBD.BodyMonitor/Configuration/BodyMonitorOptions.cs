@@ -117,8 +117,7 @@ namespace BBD.BodyMonitor.Configuration
             ThingSpeak = new ThingSpeakOptions()
             {
                 APIEndpoint = new Uri(config["ThingSpeak:APIEndpoint"]),
-                APIKey = config["ThingSpeak:APIKey"],
-                Channel = (int)ParseNumber(config["ThingSpeak:Channel"])
+                APIKey = config["ThingSpeak:APIKey"]
             };
         }
 

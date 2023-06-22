@@ -7,6 +7,7 @@
         public float? Weight { get; set; }
         public float? Height { get; set; }
         public string? FitbitEncodedID { get; set; }
+        public string? ThingSpeakChannel { get; set; }
         public string[]? Conditions { get; set; }
         public Identity? Identity { get; set; }
 
