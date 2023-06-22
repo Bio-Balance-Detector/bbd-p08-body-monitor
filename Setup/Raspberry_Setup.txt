@@ -1,24 +1,18 @@
-# https://darryldias.me/2021/install-and-setup-net-5-on-raspberry-pi/
+# https://behroozbc.hashnode.dev/install-net-on-a-raspberry-pi
 
-wget https://download.visualstudio.microsoft.com/download/pr/ef1d4f88-cbe9-47c2-9fb3-e7e772be1a4c/4fbbf2a11cee4f52a478a46b1a69ed03/dotnet-sdk-6.0.300-linux-arm.tar.gz
+sudo apt update
+sudo apt install wget
 
+$ wget https://dot.net/v1/dotnet-install.sh
 
-wget https://download.visualstudio.microsoft.com/download/pr/567a64a8-810b-4c3f-85e3-bc9f9e06311b/02664afe4f3992a4d558ed066d906745/dotnet-sdk-5.0.101-linux-arm.tar.gz
-wget https://download.visualstudio.microsoft.com/download/pr/11977d43-d937-4fdb-a1fb-a20d56f1877d/73aa09b745586ac657110fd8b11c0275/aspnetcore-runtime-5.0.1-linux-arm.tar.gz
+sudo bash ./dotnet-install.sh --channel STS --install-dir /opt/dotnet/
 
-mkdir ~/.dotnet
+sudo ln -s /opt/dotnet/dotnet /usr/local/bin
 
-tar -xvf dotnet-sdk-5.0.101-linux-arm.tar.gz -C ~/.dotnet
-tar -xvf aspnetcore-runtime-5.0.1-linux-arm.tar.gz -C ~/.dotnet
+echo 'export DOTNET_ROOT=/opt/dotnet' >> /home/pi/.bashrc
 
-nano ~/.bashrc
+dotnet --info
 
-export DOTNET_ROOT=$HOME/.dotnet 
-export PATH=$PATH:$HOME/.dotnet
-
-dotnet --version
-
-# https://docs.microsoft.com/en-us/dotnet/core/install/linux-debian
 
 x, Clone the repo on the Raspberry
 cd ~/Work/BioBalanceDetector
