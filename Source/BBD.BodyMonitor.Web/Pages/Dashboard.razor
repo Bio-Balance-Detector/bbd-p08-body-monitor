@@ -3,11 +3,10 @@
 @using BBD.BodyMonitor.Environment;
 @using BBD.BodyMonitor.Sessions;
 @using BBD.BodyMonitor.Web.Data
+@inject IConfiguration Configuration
 @inject BioBalanceDetectorService BBDService
 
 <PageTitle>Dashboard</PageTitle>
-
-<h1>System Information</h1>
 
 @*show the current status of the BBD service*@
 @if (BioBalanceDetectorService.SystemInformation == null)
@@ -17,8 +16,32 @@
 else
 {
     <p>
-        Host: @BioBalanceDetectorService.SystemInformation.CPUName with @BioBalanceDetectorService.SystemInformation.RAMSize GB RAM<br />
-        Active Sessions: @BioBalanceDetectorService.SystemInformation.Sessions.Count()<br />
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-server" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-server color-bbd-gradient-3"></i>
+                <span class="font-14">Server: @GetSelectedServerName()</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
+        <div class="collapse" id="collapse-server" style="">
+            <div class="list-group list-custom-small ms-4 ps-2">
+                @foreach (var server in Configuration.GetSection("Servers").GetChildren())
+                {
+                    <a id="@server.Value" href="#">
+                        <span class="flex-fill font-400 opacity-70">@server.Value</span>
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-host" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-laptop color-bbd-gradient-3"></i>
+                <span class="font-14">Host: @BioBalanceDetectorService.SystemInformation.CPUName with @BioBalanceDetectorService.SystemInformation.RAMSize GB RAM</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
 
         <div class="list-group list-custom-small list-icon-0">
             <a data-bs-toggle="collapse" href="#collapse-location" class="collapsed" aria-expanded="false">
@@ -83,6 +106,14 @@ else
 
         @*add a button to stop the data aquistion*@
         <a @onclick="Stop" class="flex-fill p-2 btn btn-s btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-gray-dark no-click">Stop</a>
+
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-sessions" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-file-medical color-bbd-gradient-3"></i>
+                <span class="font-14">Active Sessions: @BioBalanceDetectorService.SystemInformation.Sessions.Count()</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
     </p>
 }
 
@@ -105,6 +136,11 @@ else
     protected void Start() => BBDService.Start();
 
     protected void Stop() => BBDService.Stop();
+
+    protected String GetSelectedServerName()
+    {
+        return BBDService.GetServerName() ?? "N/A";
+    }
 
     protected String GetSelectedLocationName()
     {

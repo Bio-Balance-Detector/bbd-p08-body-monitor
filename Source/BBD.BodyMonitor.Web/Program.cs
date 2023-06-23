@@ -2,10 +2,12 @@ using BBD.BodyMonitor.Web.Data;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+BioBalanceDetectorService bbdService = new();
+
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<BioBalanceDetectorService>(new BioBalanceDetectorService("https://localhost:7061"));
+builder.Services.AddSingleton<BioBalanceDetectorService>(bbdService);
 
 WebApplication app = builder.Build();
 

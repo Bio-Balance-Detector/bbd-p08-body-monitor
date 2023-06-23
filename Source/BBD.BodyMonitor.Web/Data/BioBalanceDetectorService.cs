@@ -6,15 +6,26 @@ namespace BBD.BodyMonitor.Web.Data
 {
     public class BioBalanceDetectorService
     {
-        private readonly string _address;
-        private readonly HttpClient _client = new();
+        private static readonly HttpClient _client = new();
 
         public static SystemInformation? SystemInformation = null;
 
-        public BioBalanceDetectorService(string address)
+        public BioBalanceDetectorService()
         {
-            _address = address;
-            _client.BaseAddress = new Uri(address);
+            _client.BaseAddress = new Uri("https://localhost:7061");
+        }
+
+        public void ChangeServerAddress(string? address)
+        {
+            if (!string.IsNullOrEmpty(address))
+            {
+                _client.BaseAddress = new Uri(address);
+            }
+        }
+
+        public string? GetServerName()
+        {
+            return _client?.BaseAddress?.ToString();
         }
 
         public Task<SystemInformation?> GetSystemInformationAsync()
