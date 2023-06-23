@@ -12,6 +12,7 @@ namespace BBD.BodyMonitor.Environment
         public uint CPUCores { get; }
         public string CPUFullName => CPUName == "unknown" ? CPUName : $"{CPUName} @ {CPUFreq:0.0} GHz ({CPUCores} cores)";
         public float RAMSize { get; set; }
+        public string[] IPAddresses { get; set; }
         public ConnectedDevice[] Devices { get; set; }
         public BodyMonitorOptions Configuration { get; set; }
         public Location[] Locations { get; set; }

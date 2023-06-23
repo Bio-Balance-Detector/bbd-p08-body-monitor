@@ -3,6 +3,8 @@ using BBD.BodyMonitor.Environment;
 using BBD.BodyMonitor.Services;
 using BBD.BodyMonitor.Sessions;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
+using System.Net.Sockets;
 
 namespace BBD.BodyMonitor.Controllers
 {
@@ -13,6 +15,8 @@ namespace BBD.BodyMonitor.Controllers
         private readonly ILogger<SystemController> _logger;
         private readonly IDataProcessorService _dataProcessor;
         private readonly ISessionManagerService _sessionManager;
+        private static DateTime lastIpCheck = DateTime.MinValue;
+        private static List<string> ipAddresses = new();
 
         public SystemController(ILogger<SystemController> logger, IDataProcessorService dataProcessor, ISessionManagerService sessionManager)
         {
@@ -69,6 +73,44 @@ namespace BBD.BodyMonitor.Controllers
         public SystemInformation GetSystemInformation()
         {
             SystemInformation result = new();
+
+            if (lastIpCheck < DateTime.Now.AddMinutes(-5))
+            {
+                lastIpCheck = DateTime.Now;
+
+                try
+                {
+                    ipAddresses = new();
+                    IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
+                    foreach (IPAddress ip in host.AddressList)
+                    {
+                        if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            ipAddresses.Add(ip.ToString());
+                        }
+                    }
+
+                    // get our public IP via https://api.ipify.org
+                    HttpClient client = new();
+                    _ = client.GetStringAsync("https://api.ipify.org")
+                        .ContinueWith(task =>
+                        {
+                            if (task.IsCompletedSuccessfully)
+                            {
+                                string publicIp = task.Result;
+                                if (!string.IsNullOrEmpty(publicIp) && publicIp != "1.1.1.1")
+                                {
+                                    ipAddresses.Insert(0, publicIp);
+                                }
+                            }
+                        });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to get IP addresses");
+                }
+            }
+            result.IPAddresses = ipAddresses.ToArray();
 
             try
             {
