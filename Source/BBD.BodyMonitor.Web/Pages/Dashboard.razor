@@ -1,5 +1,6 @@
 ﻿@page "/"
 @page "/dashboard"
+@using BBD.BodyMonitor.Configuration;
 @using BBD.BodyMonitor.Environment;
 @using BBD.BodyMonitor.Sessions;
 @using BBD.BodyMonitor.Web.Data
@@ -25,10 +26,10 @@ else
         </div>
         <div class="collapse" id="collapse-server" style="">
             <div class="list-group list-custom-small ms-4 ps-2">
-                @foreach (var server in Configuration.GetSection("Servers").GetChildren())
+                @foreach (ServerOptions server in Configuration.GetSection("Servers").Get<ServerOptions[]>())
                 {
-                    <a id="@server.Value" href="#">
-                        <span class="flex-fill font-400 opacity-70">@server.Value</span>
+                    <a id="@server.Address" href="#">
+                        <span class="flex-fill font-400 opacity-70">@server.Name (@server.Address)</span>
                         <i class="fa fa-angle-right"></i>
                     </a>
                 }
