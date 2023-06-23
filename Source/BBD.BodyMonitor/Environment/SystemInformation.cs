@@ -1,12 +1,15 @@
 ﻿using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Sessions;
 using System.Management;
+using System.Runtime.InteropServices;
 
 namespace BBD.BodyMonitor.Environment
 {
     public class SystemInformation
     {
         public DateTimeOffset CurrentTimeUtc { get; }
+        public string OperatingSystem { get; private set; }
+        public string Runtime { get; private set; }
         public string CPUName { get; }
         public double CPUFreq { get; }
         public uint CPUCores { get; }
@@ -22,6 +25,9 @@ namespace BBD.BodyMonitor.Environment
         public SystemInformation()
         {
             CurrentTimeUtc = DateTimeOffset.Now;
+
+            OperatingSystem = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture.ToString().ToLower()})";
+            Runtime = $"{RuntimeInformation.FrameworkDescription} ({RuntimeInformation.RuntimeIdentifier.ToString().ToLower()})";
 
             try
             {
