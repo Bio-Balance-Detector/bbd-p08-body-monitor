@@ -7,15 +7,21 @@ namespace BBD.BodyMonitor.Services
 {
     public class SessionManagerService : ISessionManagerService
     {
+        private readonly ILogger<DataProcessorService> _logger;
+
         private readonly Dictionary<Guid, Session> sessions = new();
 
         private readonly Dictionary<string, Session> aliases = new();
-
         private Session? globalSettings;
 
         public string? DataDirectory { get; private set; }
         public string? MetadataDirectory { get; private set; }
         public string? SessionsDirectory { get; private set; }
+
+        public SessionManagerService(ILogger<SessionManagerService> logger)
+        {
+            _logger = (ILogger<DataProcessorService>?)logger;
+        }
 
         public Location[] ListLocations()
         {
@@ -420,6 +426,7 @@ namespace BBD.BodyMonitor.Services
             catch (Exception)
             {
                 // it's alright if we can't deserialize the file
+                _logger?.LogWarning($"Could not deserialize file '{file}'.");
             }
 
             return result;
