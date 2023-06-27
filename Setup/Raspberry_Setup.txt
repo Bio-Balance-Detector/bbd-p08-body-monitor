@@ -63,3 +63,26 @@ sudo service supervisor restart
 supervisorctl status all
 supervisorctl stop bbd:
 supervisorctl start bbd:
+
+x, Open the TCP port 7061 on Raspberry Pi
+sudo iptables -A INPUT -p tcp --dport 7061 -j ACCEPT
+
+x, Trust ASP.NET Core developer certificate (https://aka.ms/aspnet/https-trust-dev-cert)
+# https://learn.microsoft.com/en-us/aspnet/core/security/enforcing-ssl?view=aspnetcore-7.0&tabs=visual-studio%2Clinux-ubuntu#trust-https-certificate-on-linux
+
+dotnet dev-certs https
+sudo -E dotnet dev-certs https -ep /usr/local/share/ca-certificates/aspnet/https.crt --format PEM
+sudo update-ca-certificates
+
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+
+# verify (SHA1 thumbprints must match)
+ls -la ~/.dotnet/corefx/cryptography/x509stores/my
+
+openssl x509 -noout -fingerprint -sha1 -inform pem -in /usr/local/share/ca-certificates/aspnet/https.crt
+
+x, Install Remote Debugger on Raspberry
+curl -sSSL https://aka.ms/getvsdbgsh | /bin/sh /dev/stdin -v latest -l ~/vsdbg
+
+# rename the folder from vsdbg to .vs-debugger
