@@ -7,7 +7,7 @@ namespace BBD.BodyMonitor.Services
 {
     public class SessionManagerService : ISessionManagerService
     {
-        private readonly ILogger<DataProcessorService> _logger;
+        private readonly ILogger<SessionManagerService> _logger;
 
         private readonly Dictionary<Guid, Session> sessions = new();
 
@@ -20,7 +20,7 @@ namespace BBD.BodyMonitor.Services
 
         public SessionManagerService(ILogger<SessionManagerService> logger)
         {
-            _logger = (ILogger<DataProcessorService>?)logger;
+            _logger = (ILogger<SessionManagerService>?)logger;
         }
 
         public Location[] ListLocations()
