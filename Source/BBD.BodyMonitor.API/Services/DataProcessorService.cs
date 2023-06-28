@@ -93,10 +93,13 @@ namespace BBD.BodyMonitor.Services
         [Obsolete]
         public string? StartDataAcquisition(string deviceSerialNumber)
         {
+            // Check disk space every 10 seconds
             System.Timers.Timer checkDiskSpaceTimer = new(10000);
             checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
             checkDiskSpaceTimer.AutoReset = true;
             checkDiskSpaceTimer.Enabled = true;
+
+            // Check if a device with the serial number is available
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
             if (deviceIndex == -1)
             {
@@ -106,6 +109,18 @@ namespace BBD.BodyMonitor.Services
             try
             {
                 dataAcquisition ??= new DataAcquisition(_logger);
+
+                // Get device list
+                string[] deviceNames = dataAcquisition.ListDevices().Select(d => $"#{d.Index} {d.Name} ({d.SerialNumber})").ToArray();
+                string deviceList = deviceNames.Length == 0 ? "N/A" : string.Join(", ", deviceNames);
+                _logger.LogInformation($"Available devices: {deviceList}.");
+
+                if (deviceNames.Length == 0)
+                {
+                    return null;
+                }
+
+                // Open device
                 deviceSerialNumber = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
                 dataAcquisition.BufferError += DataAcquisition_BufferError;
 
