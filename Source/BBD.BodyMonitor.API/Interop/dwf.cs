@@ -367,12 +367,38 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfAnalogInStatusAutoTriggered", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogInStatusAutoTriggered(int hdwf, out int pfAuto);
 
+    /// <summary>
+    /// Retrieves the acquired data samples from the specified idxChannel on the AnalogIn instrument. It copies the data samples to the provided buffer.
+    /// </summary>
+    /// <param name="hdwf">Interface handle.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="rgdVoltData">Pointer to allocated buffer to copy the acquisition data.</param>
+    /// <param name="cdData">Number of samples to copy.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogInStatusData", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogInStatusData(int hdwf, int idxChannel, [MarshalAs(UnmanagedType.LPArray)] double[] rgdVoltData, int cdData);
 
+    /// <summary>
+    /// Retrieves the acquired data samples from the specified idxChannel on the AnalogIn instrument. It copies the data samples to the provided buffer.
+    /// </summary>
+    /// <param name="hdwf">Interface handle.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="rgdVoltData">Pointer to allocated buffer to copy the acquisition data.</param>
+    /// <param name="idxData">First sample index to copy.</param>
+    /// <param name="cdData">Number of samples to copy.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogInStatusData2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogInStatusData2(int hdwf, int idxChannel, [MarshalAs(UnmanagedType.LPArray)] double[] rgdVoltData, int idxData, int cdData);
 
+    /// <summary>
+    /// Retrieves the acquired raw data samples from the specified idxChannel on the AnalogIn instrument. It copies the data samples to the provided buffer.
+    /// </summary>
+    /// <param name="hdwf">Interface handle.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="rgu16Data">Pointer to allocated buffer to copy the acquisition data.</param>
+    /// <param name="idxData">Source sample index to copy.</param>
+    /// <param name="cdData">Number of samples to copy.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogInStatusData16", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogInStatusData16(int hdwf, int idxChannel, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgu16Data, int idxData, int cdData);
 
