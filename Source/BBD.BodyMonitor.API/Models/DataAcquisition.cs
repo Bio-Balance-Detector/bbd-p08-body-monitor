@@ -22,7 +22,7 @@ namespace BBD.BodyMonitor.Models
         public float BufferLength { get; private set; }
         public int[] AcquisitionChannels { get; private set; }
 
-        private readonly ILogger logger;
+        private readonly ILogger _logger;
 
         private readonly int openDeviceMaxRetryCount = 5;
         private int dwfHandle = -1;
@@ -42,7 +42,7 @@ namespace BBD.BodyMonitor.Models
 
         public DataAcquisition(ILogger logger)
         {
-            this.logger = logger;
+            _logger = logger;
 
             _ = dwf.FDwfGetVersion(out string dwfVersion);
             logger.LogInformation($"DWF Version: {dwfVersion}");
@@ -114,7 +114,7 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfEnum(dwf.enumfilterAll, out int deviceCount);
                 if (deviceCount == 0)
                 {
-                    logger.LogError("No device found.");
+                    _logger.LogError("No device found.");
                     return null;
                 }
 
@@ -132,7 +132,7 @@ namespace BBD.BodyMonitor.Models
             while (dwfHandle == dwf.hdwfNone && !terminateAcquisition && (openDeviceRetryCount < openDeviceMaxRetryCount))
             {
                 _ = dwf.FDwfGetLastErrorMsg(out string lastError);
-                logger.LogWarning($"Failed to open device '{SerialNumber}': {lastError.ReplaceLineEndings(" ").TrimEnd()}. Retrying in 10 seconds.");
+                _logger.LogWarning($"Failed to open device '{SerialNumber}': {lastError.ReplaceLineEndings(" ").TrimEnd()}. Retrying in 10 seconds.");
 
                 Thread.Sleep(10000);
 
@@ -147,7 +147,7 @@ namespace BBD.BodyMonitor.Models
 
             _ = dwf.FDwfAnalogInBufferSizeInfo(dwfHandle, out int bufferSizeMinimum, out int bufferSizeMaximum);
             bufferSize = Math.Min(bufferSizeMaximum, (int)acquisitionSamplerate);
-            logger.LogTrace($"Device buffer size range: {bufferSizeMinimum:N0} - {bufferSizeMaximum:N0} samples, set to {bufferSize:N0}.");
+            _logger.LogTrace($"Device buffer size range: {bufferSizeMinimum:N0} - {bufferSizeMaximum:N0} samples, set to {bufferSize:N0}.");
             voltData = new double[bufferSize];
 
             //set up acquisition
@@ -157,7 +157,7 @@ namespace BBD.BodyMonitor.Models
             Samplerate = (float)realSamplerate;
             if (acquisitionSamplerate != (int)realSamplerate)
             {
-                logger.LogWarning($"The sampling rate of {acquisitionSamplerate:N} Hz is not supported, so the effective sampling rate was set to {realSamplerate:N} Hz. Native sampling rates for AD2 are the following: 1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 128, 160, 200, 250, 256, 320, 400, 500, 625, 640, 800 Hz, 1, 1.25, 1.28, 1.6, 2, 2.5, 3.125, 3.2, 4, 5, 6.25, 6.4, 8, 10, 12.5, 15.625, 16, 20, 25, 31.250, 32, 40, 50, 62.5, 78.125, 80, 100, 125, 156.25, 160, 200, 250, 312.5, 390.625, 400, 500, 625, 781.25, 800 kHz, 1, 1.25, 1.5625, 2, 2.5, 3.125, 4, 5, 6.25, 10, 12.5, 20, 25, 50 and 100 MHz.");
+                _logger.LogWarning($"The sampling rate of {acquisitionSamplerate:N} Hz is not supported, so the effective sampling rate was set to {realSamplerate:N} Hz. Native sampling rates for AD2 are the following: 1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125, 128, 160, 200, 250, 256, 320, 400, 500, 625, 640, 800 Hz, 1, 1.25, 1.28, 1.6, 2, 2.5, 3.125, 3.2, 4, 5, 6.25, 6.4, 8, 10, 12.5, 15.625, 16, 20, 25, 31.250, 32, 40, 50, 62.5, 78.125, 80, 100, 125, 156.25, 160, 200, 250, 312.5, 390.625, 400, 500, 625, 781.25, 800 kHz, 1, 1.25, 1.5625, 2, 2.5, 3.125, 4, 5, 6.25, 10, 12.5, 20, 25, 50 and 100 MHz.");
             }
 
             if ((bufferLength / blockLength) - Math.Truncate(bufferLength / blockLength) != 0)
@@ -210,7 +210,7 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorFrequency);
                 _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorVoltage);
 
-                logger.LogTrace($"Generating sine wave at {signalGeneratorFrequency:N} Hz with {signalGeneratorVoltage} V of amplitude at channel {signalGeneratorChannelIndex}...");
+                _logger.LogTrace($"Generating sine wave at {signalGeneratorFrequency:N} Hz with {signalGeneratorVoltage} V of amplitude at channel {signalGeneratorChannelIndex}...");
                 _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
 
                 SignalGeneratorEnabled = signalGeneratorEnabled;
@@ -270,7 +270,7 @@ namespace BBD.BodyMonitor.Models
                     {
                         if (availableBytes != totalBytes)
                         {
-                            logger.LogWarning($"Data acquisition device '{SerialNumber}' reported some errors! Good: {availableBytes / totalBytes,6:0.0%} | Corrupted: {corruptedBytes / totalBytes,6:0.0%} | Lost: {lostBytes / totalBytes,6:0.0%}");
+                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' reported some errors! Good: {availableBytes / totalBytes,6:0.0%} | Corrupted: {corruptedBytes / totalBytes,6:0.0%} | Lost: {lostBytes / totalBytes,6:0.0%}");
                         }
 
                         totalBytes = 0;
@@ -290,7 +290,7 @@ namespace BBD.BodyMonitor.Models
 
                         if (sts is not dwf.DwfStateConfig and not dwf.DwfStateArmed)
                         {
-                            logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts}");
+                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts}");
                         }
                         Thread.Sleep(100);
                     }
@@ -299,10 +299,10 @@ namespace BBD.BodyMonitor.Models
 
                     if (cAvailable == 0)
                     {
-                        logger.LogWarning($"Aqusition error! cAvailable: {cAvailable:N0}");
+                        _logger.LogWarning($"Aqusition error! cAvailable: {cAvailable:N0}");
                         Thread.Sleep(500);
 
-                        logger.LogTrace($"Reseting device...");
+                        _logger.LogTrace($"Reseting device...");
                         _ = ResetDevice();
 
                         bufferError = false;
@@ -321,6 +321,12 @@ namespace BBD.BodyMonitor.Models
                     lostBytes += cLost;
                     corruptedBytes += cCorrupted;
 
+                    if (cAvailable > voltData.Length)
+                    {
+                        _logger.LogWarning($"The data available on the device is more than our local buffer size ({cAvailable} > {voltData.Length}), so we double the size of the buffer.");
+                        voltData = new double[voltData.Length * 2];
+                    }
+
                     _ = dwf.FDwfAnalogInStatusData(dwfHandle, 0, voltData, cAvailable);     // get CH1 data chunk
 
                     if (bufferError)
@@ -337,7 +343,7 @@ namespace BBD.BodyMonitor.Models
 
                 CloseDevice();
                 samplesBuffer.Clear();
-                logger.LogTrace($"Acquisition done on '{SerialNumber}'");
+                _logger.LogTrace($"Acquisition done on '{SerialNumber}'");
             })
             {
                 Priority = ThreadPriority.Highest
@@ -386,7 +392,7 @@ namespace BBD.BodyMonitor.Models
                     double samplesInIntervalRounded = Math.Round(samplesInInterval / BlockSize) * BlockSize;
                     float newInterval = (float)(samplesInIntervalRounded / Samplerate);
 
-                    logger.LogWarning($"The interval {interval} would have produced a sample count that is not a multiple of the block size {BlockSize}, so it was modified to {newInterval}.");
+                    _logger.LogWarning($"The interval {interval} would have produced a sample count that is not a multiple of the block size {BlockSize}, so it was modified to {newInterval}.");
 
                     interval = newInterval;
                 }
@@ -438,16 +444,16 @@ namespace BBD.BodyMonitor.Models
 
             while (true)
             {
-                logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
+                _logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
                 _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-                logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
+                _logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
 
                 if (psts == dwf.DwfStateRunning)
                 {
                     break;
                 }
 
-                logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
+                _logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
                 Thread.Sleep(500);
                 break;
             }
@@ -495,16 +501,16 @@ namespace BBD.BodyMonitor.Models
 
             while (true)
             {
-                logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
+                _logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
                 _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-                logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
+                _logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
 
                 if (psts == dwf.DwfStateRunning)
                 {
                     break;
                 }
 
-                logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
+                _logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
                 Thread.Sleep(500);
                 break;
             }
