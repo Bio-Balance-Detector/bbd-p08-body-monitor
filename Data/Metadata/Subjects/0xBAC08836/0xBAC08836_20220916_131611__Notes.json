@@ -1,9 +1,11 @@
 {
   "Version": 1,
-  "Notes": [
-    {
-      "TimeStamp": "2022-09-16 13:16:11",
-	  "Note": "Lefeküdtem testelhagyásos célzattal. Éreztem az ellazulást, enyhe hipnagóg képeket láttam. Időnként megpróbáltam kifordulni a testemből, de nem sikerült. Gyakran éreztem az asztráltestem, nem lehettem messze a szeparációtól.",
-    }
-  ]
+  "SegmentedData": {
+    "Notes": [
+      {
+        "Start": "2022-09-16T13:16:11+02:00",
+        "Note": "Lefeküdtem testelhagyásos célzattal. Éreztem az ellazulást, enyhe hipnagóg képeket láttam. Időnként megpróbáltam kifordulni a testemből, de nem sikerült. Gyakran éreztem az asztráltestem, nem lehettem messze a szeparációtól."
+      }
+    ]
+  }
 }
