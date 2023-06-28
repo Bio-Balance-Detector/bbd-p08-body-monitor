@@ -50,6 +50,8 @@ namespace BBD.BodyMonitor.Services
                 sessions.Add(session.Id, session);
             }
 
+            _logger.LogTrace($"Started new session with alias '{session.Alias}'.");
+
             return session;
         }
 
@@ -89,6 +91,18 @@ namespace BBD.BodyMonitor.Services
                         session.SegmentedData.BloodTest = TruncateSegmentedData(session.SegmentedData.BloodTest, session.StartedAt.Value, session.FinishedAt.Value) as BloodTestSegment[];
                     }
                     //_ = sessions.Remove(session.Id);
+                    _logger.LogTrace($"Finished session '{session.Alias}'.");
+                }
+                else
+                {
+                    if (session == null)
+                    {
+                        _logger.LogTrace($"Can't finish session, because the session is null.");
+                    }
+                    else
+                    {
+                        _logger.LogTrace($"Can't finish session '{session.Alias}', because it hasn't started yet.");
+                    }
                 }
             }
 
@@ -316,6 +330,8 @@ namespace BBD.BodyMonitor.Services
 
             // write the file
             File.WriteAllText(path, sessionJson);
+
+            _logger.LogTrace($"Session '{session.Alias}' saved to {path}.");
         }
 
         public void SetDataDirectory(string dataDirectory)
@@ -394,6 +410,7 @@ namespace BBD.BodyMonitor.Services
                     }
                 }
             }
+            _logger.LogTrace($"Session data folder was changed and {aliases.Count} locations and subjects were loaded to the manager.");
         }
 
         public void RefreshDataDirectory()
