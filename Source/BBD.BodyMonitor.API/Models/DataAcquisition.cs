@@ -132,7 +132,7 @@ namespace BBD.BodyMonitor.Models
             while (dwfHandle == dwf.hdwfNone && !terminateAcquisition && (openDeviceRetryCount < openDeviceMaxRetryCount))
             {
                 _ = dwf.FDwfGetLastErrorMsg(out string lastError);
-                logger.LogWarning($"Failed to open device '{SerialNumber}': {lastError.TrimEnd()}. Retrying in 10 seconds.");
+                logger.LogWarning($"Failed to open device '{SerialNumber}': {lastError.ReplaceLineEndings(" ").TrimEnd()}. Retrying in 10 seconds.");
 
                 Thread.Sleep(10000);
 
@@ -288,7 +288,7 @@ namespace BBD.BodyMonitor.Models
                             break;
                         }
 
-                        if (sts != dwf.DwfStateConfig)
+                        if (sts is not dwf.DwfStateConfig and not dwf.DwfStateArmed)
                         {
                             logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts}");
                         }
