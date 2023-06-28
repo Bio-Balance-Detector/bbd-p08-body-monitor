@@ -44,39 +44,53 @@ namespace BBD.BodyMonitor.Models
         {
             _logger = logger;
 
-            _ = dwf.FDwfGetVersion(out string dwfVersion);
-            logger.LogInformation($"DWF Version: {dwfVersion}");
+            logger.LogInformation($"DWF Version: {GetDwfVersion()}");
+        }
+
+        public string? GetDwfVersion()
+        {
+            try
+            {
+                _ = dwf.FDwfGetVersion(out string dwfVersion);
+                return dwfVersion;
+            }
+            catch
+            {
+                return "N/A";
+            }
         }
 
         public ConnectedDevice[] ListDevices()
         {
             List<ConnectedDevice> result = new();
 
-            _ = dwf.FDwfGetVersion(out string dwfVersion);
-
-            _ = dwf.FDwfEnum(dwf.enumfilterAll, out int deviceCount);
-            for (int idxDevice = 0; idxDevice < deviceCount; idxDevice++)
+            string? dwfVersion = GetDwfVersion();
+            if (dwfVersion != null)
             {
-                _ = dwf.FDwfEnumDeviceType(idxDevice, out int deviceId, out int deviceRevision);
-                _ = dwf.FDwfEnumDeviceIsOpened(idxDevice, out int isOpened);
-                _ = dwf.FDwfEnumUserName(idxDevice, out string userName);
-                _ = dwf.FDwfEnumDeviceName(idxDevice, out string deviceName);
-                _ = dwf.FDwfEnumSN(idxDevice, out string serialNumber);
-
-                ConnectedDevice device = new()
+                _ = dwf.FDwfEnum(dwf.enumfilterAll, out int deviceCount);
+                for (int idxDevice = 0; idxDevice < deviceCount; idxDevice++)
                 {
-                    Brand = "Digilent",
-                    Library = "DWF v" + dwfVersion,
-                    Index = idxDevice,
-                    Id = deviceId,
-                    Revision = deviceRevision,
-                    IsOpened = isOpened == 1,
-                    UserName = userName,
-                    Name = deviceName,
-                    SerialNumber = serialNumber
-                };
+                    _ = dwf.FDwfEnumDeviceType(idxDevice, out int deviceId, out int deviceRevision);
+                    _ = dwf.FDwfEnumDeviceIsOpened(idxDevice, out int isOpened);
+                    _ = dwf.FDwfEnumUserName(idxDevice, out string userName);
+                    _ = dwf.FDwfEnumDeviceName(idxDevice, out string deviceName);
+                    _ = dwf.FDwfEnumSN(idxDevice, out string serialNumber);
 
-                result.Add(device);
+                    ConnectedDevice device = new()
+                    {
+                        Brand = "Digilent",
+                        Library = "DWF v" + dwfVersion,
+                        Index = idxDevice,
+                        Id = deviceId,
+                        Revision = deviceRevision,
+                        IsOpened = isOpened == 1,
+                        UserName = userName,
+                        Name = deviceName,
+                        SerialNumber = serialNumber
+                    };
+
+                    result.Add(device);
+                }
             }
 
             return result.ToArray();

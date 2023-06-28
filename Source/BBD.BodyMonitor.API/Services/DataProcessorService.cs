@@ -98,6 +98,7 @@ namespace BBD.BodyMonitor.Services
             checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
             checkDiskSpaceTimer.AutoReset = true;
             checkDiskSpaceTimer.Enabled = true;
+            _logger.LogTrace($"Set up a timer to check disk space on {spaceCheckDrive.Name} every {checkDiskSpaceTimer.Interval / 1000:0} seconds.");
 
             // Check if a device with the serial number is available
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
