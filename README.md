@@ -47,7 +47,7 @@ Body Monitor on Windows can provide an excellent performance with 800k SPS, 14 b
 
 ### Ubuntu
 
-### Raspbian OS
+### Raspbian/Raspberry Pi OS
 
 1) Download and install Raspbian OS by following [the official instructions](https://www.raspberrypi.com/software/)
 2) Enable SSH and VNC in Preferences / Raspberry Pi Configuration / Interfaces on Raspberry
@@ -100,6 +100,11 @@ dotnet publish --configuration release --runtime linux-arm --self-contained true
 cd ~/BBD.BodyMonitor
 ./bbd.bodymonitor
 ```
+
+9) Download and install [Digilent Adept Runtime](https://lp.digilent.com/complete-adept-runtime-download)
+
+10) Download and install [Digilent WaveForms (digilent.waveforms*armhf.deb)](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
+
 
 ### Android
 Using the Body Monitor on Android makes it mobile, but it still needs another computer on the same network to process and save the data. Sampling rate is limited to 250k SPS, it drains the phone battery in 30-60 minutes depending on the phone, and it needs a fast and stable WiFi in order to work.
