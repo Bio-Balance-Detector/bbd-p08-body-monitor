@@ -101,9 +101,9 @@ cd ~/BBD.BodyMonitor
 ./bbd.bodymonitor
 ```
 
-9) Download and install [the Digilent Adept Runtime](https://lp.digilent.com/complete-adept-runtime-download) on the Raspberry Pi
+9) Download and install [Digilent Adept Runtime](https://lp.digilent.com/complete-adept-runtime-download)
 
-10) Download and install [the latest WaveForms (digilent.waveforms*armhf.deb)](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
+10) Download and install [Digilent WaveForms (digilent.waveforms*armhf.deb)](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
 
 
 ### Android
