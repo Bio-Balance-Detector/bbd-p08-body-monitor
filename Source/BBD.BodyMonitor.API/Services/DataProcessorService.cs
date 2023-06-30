@@ -24,6 +24,7 @@ namespace BBD.BodyMonitor.Services
         private BodyMonitorOptions _config;
         private readonly ISessionManagerService _sessionManager;
         private readonly float _inputAmplification = short.MaxValue / 1.0f;
+        private System.Timers.Timer? _checkDiskSpaceTimer;
         private DataAcquisition? dataAcquisition;
         private DataAcquisition? calibration;
         private FftDataV3? calibrationFftData;
@@ -93,12 +94,20 @@ namespace BBD.BodyMonitor.Services
         [Obsolete]
         public string? StartDataAcquisition(string deviceSerialNumber)
         {
+            // Stop previous timer if any
+            if (_checkDiskSpaceTimer != null)
+            {
+                _checkDiskSpaceTimer.Stop();
+                _checkDiskSpaceTimer.Dispose();
+                _checkDiskSpaceTimer = null;
+                _logger.LogTrace("Previous timer to check disk space was stopped.");
+            }
             // Check disk space every 10 seconds
-            System.Timers.Timer checkDiskSpaceTimer = new(10000);
-            checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
-            checkDiskSpaceTimer.AutoReset = true;
-            checkDiskSpaceTimer.Enabled = true;
-            _logger.LogTrace($"Set up a timer to check disk space on {spaceCheckDrive.Name} every {checkDiskSpaceTimer.Interval / 1000:0} seconds.");
+            _checkDiskSpaceTimer = new(10000);
+            _checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
+            _checkDiskSpaceTimer.AutoReset = true;
+            _checkDiskSpaceTimer.Enabled = true;
+            _logger.LogTrace($"Set up a timer to check disk space on '{spaceCheckDrive.Name}' every {_checkDiskSpaceTimer.Interval / 1000:0} seconds.");
 
             // Check if a device with the serial number is available
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
