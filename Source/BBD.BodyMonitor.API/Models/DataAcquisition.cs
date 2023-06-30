@@ -54,8 +54,9 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfGetVersion(out string dwfVersion);
                 return dwfVersion;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get DWF version.");
                 return "N/A";
             }
         }
