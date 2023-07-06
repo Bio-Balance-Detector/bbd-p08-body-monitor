@@ -102,11 +102,14 @@ cd ~/BBD.BodyMonitor
 ```
 
 9) Download and install [Digilent Adept Runtime](https://lp.digilent.com/complete-adept-runtime-download)
+  * For Raspberry OS 32-bit: Raspberry Pi
+    * To remove: `sudo dpkg --remove digilent.adept.runtime:armhf`
+  * For Raspberry OS 64-bit: ARM / Download 64-bit .deb
 
-10) Download and install [Digilent WaveForms (digilent.waveforms*armhf.deb)](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
-
-11) ? Copy the `libdwf.so` file from `/usr/lib` to the project's `/bin/Debug/net7.0` folder ?
-
+11) Download and install [Digilent WaveForms](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
+  * For Raspberry OS 32-bit: digilent.waveforms*armhf.deb
+    * To remove: `sudo dpkg --remove digilent.waveforms:armhf`
+  * For Raspberry OS 64-bit: digilent.waveforms*arm64.deb
 
 ### Android
 Using the Body Monitor on Android makes it mobile, but it still needs another computer on the same network to process and save the data. Sampling rate is limited to 250k SPS, it drains the phone battery in 30-60 minutes depending on the phone, and it needs a fast and stable WiFi in order to work.
