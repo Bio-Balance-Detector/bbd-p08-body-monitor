@@ -1,6 +1,7 @@
 @BBD.BodyMonitor.API_HostAddress = https://0.0.0.0:7061
 # For more info on HTTP files go to https://aka.ms/vs/httpfile
 @BBD.BodyMonitor.Web_HostAddress = https://localhost:7061
+#@BBD.BodyMonitor.Web_HostAddress = https://192.168.1.65:7061
 
 # Start data acquisition
 GET {{BBD.BodyMonitor.Web_HostAddress}}/DataAcquisition/start
