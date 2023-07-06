@@ -44,6 +44,7 @@ namespace BBD.BodyMonitor.Services
         private readonly List<float> maxValues = new();
         private Pen[]? chartPens;
         private readonly List<string> disabledIndicators = new();
+        private readonly Dictionary<string, Queue<string>> _waveFileWriteQueue = new();
 
         [Obsolete]
         public DataProcessorService(ILogger<DataProcessorService> logger, IConfiguration configRoot, IOptionsMonitor<BodyMonitorOptions> bodyMonitorOptions, ISessionManagerService sessionManager)
@@ -498,14 +499,39 @@ namespace BBD.BodyMonitor.Services
 
             _ = Task.Run(() =>
             {
-                string threadId = e.DataBlock.EndIndex.ToString("0000DW");
-                _logger.LogTrace($"Data writer thread #{threadId} begin");
+                string threadId = e.DataBlock.StartTime.ToString("HHmmss") + "DW";
+                _logger.LogTrace($"Data writer thread #{threadId} begins.");
 
                 Stopwatch sw = Stopwatch.StartNew();
 
                 if (_config.DataWriter.SaveAsWAV)
                 {
                     sw.Restart();
+
+                    lock (_waveFileWriteQueue)
+                    {
+                        // create the queue if it doesn't exist
+                        if (!_waveFileWriteQueue.ContainsKey(waveFilename))
+                        {
+                            _waveFileWriteQueue.Add(waveFilename, new());
+                        }
+
+                        // add the thread ID to the queue
+                        _waveFileWriteQueue[waveFilename].Enqueue(threadId);
+                    }
+
+                    // check if the thread ID is the first in the queue
+                    if (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                    {
+                        // if not, wait until it is
+                        _logger.LogTrace($"Data writer thread #{threadId} is waiting in the queue for its turn among {_waveFileWriteQueue[waveFilename].Count - 2} others at the moment.");
+                        while (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                        {
+                            Thread.Sleep(100);
+                        }
+                        _logger.LogTrace($"Data writer thread #{threadId} continues to run.");
+                    }
+
                     // and save samples to a WAV file
                     FileStream waveFileStream = new(waveFilename, FileMode.OpenOrCreate);
                     DiscreteSignal signalToSave = new((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
@@ -551,7 +577,12 @@ namespace BBD.BodyMonitor.Services
                     _logger.LogTrace($"#{threadId} Save as WAV completed in {sw.ElapsedMilliseconds:N0} ms.");
                 }
 
-                _logger.LogTrace($"Data writer thread #{threadId} end");
+                lock (_waveFileWriteQueue)
+                {
+                    _ = _waveFileWriteQueue[waveFilename].Dequeue();
+                }
+
+                _logger.LogTrace($"Data writer thread #{threadId} ended.");
             }
             );
         }
