@@ -102,10 +102,16 @@ cd ~/BBD.BodyMonitor
 ```
 
 9) Download and install [Digilent Adept Runtime](https://lp.digilent.com/complete-adept-runtime-download)
+  * For Raspberry OS 32-bit: Raspberry Pi
+    * To remove: `sudo dpkg --remove digilent.adept.runtime:armhf`
+  * For Raspberry OS 64-bit: ARM / Download 64-bit .deb
 
-10) Download and install [Digilent WaveForms (digilent.waveforms*armhf.deb)](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
+11) Download and install [Digilent WaveForms](https://forum.digilent.com/topic/8908-waveforms-beta-download/)
+  * For Raspberry OS 32-bit: digilent.waveforms*armhf.deb
+    * To remove: `sudo dpkg --remove digilent.waveforms:armhf`
+  * For Raspberry OS 64-bit: digilent.waveforms*arm64.deb
 
-11) ? Copy the `libdwf.so` file from `/usr/lib` to the project's `/bin/Debug/net7.0` folder ?
+13) ? Copy the `libdwf.so` file from `/usr/lib` to the project's `/bin/Debug/net7.0` folder ?
 
 
 ### Android
