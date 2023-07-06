@@ -111,9 +111,6 @@ cd ~/BBD.BodyMonitor
     * To remove: `sudo dpkg --remove digilent.waveforms:armhf`
   * For Raspberry OS 64-bit: digilent.waveforms*arm64.deb
 
-13) ? Copy the `libdwf.so` file from `/usr/lib` to the project's `/bin/Debug/net7.0` folder ?
-
-
 ### Android
 Using the Body Monitor on Android makes it mobile, but it still needs another computer on the same network to process and save the data. Sampling rate is limited to 250k SPS, it drains the phone battery in 30-60 minutes depending on the phone, and it needs a fast and stable WiFi in order to work.
 
