@@ -504,74 +504,82 @@ namespace BBD.BodyMonitor.Services
 
                 Stopwatch sw = Stopwatch.StartNew();
 
+                lock (_waveFileWriteQueue)
+                {
+                    // create the queue if it doesn't exist
+                    if (!_waveFileWriteQueue.ContainsKey(waveFilename))
+                    {
+                        _waveFileWriteQueue.Add(waveFilename, new());
+                    }
+
+                    // add the thread ID to the queue
+                    _waveFileWriteQueue[waveFilename].Enqueue(threadId);
+                }
+
+                // check if the thread ID is the first in the queue
+                if (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                {
+                    // if not, wait until it is
+                    _logger.LogTrace($"Data writer thread #{threadId} is waiting in the queue for its turn among {_waveFileWriteQueue[waveFilename].Count - 2} others.");
+                    while (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                    {
+                        Thread.Sleep(100);
+                    }
+                    _logger.LogTrace($"Data writer thread #{threadId} continues to run.");
+                }
+
+
                 if (_config.DataWriter.SaveAsWAV)
                 {
                     sw.Restart();
 
-                    lock (_waveFileWriteQueue)
+                    try
                     {
-                        // create the queue if it doesn't exist
-                        if (!_waveFileWriteQueue.ContainsKey(waveFilename))
+                        // and save samples to a WAV file
+                        FileStream waveFileStream = new(waveFilename, FileMode.OpenOrCreate);
+                        DiscreteSignal signalToSave = new((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
+                        signalToSave.Amplify(_inputAmplification);
+
+                        // force the values to fit into the 16-bit range
+                        signalToSave = new DiscreteSignal((int)dataAcquisition.Samplerate, signalToSave.Samples.Select(v => v < short.MinValue ? short.MinValue : v > short.MaxValue ? short.MaxValue : v).ToArray(), true);
+
+                        float minSignal = signalToSave.Samples.Min();
+                        float maxSignal = signalToSave.Samples.Max();
+
+                        if ((minSignal == short.MinValue) || (maxSignal == short.MaxValue))
                         {
-                            _waveFileWriteQueue.Add(waveFilename, new());
+                            _logger.LogWarning("The samples in the WAV file are clipped. This is usually caused by the input signal being too strong.");
                         }
 
-                        // add the thread ID to the queue
-                        _waveFileWriteQueue[waveFilename].Enqueue(threadId);
-                    }
-
-                    // check if the thread ID is the first in the queue
-                    if (_waveFileWriteQueue[waveFilename].Peek() != threadId)
-                    {
-                        // if not, wait until it is
-                        _logger.LogTrace($"Data writer thread #{threadId} is waiting in the queue for its turn among {_waveFileWriteQueue[waveFilename].Count - 2} others at the moment.");
-                        while (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                        float maxAbsSignal = (float)Math.Max(-minSignal, maxSignal);
+                        int bitsLost = 0;
+                        while (maxAbsSignal <= short.MaxValue)
                         {
-                            Thread.Sleep(100);
+                            maxAbsSignal *= 2;
+                            bitsLost++;
                         }
-                        _logger.LogTrace($"Data writer thread #{threadId} continues to run.");
+
+                        if (bitsLost > 4)
+                        {
+                            _logger.LogWarning($"The effective bitrate of the WAV file is less than {16 - bitsLost + 1} bits. This is usually caused by a weak input signal. Consider lowering the output range in the configuration file.");
+                        }
+
+                        if (_config.DataWriter.SingleFile)
+                        {
+                            WaveFileExtensions.AppendTo(waveFileStream, signalToSave);
+                        }
+                        else
+                        {
+                            WaveFile waveFile = new(signalToSave, 16);
+                            waveFile.SaveTo(waveFileStream, false);
+                        }
+
+                        waveFileStream.Close();
                     }
-
-                    // and save samples to a WAV file
-                    FileStream waveFileStream = new(waveFilename, FileMode.OpenOrCreate);
-                    DiscreteSignal signalToSave = new((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
-                    signalToSave.Amplify(_inputAmplification);
-
-                    // force the values to fit into the 16-bit range
-                    signalToSave = new DiscreteSignal((int)dataAcquisition.Samplerate, signalToSave.Samples.Select(v => v < short.MinValue ? short.MinValue : v > short.MaxValue ? short.MaxValue : v).ToArray(), true);
-
-                    float minSignal = signalToSave.Samples.Min();
-                    float maxSignal = signalToSave.Samples.Max();
-
-                    if ((minSignal == short.MinValue) || (maxSignal == short.MaxValue))
+                    catch (Exception ex)
                     {
-                        _logger.LogWarning("The samples in the WAV file are clipped. This is usually caused by the input signal being too strong.");
+                        _logger.LogError(ex, $"#{threadId} Failed to write WAV file '{waveFilename}': {ex.Message}.");
                     }
-
-                    float maxAbsSignal = (float)Math.Max(-minSignal, maxSignal);
-                    int bitsLost = 0;
-                    while (maxAbsSignal <= short.MaxValue)
-                    {
-                        maxAbsSignal *= 2;
-                        bitsLost++;
-                    }
-
-                    if (bitsLost > 4)
-                    {
-                        _logger.LogWarning($"The effective bitrate of the WAV file is less than {16 - bitsLost + 1} bits. This is usually caused by a weak input signal. Consider lowering the output range in the configuration file.");
-                    }
-
-                    if (_config.DataWriter.SingleFile)
-                    {
-                        WaveFileExtensions.AppendTo(waveFileStream, signalToSave);
-                    }
-                    else
-                    {
-                        WaveFile waveFile = new(signalToSave, 16);
-                        waveFile.SaveTo(waveFileStream, false);
-                    }
-
-                    waveFileStream.Close();
 
                     sw.Stop();
                     _logger.LogTrace($"#{threadId} Save as WAV completed in {sw.ElapsedMilliseconds:N0} ms.");
