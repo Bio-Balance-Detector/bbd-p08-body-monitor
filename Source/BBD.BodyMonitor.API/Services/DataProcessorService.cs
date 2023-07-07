@@ -525,7 +525,7 @@ namespace BBD.BodyMonitor.Services
                     {
                         Thread.Sleep(100);
                     }
-                    _logger.LogTrace($"Data writer thread #{threadId} continues to run.");
+                    _logger.LogTrace($"Data writer thread #{threadId} is next in the queue, {_waveFileWriteQueue[waveFilename].Count - 1} others are still waiting.");
                 }
 
 
