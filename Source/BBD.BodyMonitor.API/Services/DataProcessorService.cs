@@ -583,8 +583,6 @@ namespace BBD.BodyMonitor.Services
 
                     sw.Stop();
                     _logger.LogTrace($"#{threadId} Save as WAV completed in {sw.ElapsedMilliseconds:N0} ms.");
-
-                    Thread.Sleep(7500);
                 }
 
                 lock (_waveFileWriteQueue)
