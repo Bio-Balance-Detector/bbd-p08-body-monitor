@@ -583,6 +583,8 @@ namespace BBD.BodyMonitor.Services
 
                     sw.Stop();
                     _logger.LogTrace($"#{threadId} Save as WAV completed in {sw.ElapsedMilliseconds:N0} ms.");
+
+                    Thread.Sleep(7500);
                 }
 
                 lock (_waveFileWriteQueue)
@@ -2111,7 +2113,7 @@ namespace BBD.BodyMonitor.Services
                         totalBytesProcessed += fi.Length;
 
                         FileStream waveFileStream = new(wavFilename, FileMode.Open);
-                        WavePcmFormat waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
+                        WavePcmFormatHeader waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
 
                         FftDataBlockCache fftDataBlockCacheTemp = new((int)waveHeader.SampleRate, _config.Postprocessing.FFTSize, dataBlockLength, _config.Postprocessing.ResampleFFTResolutionToHz);
 

@@ -2,93 +2,15 @@
 
 namespace BBD.BodyMonitor.Models
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public class WavePcmFormat
+    public class WavePcmFormat : WavePcmFormatHeader
     {
-        /* ChunkID          Contains the letters "RIFF" in ASCII form */
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        private char[] chunkID = new char[] { 'R', 'I', 'F', 'F' };
-
-        /* ChunkSize        36 + SubChunk2Size */
-        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        private uint chunkSize = 0;
-
-        /* Format           The "WAVE" format name */
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        private char[] format = new char[] { 'W', 'A', 'V', 'E' };
-
-        /* Subchunk1ID      Contains the letters "fmt " */
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        private char[] subchunk1ID = new char[] { 'f', 'm', 't', ' ' };
-
-        /* Subchunk1Size    16 for PCM */
-        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        private uint subchunk1Size = 16;
-
-        /* AudioFormat      PCM = 1 (i.e. Linear quantization) */
-        [MarshalAs(UnmanagedType.U2, SizeConst = 2)]
-        private ushort audioFormat = 1;
-
-        /* NumChannels      Mono = 1, Stereo = 2, etc. */
-        [MarshalAs(UnmanagedType.U2, SizeConst = 2)]
-        private ushort numChannels = 1;
-        public ushort NumChannels { get => numChannels; set => numChannels = value; }
-
-        /* SampleRate       8000, 44100, etc. */
-        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        private uint sampleRate = 44100;
-        public uint SampleRate { get => sampleRate; set => sampleRate = value; }
-
-        /* ByteRate         == SampleRate * NumChannels * BitsPerSample/8 */
-        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        private uint byteRate = 0;
-
-        /* BlockAlign       == NumChannels * BitsPerSample/8 */
-        [MarshalAs(UnmanagedType.U2, SizeConst = 2)]
-        private ushort blockAlign = 0;
-
-        /* BitsPerSample    8 bits = 8, 16 bits = 16, etc. */
-        [MarshalAs(UnmanagedType.U2, SizeConst = 2)]
-        private ushort bitsPerSample = 16;
-        public ushort BitsPerSample { get => bitsPerSample; set => bitsPerSample = value; }
-
-        /* Subchunk2ID      Contains the letters "data" */
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        private char[] subchunk2ID = new char[] { 'd', 'a', 't', 'a' };
-
-        /* Subchunk2Size    == NumSamples * NumChannels * BitsPerSample/8 */
-        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        private uint subchunk2Size = 0;
-
-        public uint DataChuckSize => subchunk2Size;
-
-        public uint DataChuckPosition
-        {
-            get
-            {
-                return 44;
-            }
-        }
-
         /* Data             The actual sound data. */
         public byte[] Data { get; set; } = new byte[0];
-        public byte BytesPerSample
-        {
-            get
-            {
-                if (this.BitsPerSample % 8 != 0)
-                {
-                    throw new Exception("Only 8, 16, 24 and 32-bit WAV files are supported.");
-                }
-
-                return (byte)(this.BitsPerSample / 8);
-            }
-        }
 
         public WavePcmFormat() { }
-        public WavePcmFormat(byte[] data, ushort numChannels = 2, uint sampleRate = 44100, ushort bitsPerSample = 16)
+        public WavePcmFormat(ushort numChannels = 2, uint sampleRate = 44100, ushort bitsPerSample = 16, byte[]? data = null)
         {
-            Data = data;
+            Data = data ?? new byte[0];
             NumChannels = numChannels;
             SampleRate = sampleRate;
             BitsPerSample = bitsPerSample;
@@ -102,7 +24,7 @@ namespace BBD.BodyMonitor.Models
             chunkSize = 36 + subchunk2Size;
         }
 
-        public byte[] ToByteArray()
+        public override byte[] ToByteArray()
         {
             CalculateSizes();
             int headerSize = Marshal.SizeOf(this);
@@ -115,7 +37,7 @@ namespace BBD.BodyMonitor.Models
             return rawData;
         }
 
-        public static WavePcmFormat FromByteArray(byte[] header)
+        public static new WavePcmFormat FromByteArray(byte[] header)
         {
             WavePcmFormat waveHeader;
 
@@ -148,6 +70,8 @@ namespace BBD.BodyMonitor.Models
             {
                 throw new System.Exception("The second chunk in the WAV file must be 'data'.");
             }
+
+            waveHeader.CalculateSizes();
 
             return waveHeader;
         }

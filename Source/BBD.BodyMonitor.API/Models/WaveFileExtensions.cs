@@ -24,13 +24,13 @@ namespace BBD.BodyMonitor.Models
 
             if (waveFileStream.Length < 44)
             {
-                WaveFile wf = new WaveFile(signalToSave, 16);
+                WaveFile wf = new(signalToSave, 16);
                 wf.SaveTo(waveFileStream, false);
                 return;
             }
             else
             {
-                var waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
+                WavePcmFormatHeader waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
 
                 if (waveHeader.NumChannels != 1)
                 {
@@ -49,19 +49,19 @@ namespace BBD.BodyMonitor.Models
 
                 uint dataChunkSize = (uint)(waveFileStream.Length - 44);
 
-                waveFileStream.Seek(0, SeekOrigin.End);
+                _ = waveFileStream.Seek(0, SeekOrigin.End);
 
                 byte[] dataToAppend = signalToSave.Samples.SelectMany(s => BitConverter.GetBytes((short)s)).ToArray();
 
                 waveFileStream.Write(dataToAppend);
 
                 // update data chunk size
-                waveFileStream.Seek(40, SeekOrigin.Begin);
+                _ = waveFileStream.Seek(40, SeekOrigin.Begin);
                 waveFileStream.Write(BitConverter.GetBytes(dataChunkSize + (uint)dataToAppend.Length));
             }
         }
 
-        public static WavePcmFormat ReadWaveFileHeader(Stream waveStream)
+        public static WavePcmFormatHeader ReadWaveFileHeader(Stream waveStream)
         {
             if (waveStream.CanRead == false)
             {
@@ -78,18 +78,18 @@ namespace BBD.BodyMonitor.Models
                 throw new Exception("Cannot read from the file stream.");
             }
 
-            waveStream.Seek(0, SeekOrigin.Begin);
+            _ = waveStream.Seek(0, SeekOrigin.Begin);
 
             // read wave file header
             byte[] headerBytes = new byte[44];
-            waveStream.Read(headerBytes, 0, 44);
+            _ = waveStream.Read(headerBytes, 0, 44);
 
-            return WavePcmFormat.FromByteArray(headerBytes);
+            return WavePcmFormatHeader.FromByteArray(headerBytes);
         }
 
         public static DiscreteSignal ReadAsDiscreateSignal(Stream waveStream, double position, float interval)
         {
-            var waveHeader = ReadWaveFileHeader(waveStream);
+            WavePcmFormatHeader waveHeader = ReadWaveFileHeader(waveStream);
 
             if (waveHeader.NumChannels != 1)
             {
@@ -99,15 +99,15 @@ namespace BBD.BodyMonitor.Models
             uint readPositionStart = (uint)(waveHeader.SampleRate * waveHeader.BytesPerSample * position);
             if (readPositionStart % waveHeader.BytesPerSample != 0)
             {
-                readPositionStart = readPositionStart - (readPositionStart % waveHeader.BytesPerSample);
+                readPositionStart -= (readPositionStart % waveHeader.BytesPerSample);
             }
             readPositionStart += waveHeader.DataChuckPosition;
 
             int numberOfSamplesToRead = (int)(interval * waveHeader.SampleRate);
 
             byte[] buffer = new byte[numberOfSamplesToRead * waveHeader.BytesPerSample];
-            waveStream.Seek(readPositionStart, SeekOrigin.Begin);
-            waveStream.Read(buffer);
+            _ = waveStream.Seek(readPositionStart, SeekOrigin.Begin);
+            _ = waveStream.Read(buffer);
 
             short[] samplesInt16 = new short[numberOfSamplesToRead];
             Buffer.BlockCopy(buffer, 0, samplesInt16, 0, buffer.Length);
