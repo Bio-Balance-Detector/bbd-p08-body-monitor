@@ -516,6 +516,9 @@ namespace BBD.BodyMonitor.Services
                 return;
             }
 
+            string samplerate = $"{SimplifyNumber(dataAcquisition.Samplerate)}sps";
+            string deviceChannel = $"{dataAcquisition.SerialNumber[^4..].ToString()?.ToLower()}-ch{dataAcquisition.AcquisitionChannels[0]}";
+
             if (_config.DataWriter.SingleFile)
             {
                 Sessions.Session session = _sessionManager.GetSession(null);
@@ -530,14 +533,14 @@ namespace BBD.BodyMonitor.Services
                 }
 
                 string pathToFile = GeneratePathToFile(_waveFileTimestamp.Value);
-                _currentWavFilename = $"{pathToFile}__{session.Alias}_{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav";
+                _currentWavFilename = $"{pathToFile}__{session.Alias}__{samplerate}__{deviceChannel}.wav";
             }
             else
             {
                 _waveFileTimestamp = e.DataBlock.StartTime.ToUniversalTime().DateTime;
 
                 string pathToFile = GeneratePathToFile(_waveFileTimestamp.Value);
-                _currentWavFilename = $"{pathToFile}__{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav";
+                _currentWavFilename = $"{pathToFile}__{samplerate}__ch{deviceChannel}.wav";
             }
             _currentWavFilename = AppendDataDir(_currentWavFilename);
 
@@ -1179,6 +1182,11 @@ namespace BBD.BodyMonitor.Services
             };
         }
 
+        /// <summary>
+        /// Generates the full path to the file where the data will be saved based on the capture time.
+        /// </summary>
+        /// <param name="captureTime">Timestamp of the file</param>
+        /// <returns></returns>
         public string GeneratePathToFile(DateTime captureTime)
         {
             if (!Directory.Exists(AppendDataDir(captureTime.ToString("yyyy-MM-dd"))))
@@ -1187,7 +1195,7 @@ namespace BBD.BodyMonitor.Services
             }
 
             string foldername = $"{captureTime:yyyy-MM-dd}";
-            string filename = $"AD2_{captureTime:yyyyMMdd_HHmmss}";
+            string filename = $"EMR_{captureTime:yyyyMMdd_HHmmss}";
             return Path.Combine(foldername, filename);
         }
 
@@ -1197,7 +1205,7 @@ namespace BBD.BodyMonitor.Services
             string mlProfileString = $"__{fftData.MLProfileName.Split("_")[0]}";
             string profileOrRangeString = string.IsNullOrEmpty(mlProfileString) ? fftRangeString : mlProfileString;
             string frameCounterString = frameCounter.HasValue ? $"__fr{frameCounter.Value.ToString(frameCounterFormatterString)}" : "";
-            return $"AD2_{fftData.Start.Value:yyyyMMdd_HHmmss}{profileOrRangeString}{frameCounterString}.bfft";
+            return $"EMR_{fftData.Start.Value:yyyyMMdd_HHmmss}{profileOrRangeString}{frameCounterString}.bfft";
         }
 
         [Obsolete]
