@@ -1,5 +1,8 @@
 ﻿namespace BBD.BodyMonitor.Buffering
 {
+    /// <summary>
+    /// Data block that is received from the device
+    /// </summary>
     public class DataBlock
     {
         /// <summary>

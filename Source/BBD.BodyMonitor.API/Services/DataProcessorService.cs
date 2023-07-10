@@ -3,6 +3,7 @@ using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
 using BBD.BodyMonitor.MLProfiles;
 using BBD.BodyMonitor.Models;
+using BBD.BodyMonitor.Sessions;
 using EDFCSharp;
 using Microsoft.Extensions.Options;
 using Microsoft.ML;
@@ -43,6 +44,8 @@ namespace BBD.BodyMonitor.Services
         private readonly DriveInfo? spaceCheckDrive;
         private readonly List<float> maxValues = new();
         private Pen[]? chartPens;
+        private DateTime? _waveFileTimestamp;
+        private string _currentWavFilename;
         private readonly List<string> disabledIndicators = new();
         private readonly Dictionary<string, Queue<string>> _waveFileWriteQueue = new();
 
@@ -88,12 +91,11 @@ namespace BBD.BodyMonitor.Services
 
         public ConnectedDevice[] ListDevices()
         {
-            dataAcquisition ??= new DataAcquisition(_logger);
-            return dataAcquisition.ListDevices();
+            return DataAcquisition.ListDevices();
         }
 
         [Obsolete]
-        public string? StartDataAcquisition(string deviceSerialNumber)
+        public string? StartDataAcquisition(string deviceSerialNumber, Session? session)
         {
             // Stop previous timer if any
             if (_checkDiskSpaceTimer != null)
@@ -119,10 +121,10 @@ namespace BBD.BodyMonitor.Services
 
             try
             {
-                dataAcquisition ??= new DataAcquisition(_logger);
+                dataAcquisition ??= new DataAcquisition(_logger, session);
 
                 // Get device list
-                string[] deviceNames = dataAcquisition.ListDevices().Select(d => $"#{d.Index} {d.Name} ({d.SerialNumber})").ToArray();
+                string[] deviceNames = DataAcquisition.ListDevices().Select(d => $"#{d.Index} {d.Name} ({d.SerialNumber})").ToArray();
                 string deviceList = deviceNames.Length == 0 ? "N/A" : string.Join(", ", deviceNames);
                 _logger.LogInformation($"Available devices: {deviceList}.");
 
@@ -133,6 +135,7 @@ namespace BBD.BodyMonitor.Services
 
                 // Open device
                 deviceSerialNumber = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                dataAcquisition.ErrorHandling = BufferErrorHandlingMode.ZeroSamples;
                 dataAcquisition.BufferError += DataAcquisition_BufferError;
 
                 if (_config.DataWriter.Enabled)
@@ -193,15 +196,47 @@ namespace BBD.BodyMonitor.Services
             _ = Task.Run(() =>
             {
                 //_logger.LogWarning($"Data error! cAvailable: {e.BytesAvailable / (float)e.BytesTotal:P}, cLost: {e.BytesLost / (float)e.BytesTotal:P}, cCorrupted: {e.BytesCorrupted / (float)e.BytesTotal:P}");
-                _ = _sessionManager.ResetSession();
+
+                if (dataAcquisition == null)
+                {
+                    return;
+                }
+
+                if (dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ZeroSamples)
+                {
+                    // The buffer is filled with zeros at the corrupted positions, so we can continue
+                }
+
+                if (dataAcquisition.ErrorHandling == BufferErrorHandlingMode.DiscardSamples)
+                {
+                    // The buffer didn't get the corrupted data, so we can continue
+                }
+
+                if (dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ClearBuffer)
+                {
+                    // The buffer is going to be cleared, so we need to write the remaining data to the WAV file and start a new one
+
+                    string oldWavFilename = _currentWavFilename;
+                    _waveFileTimestamp = DateTime.UtcNow;
+
+                    if (_waveFileWriteQueue.ContainsKey(oldWavFilename))
+                    {
+                        while (_waveFileWriteQueue[oldWavFilename].Count > 0)
+                        {
+                            Thread.Sleep(500);
+                        }
+                    }
+                }
             });
         }
 
         public void CalibrateDevice(string deviceSerialNumber)
         {
+            Session session = _sessionManager.StartSession(null, null);
+
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
 
-            calibration = new DataAcquisition(_logger);
+            calibration = new DataAcquisition(_logger, session);
             calibration.SubscribeToBlockReceived(1.0f, FrequencyResponseAnalysis_SamplesReceived);
 
             int samplerate = 1 * 1000 * 1000;
@@ -298,7 +333,9 @@ namespace BBD.BodyMonitor.Services
                 throw new Exception("Acquisition and signal generator must be enabled for the frequnecy response analysis.");
             }
 
-            DataAcquisition frada = new(_logger);
+            Session session = _sessionManager.StartSession(null, null);
+
+            DataAcquisition frada = new(_logger, session);
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
 
             FrequencyAnalysisSettings frequencyAnalysisSettings = new()
@@ -479,7 +516,6 @@ namespace BBD.BodyMonitor.Services
                 return;
             }
 
-            string waveFilename;
             if (_config.DataWriter.SingleFile)
             {
                 Sessions.Session session = _sessionManager.GetSession(null);
@@ -487,15 +523,23 @@ namespace BBD.BodyMonitor.Services
                 {
                     return;
                 }
-                string pathToFile = GeneratePathToFile(session.StartedAt.Value.UtcDateTime);
-                waveFilename = $"{pathToFile}__{session.Alias}_{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav";
+
+                if (_waveFileTimestamp == null)
+                {
+                    _waveFileTimestamp = session.StartedAt.Value.UtcDateTime;
+                }
+
+                string pathToFile = GeneratePathToFile(_waveFileTimestamp.Value);
+                _currentWavFilename = $"{pathToFile}__{session.Alias}_{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav";
             }
             else
             {
-                string pathToFile = GeneratePathToFile(e.DataBlock.StartTime.ToUniversalTime().DateTime);
-                waveFilename = $"{pathToFile}__{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav";
+                _waveFileTimestamp = e.DataBlock.StartTime.ToUniversalTime().DateTime;
+
+                string pathToFile = GeneratePathToFile(_waveFileTimestamp.Value);
+                _currentWavFilename = $"{pathToFile}__{_config.Acquisition.Samplerate}sps_ch{_config.Acquisition.Channels[0]}.wav";
             }
-            waveFilename = AppendDataDir(waveFilename);
+            _currentWavFilename = AppendDataDir(_currentWavFilename);
 
             _ = Task.Run(() =>
             {
@@ -507,25 +551,25 @@ namespace BBD.BodyMonitor.Services
                 lock (_waveFileWriteQueue)
                 {
                     // create the queue if it doesn't exist
-                    if (!_waveFileWriteQueue.ContainsKey(waveFilename))
+                    if (!_waveFileWriteQueue.ContainsKey(_currentWavFilename))
                     {
-                        _waveFileWriteQueue.Add(waveFilename, new());
+                        _waveFileWriteQueue.Add(_currentWavFilename, new());
                     }
 
                     // add the thread ID to the queue
-                    _waveFileWriteQueue[waveFilename].Enqueue(threadId);
+                    _waveFileWriteQueue[_currentWavFilename].Enqueue(threadId);
                 }
 
                 // check if the thread ID is the first in the queue
-                if (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                if (_waveFileWriteQueue[_currentWavFilename].Peek() != threadId)
                 {
                     // if not, wait until it is
-                    _logger.LogTrace($"Data writer thread #{threadId} is waiting in the queue for its turn among {_waveFileWriteQueue[waveFilename].Count - 2} others.");
-                    while (_waveFileWriteQueue[waveFilename].Peek() != threadId)
+                    _logger.LogTrace($"Data writer thread #{threadId} is waiting in the queue for its turn among {_waveFileWriteQueue[_currentWavFilename].Count - 2} others.");
+                    while (_waveFileWriteQueue[_currentWavFilename].Peek() != threadId)
                     {
                         Thread.Sleep(100);
                     }
-                    _logger.LogTrace($"Data writer thread #{threadId} is next in the queue, {_waveFileWriteQueue[waveFilename].Count - 1} others are still waiting.");
+                    _logger.LogTrace($"Data writer thread #{threadId} is next in the queue, {_waveFileWriteQueue[_currentWavFilename].Count - 1} others are still waiting.");
                 }
 
 
@@ -536,7 +580,7 @@ namespace BBD.BodyMonitor.Services
                     try
                     {
                         // and save samples to a WAV file
-                        FileStream waveFileStream = new(waveFilename, FileMode.OpenOrCreate);
+                        FileStream waveFileStream = new(_currentWavFilename, FileMode.OpenOrCreate);
                         DiscreteSignal signalToSave = new((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
                         signalToSave.Amplify(_inputAmplification);
 
@@ -575,10 +619,12 @@ namespace BBD.BodyMonitor.Services
                         }
 
                         waveFileStream.Close();
+
+                        // TODO: update the session with the WAV file name and its duration
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, $"#{threadId} Failed to write WAV file '{waveFilename}': {ex.Message}.");
+                        _logger.LogError(ex, $"#{threadId} Failed to write WAV file '{_currentWavFilename}': {ex.Message}.");
                     }
 
                     sw.Stop();
@@ -587,7 +633,7 @@ namespace BBD.BodyMonitor.Services
 
                 lock (_waveFileWriteQueue)
                 {
-                    _ = _waveFileWriteQueue[waveFilename].Dequeue();
+                    _ = _waveFileWriteQueue[_currentWavFilename].Dequeue();
                 }
 
                 _logger.LogTrace($"Data writer thread #{threadId} ended.");
@@ -1699,6 +1745,7 @@ namespace BBD.BodyMonitor.Services
             }
 
         }
+
         public IEnumerable<FftDataV3> EnumerateFFTDataInFolder(string foldername, string[]? applyTags = null)
         {
             applyTags ??= Array.Empty<string>();
@@ -2045,7 +2092,7 @@ namespace BBD.BodyMonitor.Services
                         PreprareMachineLearningModels();
                     }
 
-                    _ = StartDataAcquisition(deviceSerialNumber);
+                    _ = StartDataAcquisition(deviceSerialNumber, null);
                 }
             }
         }

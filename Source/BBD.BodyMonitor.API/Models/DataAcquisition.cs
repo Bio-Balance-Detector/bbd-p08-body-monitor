@@ -1,5 +1,6 @@
 ﻿using BBD.BodyMonitor.Buffering;
 using BBD.BodyMonitor.Environment;
+using BBD.BodyMonitor.Sessions;
 using static BBD.BodyMonitor.Buffering.ShiftingBuffer;
 
 namespace BBD.BodyMonitor.Models
@@ -21,9 +22,32 @@ namespace BBD.BodyMonitor.Models
         public float BlockLength { get; private set; }
         public float BufferLength { get; private set; }
         public int[] AcquisitionChannels { get; private set; }
+        private BufferErrorHandlingMode _bufferErrorHandling;
+        public BufferErrorHandlingMode ErrorHandling
+        {
+            get
+            {
+                if (samplesBuffer != null)
+                {
+                    _bufferErrorHandling = samplesBuffer.ErrorHandlingMode;
+                }
+
+                return _bufferErrorHandling;
+            }
+
+            set
+            {
+                _bufferErrorHandling = value;
+
+                if (samplesBuffer != null)
+                {
+                    samplesBuffer.ErrorHandlingMode = value;
+                }
+            }
+        }
 
         private readonly ILogger _logger;
-
+        private readonly Session _session;
         private readonly int openDeviceMaxRetryCount = 5;
         private int dwfHandle = -1;
 
@@ -40,28 +64,28 @@ namespace BBD.BodyMonitor.Models
 
         private readonly Dictionary<int, List<Action<object, BlockReceivedEventArgs>>> subscribers = new();
 
-        public DataAcquisition(ILogger logger)
+        public DataAcquisition(ILogger logger, Session session)
         {
             _logger = logger;
+            _session = session;
 
             logger.LogInformation($"DWF Version: {GetDwfVersion()}");
         }
 
-        public string? GetDwfVersion()
+        public static string? GetDwfVersion()
         {
             try
             {
                 _ = dwf.FDwfGetVersion(out string dwfVersion);
                 return dwfVersion;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _logger.LogError(ex, "Failed to get DWF version.");
                 return "N/A";
             }
         }
 
-        public ConnectedDevice[] ListDevices()
+        public static ConnectedDevice[] ListDevices()
         {
             List<ConnectedDevice> result = new();
 
@@ -267,7 +291,10 @@ namespace BBD.BodyMonitor.Models
             terminateAcquisition = false;
             bool bufferError = false;
 
-            samplesBuffer = new ShiftingBuffer(BufferSize, BlockSize, Samplerate);
+            samplesBuffer = new ShiftingBuffer(BufferSize, BlockSize, Samplerate)
+            {
+                ErrorHandlingMode = _bufferErrorHandling
+            };
             samplesBuffer.BlockReceived += SamplesBuffer_BlockReceived;
             samplesBuffer.BufferError += SamplesBuffer_BufferError;
 
@@ -382,7 +409,7 @@ namespace BBD.BodyMonitor.Models
 
                     foreach (Action<object, BlockReceivedEventArgs> subscribedAction in subscribedActionList.Value)
                     {
-                        _ = Task.Run(() => subscribedAction(sender, new BlockReceivedEventArgs(e.Buffer, db)));
+                        _ = Task.Run(() => subscribedAction(sender, new BlockReceivedEventArgs(e.Buffer, db, _session, e.Error)));
                     }
                 }
             }

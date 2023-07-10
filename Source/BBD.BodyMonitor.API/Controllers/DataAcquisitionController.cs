@@ -47,7 +47,7 @@ namespace BBD.BodyMonitor.Controllers
 
             int taskId = Task.Run(() =>
             {
-                session.DeviceIdentifier = _dataProcessor.StartDataAcquisition(deviceSerialNumber);
+                session.DeviceIdentifier = _dataProcessor.StartDataAcquisition(deviceSerialNumber, session);
             }).Id;
 
             return session.Alias;
