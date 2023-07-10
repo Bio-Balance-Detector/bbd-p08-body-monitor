@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBD.BodyMonitor.CLI", "BBD.BodyMonitor.CLI\BBD.BodyMonitor.CLI.csproj", "{07C36CE1-600C-49AC-8F38-F8E0D94A201E}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBD.BodyMonitor.API", "BBD.BodyMonitor.API\BBD.BodyMonitor.API.csproj", "{AEE7DE3C-ABA2-4BA2-8233-453F75D73B61}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBD.BodyMonitor", "BBD.BodyMonitor\BBD.BodyMonitor.csproj", "{618504D6-F178-4DC4-BF09-8264AEDEE2B7}"
@@ -25,18 +23,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Debug|x64.Build.0 = Debug|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Debug|x86.Build.0 = Debug|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Release|x64.ActiveCfg = Release|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Release|x64.Build.0 = Release|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Release|x86.ActiveCfg = Release|Any CPU
-		{07C36CE1-600C-49AC-8F38-F8E0D94A201E}.Release|x86.Build.0 = Release|Any CPU
 		{AEE7DE3C-ABA2-4BA2-8233-453F75D73B61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{AEE7DE3C-ABA2-4BA2-8233-453F75D73B61}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AEE7DE3C-ABA2-4BA2-8233-453F75D73B61}.Debug|x64.ActiveCfg = Debug|Any CPU
