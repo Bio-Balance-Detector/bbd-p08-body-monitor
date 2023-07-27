@@ -29,7 +29,7 @@ namespace BBD.BodyMonitor.Configuration
 
         public override object ConvertFrom(ITypeDescriptorContext ctx, CultureInfo ci, object data)
         {
-            string str = (string)data;
+            string str = ((string)data).Trim();
 
             string[] postfixes = { "p", "n", "u", "m", "", "k", "M", "T", "P" };
             bool binaryMode = !str.Contains(" ");

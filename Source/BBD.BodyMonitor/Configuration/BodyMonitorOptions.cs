@@ -40,13 +40,23 @@ namespace BBD.BodyMonitor.Configuration
                 Samplerate = (int)ParseNumber(config["Acquisition:Samplerate"])
             };
 
+            string[]? scheduleStrings = config.GetSection("SignalGenerator:Schedule").Get<string[]>();
+            ScheduleOptions[] schedules = scheduleStrings.Select(ScheduleOptions.Parse).ToArray();
+
             SignalGenerator = new SignalGeneratorOptions()
             {
                 Enabled = bool.Parse(config["SignalGenerator:Enabled"]),
-                Channel = byte.Parse(new string(config["SignalGenerator:Channel"].TakeLast(1).ToArray())),
                 Frequency = ParseNumber(config["SignalGenerator:Frequency"]),
-                Voltage = ParseNumber(config["SignalGenerator:Voltage"]),
+                Resolution = ParseNumber(config["SignalGenerator:Resolution"]),
+                SignalDefinitions = config.GetSection("SignalGenerator:SignalDefinitions").Get<SignalDefinitionOptions[]>(),
+                Schedules = schedules
             };
+
+            foreach (SignalDefinitionOptions signalDefinition in SignalGenerator.SignalDefinitions)
+            {
+                signalDefinition.ParseFrequency();
+                signalDefinition.ParseVoltage();
+            }
 
             DataWriter = new DataWriterOptions()
             {
@@ -121,7 +131,7 @@ namespace BBD.BodyMonitor.Configuration
             };
         }
 
-        [Obsolete]
+        [Obsolete("Use StringWithUnitToNumberConverter.ConvertFrom instead")]
         private float ParseNumber(string str)
         {
             string[] postfixes = { "p", "n", "u", "m", "", "k", "M", "T", "P" };
