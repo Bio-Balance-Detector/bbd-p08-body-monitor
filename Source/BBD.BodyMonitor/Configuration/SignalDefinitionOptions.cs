@@ -2,7 +2,7 @@
 
 namespace BBD.BodyMonitor.Configuration
 {
-    public enum SignalType
+    public enum SignalFunction
     {
         Sine,
         Square,
@@ -28,9 +28,9 @@ namespace BBD.BodyMonitor.Configuration
         /// </summary>
         public required string Name { get; set; }
         /// <summary>
-        /// Type of the signal. It must be one of the signal types of the signal generating device (eg. "Sine", "Square", "Triangle", "Sawtooth").
+        /// Function of the signal. It must be one of the signal types of the signal generating device (eg. "Sine", "Square", "Triangle", "Sawtooth").
         /// </summary>
-        public required SignalType Type { get; set; }
+        public required SignalFunction Function { get; set; }
         /// <summary>
         /// Frequency of the signal. It can be a single value (eg. 500 Hz), a frequency sweep range (indicated by ->, eg. 500 Hz -> 600 Hz), or a frequency ping-pong range (indicated by <->, eg. 500 Hz <-> 600 Hz).
         /// </summary>
@@ -104,7 +104,7 @@ namespace BBD.BodyMonitor.Configuration
                 PeriodicyMode.PingPong => $"{VoltageFrom.ToString(numberFormat)} V <-> {VoltageTo.ToString(numberFormat)} V",
                 _ => throw new ArgumentOutOfRangeException(),
             };
-            return $"{Name}={Type},{frequencyString},{voltageString}";
+            return $"{Name}={Function},{frequencyString},{voltageString}";
         }
     }
 }
