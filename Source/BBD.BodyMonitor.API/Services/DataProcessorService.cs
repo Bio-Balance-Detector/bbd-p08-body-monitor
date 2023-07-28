@@ -134,7 +134,7 @@ namespace BBD.BodyMonitor.Services
                 }
 
                 // Open device
-                deviceSerialNumber = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                deviceSerialNumber = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.Acquisition.Block, _config.Acquisition.Buffer);
                 dataAcquisition.ErrorHandling = BufferErrorHandlingMode.ZeroSamples;
                 dataAcquisition.BufferError += DataAcquisition_BufferError;
 
@@ -252,7 +252,8 @@ namespace BBD.BodyMonitor.Services
             {
                 signalAmplitude = selfCalibrationAmplitudes[ai];
 
-                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, 0.1f, 1.0f);
+                calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -278,7 +279,8 @@ namespace BBD.BodyMonitor.Services
             {
                 signalFrequency = selfCalibrationFrequencies[fi];
 
-                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, 0.1f, 1.0f);
+                calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -304,7 +306,8 @@ namespace BBD.BodyMonitor.Services
             {
                 fftSize = selfCalibrationFFTSizes[si];
 
-                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, true, 2, signalFrequency, signalAmplitude, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, 0.1f, 1.0f);
+                calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -326,6 +329,7 @@ namespace BBD.BodyMonitor.Services
             _logger.LogInformation($"Errors are ({string.Join(" | ", amplitudeErrors.Select(e => e.ToString("0.0").PadLeft(7)))}) mV and ({string.Join(" | ", frequencyErrors.Select(e => e.ToString("0.0").PadLeft(9)))}) mHz at ({string.Join(" | ", selfCalibrationFFTSizes.Select(a => a.ToString().PadLeft(7)))}) FFT sizes respectively.");
         }
 
+        [Obsolete]
         public void FrequencyResponseAnalysis(string deviceSerialNumber)
         {
             if (!_config.Acquisition.Enabled || !_config.SignalGenerator.Enabled)
@@ -375,7 +379,7 @@ namespace BBD.BodyMonitor.Services
                 RunPartialFrequencyAnalysis(deviceIndex, frada, frequencyAnalysisSettings, result);
 
                 frequencyAnalysisSettings.Samplerate *= 2;
-                _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.Acquisition.Block, _config.Acquisition.Buffer);
                 frequencyAnalysisSettings.Samplerate = frada.Samplerate;
                 frada.CloseDevice();
                 frequencyAnalysisSettings.StartFrequency = frequencyAnalysisSettings.EndFrequency;
@@ -399,18 +403,19 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        [Obsolete]
         private void RunPartialFrequencyAnalysis(int deviceIndex, DataAcquisition frada, FrequencyAnalysisSettings frequencyAnalysisSettings, float[] result)
         {
             fftDataBlockCache = new FftDataBlockCache((int)frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
 
-            _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.SignalGenerator.Enabled, _config.SignalGenerator.Channel, _config.SignalGenerator.Frequency, _config.SignalGenerator.Voltage, frequencyAnalysisSettings.BlockLength, _config.Acquisition.Buffer);
+            _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.BlockLength, _config.Acquisition.Buffer);
             //frada.SubscribeToBlockReceived(frequencyAnalysisSettings.FftSize / frequencyAnalysisSettings.Samplerate, FrequencyResponseAnalysis_SamplesReceived);
             frada.SubscribeToBlockReceived(0.05f, FrequencyResponseAnalysis_SamplesReceived);
             fftDataBlockCache = new FftDataBlockCache((int)frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
 
             _ = Task.Run(frada.Start);
 
-            frada.SweepSingalGeneratorFrequency(frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, 45.0f);
+            frada.ChangeSingalGenerator("W2", SignalFunction.Sine, frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, false, _config.SignalGenerator.Voltage, null, false, TimeSpan.FromSeconds(45.0));
             //frada.ChangeSingalGeneratorFrequency(frequencyAnalysisSettings.EndFrequency);
 
             DateTime endTime = DateTime.UtcNow.AddSeconds(15.0);

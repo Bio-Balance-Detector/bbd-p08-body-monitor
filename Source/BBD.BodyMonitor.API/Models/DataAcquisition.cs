@@ -1,4 +1,5 @@
 ﻿using BBD.BodyMonitor.Buffering;
+using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
 using BBD.BodyMonitor.Sessions;
 using static BBD.BodyMonitor.Buffering.ShiftingBuffer;
@@ -15,10 +16,6 @@ namespace BBD.BodyMonitor.Models
         /// </summary>
         public int BufferSize { get; internal set; }
         public int BlockSize { get; internal set; }
-        public bool SignalGeneratorEnabled { get; private set; }
-        public byte SignalGeneratorChannel { get; private set; }
-        public float SignalGeneratorFrequency { get; private set; }
-        public float SignalGeneratorVoltage { get; private set; }
         public float BlockLength { get; private set; }
         public float BufferLength { get; private set; }
         public int[] AcquisitionChannels { get; private set; }
@@ -135,15 +132,11 @@ namespace BBD.BodyMonitor.Models
         /// <param name="bufferLength"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public string? OpenDevice(int deviceIndex, int[] acquisitionChannels, float acquisitionSamplerate, bool signalGeneratorEnabled, byte signalGeneratorChannel, float signalGeneratorFrequency, float signalGeneratorVoltage, float blockLength, float bufferLength)
+        public string? OpenDevice(int deviceIndex, int[] acquisitionChannels, float acquisitionSamplerate, float blockLength, float bufferLength)
         {
             DeviceIndex = deviceIndex;
             AcquisitionChannels = acquisitionChannels;
             Samplerate = acquisitionSamplerate;
-            SignalGeneratorEnabled = signalGeneratorEnabled;
-            SignalGeneratorChannel = signalGeneratorChannel;
-            SignalGeneratorFrequency = signalGeneratorFrequency;
-            SignalGeneratorVoltage = signalGeneratorVoltage;
             BlockLength = blockLength;
             BufferLength = bufferLength;
 
@@ -230,34 +223,6 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfAnalogInChannelRangeSet(dwfHandle, acquisitionChannelIndex, 5.0);
             }
 
-            if (signalGeneratorEnabled && signalGeneratorChannel > 0)
-            {
-                // calculate the signal generator channel id
-                byte signalGeneratorChannelIndex = 255;
-                if (signalGeneratorChannel == 1)
-                {
-                    signalGeneratorChannelIndex = 0;
-                }
-                else if (signalGeneratorChannel == 2)
-                {
-                    signalGeneratorChannelIndex = 1;
-                }
-
-                // set up signal generation
-                _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
-                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, dwf.funcSine);
-                _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorFrequency);
-                _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, signalGeneratorVoltage);
-
-                _logger.LogTrace($"Generating sine wave at {signalGeneratorFrequency:N} Hz with {signalGeneratorVoltage} V of amplitude at channel {signalGeneratorChannelIndex}...");
-                _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
-
-                SignalGeneratorEnabled = signalGeneratorEnabled;
-                SignalGeneratorChannel = signalGeneratorChannel;
-                SignalGeneratorFrequency = signalGeneratorFrequency;
-                SignalGeneratorVoltage = signalGeneratorVoltage;
-            }
-
             //wait at least 2 seconds for the offset to stabilize
             Thread.Sleep(2000);
 
@@ -280,7 +245,7 @@ namespace BBD.BodyMonitor.Models
             }
             catch { }
 
-            return OpenDevice(DeviceIndex, AcquisitionChannels, Samplerate, SignalGeneratorEnabled, SignalGeneratorChannel, SignalGeneratorFrequency, SignalGeneratorVoltage, BlockLength, BufferLength);
+            return OpenDevice(DeviceIndex, AcquisitionChannels, Samplerate, BlockLength, BufferLength);
         }
 
         /// <summary>
@@ -459,88 +424,108 @@ namespace BBD.BodyMonitor.Models
             subscribers[callingFrequency].Add(action);
         }
 
-        public void ChangeSingalGeneratorFrequency(float frequency)
+        public void ChangeSingalGenerator(string channelId, SignalFunction function, float startFrequency, float? endFrequency, bool isFrequencyPingPong, float startAmplitude, float? endAmplitude, bool isAmplitudePingPong, TimeSpan? duration)
         {
-            // calculate the signal generator channel id
-            byte signalGeneratorChannelIndex = 255;
-            if (SignalGeneratorChannel == 1)
-            {
-                signalGeneratorChannelIndex = 0;
-            }
-            else if (SignalGeneratorChannel == 2)
-            {
-                signalGeneratorChannelIndex = 1;
-            }
+            // get the signal generator channel index
+            byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);
 
-            // stop the signal generator
-            //dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
-
-            // change the frequency
-            _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, frequency);
-            //dwf.FDwfAnalogOutNodeFrequencyGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double phzFrequency);
-            //dwf.FDwfAnalogOutNodeAmplitudeGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double pvAmplitude);
-            //logger.LogInformation($"Signal generator output: {pvAmplitude:0.000} V @ {phzFrequency:0.00} Hz");
-
-            // start the signal generator
-            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
-
-            while (true)
-            {
-                _logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
-                _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-                _logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
-
-                if (psts == dwf.DwfStateRunning)
-                {
-                    break;
-                }
-
-                _logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
-                Thread.Sleep(500);
-                break;
-            }
-
-            // signal generator needs a little time to start
-            Thread.Sleep(50);
-        }
-
-        public void SweepSingalGeneratorFrequency(float startFrequency, float endFrequency, float duration)
-        {
-            float middleFrequency = (startFrequency + endFrequency) / 2;
-
-            // calculate the signal generator channel id
-            byte signalGeneratorChannelIndex = 255;
-            if (SignalGeneratorChannel == 1)
-            {
-                signalGeneratorChannelIndex = 0;
-            }
-            else if (SignalGeneratorChannel == 2)
-            {
-                signalGeneratorChannelIndex = 1;
-            }
+            float middleFrequency = endFrequency.HasValue ? (startFrequency + endFrequency.Value) / 2 : startFrequency;
+            float middleAmplitude = endAmplitude.HasValue ? (startAmplitude + endAmplitude.Value) / 2 : startAmplitude;
 
             // stop the signal generator
             _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
 
-            // change the frequency
+            // change the carrier signal function, frequency and amplitude
             _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
-            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, dwf.funcSine);
+            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, function == SignalFunction.Sine ? dwf.funcSine : function == SignalFunction.Square ? dwf.funcSquare : throw new ArgumentException($"The signal function '{function}' is not valid.", "function"));
             _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, middleFrequency);
-            _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, SignalGeneratorVoltage);
-            _ = dwf.FDwfAnalogOutNodeOffsetSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1.0f);
+            _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, middleAmplitude);
+            _ = dwf.FDwfAnalogOutNodeOffsetSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 0.0f);
 
-            _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1);
-            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, dwf.funcRampUp);
-            _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1.0 / duration);
-            _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100.0 * (endFrequency - middleFrequency) / middleFrequency);
-            _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100);
+            if (endFrequency.HasValue && duration.HasValue)
+            {
+                // enable the frequency modulation
+                _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1);
+                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, isFrequencyPingPong ? dwf.funcTriangle : dwf.funcRampUp);
+                _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1.0 / duration.Value.TotalSeconds);
+                _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100.0 * (endFrequency.Value - middleFrequency) / middleFrequency);
+                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100);
+            }
+            else
+            {
+                // disable the frequency modulation
+                _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 0);
+            }
 
-            _ = dwf.FDwfAnalogOutRunSet(dwfHandle, signalGeneratorChannelIndex, duration);
-            _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1);
+            if (endAmplitude.HasValue && duration.HasValue)
+            {
+                // enable the amplitude modulation
+                _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 1);
+                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, isAmplitudePingPong ? dwf.funcTriangle : dwf.funcRampUp);
+                _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 1.0 / duration.Value.TotalSeconds);
+                _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 100.0 * (endAmplitude.Value - middleAmplitude) / middleAmplitude);
+                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 100);
+            }
+            else
+            {
+                // disable the amplitude modulation
+                _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 0);
+            }
 
-            // start the signal generator
-            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
+            if (duration.HasValue)
+            {
+                // set the signal generator repeat duration
+                _ = dwf.FDwfAnalogOutRunSet(dwfHandle, signalGeneratorChannelIndex, duration.Value.TotalSeconds);
+                _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1);
+            }
 
+            _logger.LogTrace($"Generating {function} wave at {startFrequency:N} Hz with {startAmplitude:N} V of amplitude at channel {signalGeneratorChannelIndex}...");
+
+            _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
+            if (psts != dwf.DwfStateRunning)
+            {
+                // start the signal generator
+                _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
+            }
+            else
+            {
+                // apply changes to the signal generator
+                _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 3);
+            }
+
+            ApplySignalGeneratorChanges(signalGeneratorChannelIndex);
+        }
+
+        public void StopSingalGenerator(string channelId)
+        {
+            // get the signal generator channel index
+            byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);
+
+            _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
+            if (psts != dwf.DwfStateRunning)
+            {
+                _logger.LogWarning($"The signal generator on channel {channelId} is not running.");
+            }
+
+            // apply changes to the signal generator
+            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
+
+            ApplySignalGeneratorChanges(signalGeneratorChannelIndex);
+        }
+
+        private static byte GetSignalGeneratorChannelIndex(string channelId)
+        {
+            byte signalGeneratorChannelIndex = channelId switch
+            {
+                "W1" => 0,
+                "W2" => 1,
+                _ => throw new ArgumentException($"The channel id '{channelId}' is not valid.", "channelId"),
+            };
+            return signalGeneratorChannelIndex;
+        }
+
+        private void ApplySignalGeneratorChanges(byte signalGeneratorChannelIndex)
+        {
             while (true)
             {
                 _logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
@@ -566,19 +551,10 @@ namespace BBD.BodyMonitor.Models
             samplesBuffer.Clear();
         }
 
-        public float GetSignalGeneratorFrequency()
+        public float GetSignalGeneratorFrequency(string channelId)
         {
-
-            // calculate the signal generator channel id
-            byte signalGeneratorChannelIndex = 255;
-            if (SignalGeneratorChannel == 1)
-            {
-                signalGeneratorChannelIndex = 0;
-            }
-            else if (SignalGeneratorChannel == 2)
-            {
-                signalGeneratorChannelIndex = 1;
-            }
+            // get the signal generator channel index
+            byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);
 
             _ = dwf.FDwfAnalogOutFrequencyGet(dwfHandle, signalGeneratorChannelIndex, out double frequency);
 
