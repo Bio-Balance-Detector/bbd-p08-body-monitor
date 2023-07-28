@@ -764,7 +764,14 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeInfo(int hdwf, int idxChannel, out int pfsnode);
 
-
+    /// <summary>
+    /// Enables or disables the channel node specified by idxChannel and node. The Carrier node enables or disables the channel and AM/FM the modulation. With channel index -1, each Analog Out channel enable will be configured to use the same, new option.
+    /// </summary>
+    /// <param name="hdwf">Open interface handle on a device.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="node">Node index.</param>
+    /// <param name="fEnable">TRUE to enable, FALSE to disable.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeEnableSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeEnableSet(int hdwf, int idxChannel, int node, int fEnable);
 
@@ -795,6 +802,14 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeAmplitudeInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeAmplitudeInfo(int hdwf, int idxChannel, int node, out double pMin, out double pMax);
 
+    /// <summary>
+    /// Sets the amplitude or modulation index for the specified channel-node on the instrument. With channel index -1, each enabled Analog Out channel amplitude (or modulation index) will be configured to use the same, new option.
+    /// </summary>
+    /// <param name="hdwf">Open interface handle on a device.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="node">Node index.</param>
+    /// <param name="vAmplitude">Amplitude of channel in Volts or modulation index in percentage.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeAmplitudeSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeAmplitudeSet(int hdwf, int idxChannel, int node, double vAmplitude);
 
@@ -805,6 +820,14 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeOffsetInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeOffsetInfo(int hdwf, int idxChannel, int node, out double pMin, out double pMax);
 
+    /// <summary>
+    /// Sets the offset value for the specified channel-node on the instrument. With channel index -1, each enabled Analog Out channel offset will be configured to use the same, new option.
+    /// </summary>
+    /// <param name="hdwf">Open interface handle on a device.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="node">Node index.</param>
+    /// <param name="vOffset">Value to set voltage offset in Volts or modulation offset percentage.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeOffsetSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeOffsetSet(int hdwf, int idxChannel, int node, double vOffset);
 
@@ -815,6 +838,14 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeSymmetryInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeSymmetryInfo(int hdwf, int idxChannel, int node, out double ppercentageMin, out double ppercentageMax);
 
+    /// <summary>
+    /// Sets the symmetry (or duty cycle) for the specified channel-node on the instrument. With channel index -1, each enabled Analog Out channel symmetry will be configured to use the same, new option.
+    /// </summary>
+    /// <param name="hdwf">Open interface handle on a device.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="node">Node index.</param>
+    /// <param name="percentageSymmetry">Value of percentage of Symmetry (duty cycle).</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutNodeSymmetrySet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutNodeSymmetrySet(int hdwf, int idxChannel, int node, double percentageSymmetry);
 
@@ -851,9 +882,23 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutReset", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutReset(int hdwf, int idxChannel);
 
+    /// <summary>
+    /// Starts or stops the instrument. Value 3 will apply the configuration dynamically without changing the state of the instrument. With channel index -1, each enabled Analog Out channel will be configured.
+    /// </summary>
+    /// <param name="hdwf">Interface handle.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="fStart">Start the instrument: 0 stop, 1 start, 3 apply.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutConfigure", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutConfigure(int hdwf, int idxChannel, int fStart);
 
+    /// <summary>
+    /// Checks the state of the instrument.
+    /// </summary>
+    /// <param name="hdwf">Open interface handle on a device.</param>
+    /// <param name="idxChannel">Channel index.</param>
+    /// <param name="psts">Pointer to variable to return the state.</param>
+    /// <returns></returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutStatus", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutStatus(int hdwf, int idxChannel, out byte psts);
 
