@@ -13,7 +13,7 @@
         /// <summary>
         /// Time to start the signal. It can be a specific time (eg. 19:15), or a relative time (eg. * means the time when the application started).
         /// </summary>
-        public TimeSpan? TimeToStart { get; set; }
+        public TimeSpan TimeToStart { get; set; }
         /// <summary>
         /// Time to stop the signal. Optional, it can be a specific time (eg. 19:17).
         /// </summary>
@@ -69,7 +69,7 @@
                 timePart += "/" + RepeatPeriod;
             }
 
-            string signalPart = SignalName + "(" + SignalLength + ")";
+            string signalPart = $"{SignalName}({SignalLength:hh\\:mm\\:ss\\.ff})";
 
             return $"{ChannelId},{timePart},{signalPart}";
         }

@@ -26,7 +26,9 @@ namespace BBD.BodyMonitor.Services
         private readonly ISessionManagerService _sessionManager;
         private readonly float _inputAmplification = short.MaxValue / 1.0f;
         private System.Timers.Timer? _checkDiskSpaceTimer;
-        private DataAcquisition? dataAcquisition;
+        private System.Timers.Timer? _signalGeneratorTimer;
+        private Dictionary<string, Queue<SignalGeneratorCommand>> _signalGeneratorCommandQueues;
+        private DataAcquisition? _dataAcquisition;
         private DataAcquisition? calibration;
         private FftDataV3? calibrationFftData;
         private FftDataBlockCache fftDataBlockCache;
@@ -121,7 +123,7 @@ namespace BBD.BodyMonitor.Services
 
             try
             {
-                dataAcquisition ??= new DataAcquisition(_logger, session);
+                _dataAcquisition ??= new DataAcquisition(_logger, session);
 
                 // Get device list
                 string[] deviceNames = DataAcquisition.ListDevices().Select(d => $"#{d.Index} {d.Name} ({d.SerialNumber})").ToArray();
@@ -134,29 +136,67 @@ namespace BBD.BodyMonitor.Services
                 }
 
                 // Open device
-                deviceSerialNumber = dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.Acquisition.Block, _config.Acquisition.Buffer);
-                dataAcquisition.ErrorHandling = BufferErrorHandlingMode.ZeroSamples;
-                dataAcquisition.BufferError += DataAcquisition_BufferError;
+                deviceSerialNumber = _dataAcquisition.OpenDevice(deviceIndex, _config.Acquisition.Channels, _config.Acquisition.Samplerate, _config.Acquisition.Block, _config.Acquisition.Buffer);
+                _dataAcquisition.ErrorHandling = BufferErrorHandlingMode.ZeroSamples;
+                _dataAcquisition.BufferError += DataAcquisition_BufferError;
 
                 if (_config.DataWriter.Enabled)
                 {
-                    dataAcquisition.SubscribeToBlockReceived(_config.DataWriter.Interval, DataWriter_BlockReceived);
+                    _dataAcquisition.SubscribeToBlockReceived(_config.DataWriter.Interval, DataWriter_BlockReceived);
                 }
                 if (_config.Postprocessing.Enabled)
                 {
-                    dataAcquisition.SubscribeToBlockReceived(_config.Postprocessing.Interval, Postprocessing_BlockReceived);
+                    _dataAcquisition.SubscribeToBlockReceived(_config.Postprocessing.Interval, Postprocessing_BlockReceived);
                 }
                 if (_config.AudioRecording.Enabled)
                 {
-                    dataAcquisition.SubscribeToBlockReceived(_config.AudioRecording.Interval, AudioRecording_BlockReceived);
+                    _dataAcquisition.SubscribeToBlockReceived(_config.AudioRecording.Interval, AudioRecording_BlockReceived);
                 }
                 if (_config.Indicators.Enabled)
                 {
-                    dataAcquisition.SubscribeToBlockReceived(_config.Indicators.Interval, Indicators_BlockReceived);
+                    _dataAcquisition.SubscribeToBlockReceived(_config.Indicators.Interval, Indicators_BlockReceived);
                 }
 
-                _logger.LogInformation($"Recording data on '{dataAcquisition.SerialNumber}' at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + "...");
-                dataAcquisition.Start();
+                // Create the signal generator command queue based on the schedule configuration
+                _signalGeneratorCommandQueues = new();
+                foreach (IGrouping<string, ScheduleOptions> signalGeneratorChannelGroup in _config.SignalGenerator.Schedules.GroupBy(s => s.ChannelId))
+                {
+                    string channelId = signalGeneratorChannelGroup.Key;
+
+                    Queue<SignalGeneratorCommand> signalGeneratorCommands = new();
+                    foreach (ScheduleOptions? schedule in signalGeneratorChannelGroup.ToArray())
+                    {
+                        signalGeneratorCommands.Enqueue(new SignalGeneratorCommand()
+                        {
+                            Timestamp = schedule.TimeToStart,
+                            Command = SignalGeneratorCommandType.Start,
+                            Options = schedule
+                        });
+                        signalGeneratorCommands.Enqueue(new SignalGeneratorCommand()
+                        {
+                            Timestamp = schedule.TimeToStart + schedule.SignalLength,
+                            Command = SignalGeneratorCommandType.Stop,
+                            Options = schedule
+                        });
+                    }
+                    _signalGeneratorCommandQueues.Add(channelId, signalGeneratorCommands);
+                }
+
+                // Start the timer that handles signal generator on the device
+                if (_signalGeneratorTimer != null)
+                {
+                    _signalGeneratorTimer.Stop();
+                    _signalGeneratorTimer.Dispose();
+                }
+                _signalGeneratorTimer = new(1000);
+                _signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
+                _signalGeneratorTimer.AutoReset = true;
+                _signalGeneratorTimer.Enabled = true;
+                _logger.LogTrace($"Set up a timer to generate signals on '{_dataAcquisition.SerialNumber}'.");
+
+                // Start recording on the device
+                _logger.LogInformation($"Recording data on '{_dataAcquisition.SerialNumber}' at {SimplifyNumber(_dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {_dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + "...");
+                _dataAcquisition.Start();
             }
             catch (Exception)
             {
@@ -166,9 +206,14 @@ namespace BBD.BodyMonitor.Services
             return deviceSerialNumber;
         }
 
+        private void _signalGeneratorTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+
+        }
+
         public bool StopDataAcquisition(string deviceSerialNumber)
         {
-            if (dataAcquisition == null)
+            if (_dataAcquisition == null)
             {
                 return false;
             }
@@ -176,17 +221,17 @@ namespace BBD.BodyMonitor.Services
             if (string.IsNullOrEmpty(deviceSerialNumber))
             {
                 // get the serail number of the default device
-                deviceSerialNumber = dataAcquisition.SerialNumber;
+                deviceSerialNumber = _dataAcquisition.SerialNumber;
             }
 
-            if (dataAcquisition.DeviceIndex != GetDeviceIndexFromSerialNumber(deviceSerialNumber))
+            if (_dataAcquisition.DeviceIndex != GetDeviceIndexFromSerialNumber(deviceSerialNumber))
             {
                 return false;
             }
 
-            dataAcquisition.Stop();
+            _dataAcquisition.Stop();
 
-            _logger.LogInformation($"Finished recording data on '{dataAcquisition.SerialNumber}' at {SimplifyNumber(dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ".");
+            _logger.LogInformation($"Finished recording data on '{_dataAcquisition.SerialNumber}' at {SimplifyNumber(_dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {_dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + ".");
 
             return true;
         }
@@ -197,22 +242,22 @@ namespace BBD.BodyMonitor.Services
             {
                 //_logger.LogWarning($"Data error! cAvailable: {e.BytesAvailable / (float)e.BytesTotal:P}, cLost: {e.BytesLost / (float)e.BytesTotal:P}, cCorrupted: {e.BytesCorrupted / (float)e.BytesTotal:P}");
 
-                if (dataAcquisition == null)
+                if (_dataAcquisition == null)
                 {
                     return;
                 }
 
-                if (dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ZeroSamples)
+                if (_dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ZeroSamples)
                 {
                     // The buffer is filled with zeros at the corrupted positions, so we can continue
                 }
 
-                if (dataAcquisition.ErrorHandling == BufferErrorHandlingMode.DiscardSamples)
+                if (_dataAcquisition.ErrorHandling == BufferErrorHandlingMode.DiscardSamples)
                 {
                     // The buffer didn't get the corrupted data, so we can continue
                 }
 
-                if (dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ClearBuffer)
+                if (_dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ClearBuffer)
                 {
                     // The buffer is going to be cleared, so we need to write the remaining data to the WAV file and start a new one
 
@@ -332,9 +377,9 @@ namespace BBD.BodyMonitor.Services
         [Obsolete]
         public void FrequencyResponseAnalysis(string deviceSerialNumber)
         {
-            if (!_config.Acquisition.Enabled || !_config.SignalGenerator.Enabled)
+            if (!_config.Acquisition.Enabled)
             {
-                throw new Exception("Acquisition and signal generator must be enabled for the frequnecy response analysis.");
+                throw new Exception("Acquisition must be enabled for the frequnecy response analysis.");
             }
 
             Session session = _sessionManager.StartSession(null, null);
@@ -349,7 +394,8 @@ namespace BBD.BodyMonitor.Services
                 FrequencyStep = _config.Postprocessing.ResampleFFTResolutionToHz,
                 Samplerate = _config.Acquisition.Samplerate,
                 FftSize = _config.Postprocessing.FFTSize,
-                BlockLength = _config.Acquisition.Block
+                BlockLength = _config.Acquisition.Block,
+                Amplitude = 1.0f
             };
 
             int frSampleNumber = (int)(frequencyAnalysisSettings.Samplerate / 2 / frequencyAnalysisSettings.FrequencyStep);
@@ -415,7 +461,7 @@ namespace BBD.BodyMonitor.Services
 
             _ = Task.Run(frada.Start);
 
-            frada.ChangeSingalGenerator("W2", SignalFunction.Sine, frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, false, _config.SignalGenerator.Voltage, null, false, TimeSpan.FromSeconds(45.0));
+            frada.ChangeSingalGenerator("W2", SignalFunction.Sine, frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, false, frequencyAnalysisSettings.Amplitude, null, false, TimeSpan.FromSeconds(45.0));
             //frada.ChangeSingalGeneratorFrequency(frequencyAnalysisSettings.EndFrequency);
 
             DateTime endTime = DateTime.UtcNow.AddSeconds(15.0);
@@ -426,7 +472,7 @@ namespace BBD.BodyMonitor.Services
                 //float frequencyToTest = ((i + 0.5f) * frequencyAnalysisSettings.FrequencyStep);
                 //frada.ChangeSingalGeneratorFrequency(frequencyToTest);
                 //frada.ClearBuffer();
-                float valueMultiplier = 1 / _config.SignalGenerator.Voltage / _config.Postprocessing.FFTSize * 200000000;
+                float valueMultiplier = 1 / frequencyAnalysisSettings.Amplitude / _config.Postprocessing.FFTSize * 200000000;
 
                 frequencyResponseAnalysisFftData = null;
                 while (frequencyResponseAnalysisFftData == null) { }
@@ -447,7 +493,7 @@ namespace BBD.BodyMonitor.Services
                 //    _logger.LogInformation($"{result[i]:0.00000} @ ~{frequencyToTest:0.00} Hz == {maxValue:0.00000} @ {maxIndex} ~{maxFreq:0.00} Hz");
                 //}
 
-                _logger.LogInformation($"{frada.GetSignalGeneratorFrequency():0.00} Hz -> {maxValue:0.00000} @ {lastMaxIndex + maxIndex,7} ~{maxFreq,10:0.00} Hz");
+                _logger.LogInformation($"{frada.GetSingalGeneratorStatus("W2").Frequency:0.00} Hz -> {maxValue:0.00000} @ {lastMaxIndex + maxIndex,7} ~{maxFreq,10:0.00} Hz");
 
                 result[(int)(maxFreq / frequencyAnalysisSettings.FrequencyStep)] = maxValue;
 
@@ -510,19 +556,19 @@ namespace BBD.BodyMonitor.Services
             if (spaceCheckDrive != null && spaceCheckDrive.AvailableFreeSpace < _config.MinimumAvailableFreeSpace)
             {
                 _logger.LogError($"There is not enough space on drive {spaceCheckDrive.Name}.  to continue. There must be at least {_config.MinimumAvailableFreeSpace:N0} bytes of available free space at all times.");
-                dataAcquisition?.Stop();
+                _dataAcquisition?.Stop();
             }
         }
 
         public void DataWriter_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
-            if (dataAcquisition == null)
+            if (_dataAcquisition == null)
             {
                 return;
             }
 
-            string samplerate = $"{SimplifyNumber(dataAcquisition.Samplerate)}sps";
-            string deviceChannel = $"{dataAcquisition.SerialNumber[^4..].ToString()?.ToLower()}-ch{dataAcquisition.AcquisitionChannels[0]}";
+            string samplerate = $"{SimplifyNumber(_dataAcquisition.Samplerate)}sps";
+            string deviceChannel = $"{_dataAcquisition.SerialNumber[^4..].ToString()?.ToLower()}-ch{_dataAcquisition.AcquisitionChannels[0]}";
 
             if (_config.DataWriter.SingleFile)
             {
@@ -589,11 +635,11 @@ namespace BBD.BodyMonitor.Services
                     {
                         // and save samples to a WAV file
                         FileStream waveFileStream = new(_currentWavFilename, FileMode.OpenOrCreate);
-                        DiscreteSignal signalToSave = new((int)dataAcquisition.Samplerate, e.DataBlock.Data, true);
+                        DiscreteSignal signalToSave = new((int)_dataAcquisition.Samplerate, e.DataBlock.Data, true);
                         signalToSave.Amplify(_inputAmplification);
 
                         // force the values to fit into the 16-bit range
-                        signalToSave = new DiscreteSignal((int)dataAcquisition.Samplerate, signalToSave.Samples.Select(v => v < short.MinValue ? short.MinValue : v > short.MaxValue ? short.MaxValue : v).ToArray(), true);
+                        signalToSave = new DiscreteSignal((int)_dataAcquisition.Samplerate, signalToSave.Samples.Select(v => v < short.MinValue ? short.MinValue : v > short.MaxValue ? short.MaxValue : v).ToArray(), true);
 
                         float minSignal = signalToSave.Samples.Min();
                         float maxSignal = signalToSave.Samples.Max();
@@ -652,7 +698,7 @@ namespace BBD.BodyMonitor.Services
         [Obsolete]
         public void Postprocessing_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
-            if (dataAcquisition == null)
+            if (_dataAcquisition == null)
             {
                 return;
             }
@@ -678,7 +724,7 @@ namespace BBD.BodyMonitor.Services
                     catch (IndexOutOfRangeException)
                     {
                         _logger.LogError($"The FFT size of {_config.Postprocessing.FFTSize:N0} is too high for the sample rate of {_config.Acquisition.Samplerate:N0}. Decrease the FFT size or increase the sampling rate.");
-                        dataAcquisition.Stop();
+                        _dataAcquisition.Stop();
                         return;
                     }
 
@@ -690,19 +736,21 @@ namespace BBD.BodyMonitor.Services
                     sw.Stop();
                     _logger.LogTrace($"#{threadId} Signal processing completed in {sw.ElapsedMilliseconds:N0} ms.");
 
-                    if (_config.SignalGenerator.Enabled)
+                    SignalGeneratorStatus signalGeneratorStatus = _dataAcquisition.GetSingalGeneratorStatus("W2");
+
+                    if (signalGeneratorStatus.IsRunning)
                     {
-                        int fftDataIndex = (int)((_config.SignalGenerator.Frequency - resampledFFTData.FirstFrequency) / resampledFFTData.FrequencyStep);
+                        int fftDataIndex = (int)((signalGeneratorStatus.Frequency - resampledFFTData.FirstFrequency) / resampledFFTData.FrequencyStep);
                         int fftDataIndexStart = fftDataIndex - 2;
                         int fftDataIndexEnd = fftDataIndex + 2 + 1;
 
                         if (fftDataIndex - 1 < 0 || fftDataIndex + 1 > resampledFFTData.MagnitudeData.Length - 1)
                         {
-                            _logger.LogWarning($"#{threadId} The signal generator generates a signal at {_config.SignalGenerator.Frequency:N} Hz and that is out of the range of the current sampling ({resampledFFTData.FirstFrequency:N} Hz - {resampledFFTData.LastFrequency:N} Hz).");
+                            _logger.LogWarning($"#{threadId} The signal generator generates a signal at {signalGeneratorStatus.Frequency:N} Hz and that is out of the range of the current sampling ({resampledFFTData.FirstFrequency:N} Hz - {resampledFFTData.LastFrequency:N} Hz).");
                         }
                         else
                         {
-                            _logger.LogInformation($"#{threadId} Normalized magnitude values around {_config.SignalGenerator.Frequency} Hz are ({string.Join(" | ", resampledFFTData.MagnitudeData[fftDataIndexStart..fftDataIndexEnd].Select(m => string.Format("{0,7:N}", m * 1000 * 1000)))}) µV.");
+                            _logger.LogInformation($"#{threadId} Normalized magnitude values around {signalGeneratorStatus.Frequency} Hz are ({string.Join(" | ", resampledFFTData.MagnitudeData[fftDataIndexStart..fftDataIndexEnd].Select(m => string.Format("{0,7:N}", m * 1000 * 1000)))}) µV.");
                         }
                     }
 
@@ -783,7 +831,7 @@ namespace BBD.BodyMonitor.Services
         [Obsolete]
         public void Indicators_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
-            if (dataAcquisition == null)
+            if (_dataAcquisition == null)
             {
                 return;
             }
@@ -808,7 +856,7 @@ namespace BBD.BodyMonitor.Services
                     catch (IndexOutOfRangeException)
                     {
                         _logger.LogError($"The FFT size of {_config.Postprocessing.FFTSize:N0} is too high for the sample rate of {_config.Acquisition.Samplerate:N0}. Decrease the FFT size or increase the sampling rate.");
-                        dataAcquisition.Stop();
+                        _dataAcquisition.Stop();
                         return;
                     }
 

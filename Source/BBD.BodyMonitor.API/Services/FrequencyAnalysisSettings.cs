@@ -8,5 +8,6 @@
         public int FftSize { get; internal set; }
         public float BlockLength { get; internal set; }
         public float FrequencyStep { get; internal set; }
+        public float Amplitude { get; internal set; }
     }
 }

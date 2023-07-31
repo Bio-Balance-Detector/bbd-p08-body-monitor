@@ -380,14 +380,6 @@ namespace BBD.BodyMonitor.Models
             }
         }
 
-        /// <summary>
-        /// Stop the data acquisition.
-        /// </summary>
-        public void Stop()
-        {
-            terminateAcquisition = true;
-        }
-
         public void SubscribeToBlockReceived(float interval, Action<object, BlockReceivedEventArgs> action)
         {
             double samplesInInterval = Samplerate * interval;
@@ -422,6 +414,19 @@ namespace BBD.BodyMonitor.Models
             }
 
             subscribers[callingFrequency].Add(action);
+        }
+
+        /// <summary>
+        /// Stop the data acquisition.
+        /// </summary>
+        public void Stop()
+        {
+            terminateAcquisition = true;
+        }
+
+        public void ClearBuffer()
+        {
+            samplesBuffer.Clear();
         }
 
         public void ChangeSingalGenerator(string channelId, SignalFunction function, float startFrequency, float? endFrequency, bool isFrequencyPingPong, float startAmplitude, float? endAmplitude, bool isAmplitudePingPong, TimeSpan? duration)
@@ -513,6 +518,36 @@ namespace BBD.BodyMonitor.Models
             ApplySignalGeneratorChanges(signalGeneratorChannelIndex);
         }
 
+        public SignalGeneratorStatus GetSingalGeneratorStatus(string channelId)
+        {
+            SignalGeneratorStatus signalGeneratorStatus = new()
+            {
+                ChannelId = channelId
+            };
+
+            // get the signal generator channel index
+            byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);
+            signalGeneratorStatus.ChannelIndex = signalGeneratorChannelIndex;
+
+            _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
+            if (psts != dwf.DwfStateRunning)
+            {
+                _logger.LogWarning($"The signal generator on channel {channelId} is not running.");
+            }
+            signalGeneratorStatus.State = psts;
+            signalGeneratorStatus.IsRunning = psts == dwf.DwfStateRunning;
+
+            // get the current frequemcy of the signal generator 
+            _ = dwf.FDwfAnalogOutNodeFrequencyGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double frequency);
+            signalGeneratorStatus.Frequency = frequency;
+
+            // get the current amplitude of the signal generator
+            _ = dwf.FDwfAnalogOutNodeAmplitudeGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double amplitude);
+            signalGeneratorStatus.Amplitude = amplitude;
+
+            return signalGeneratorStatus;
+        }
+
         private static byte GetSignalGeneratorChannelIndex(string channelId)
         {
             byte signalGeneratorChannelIndex = channelId switch
@@ -544,21 +579,6 @@ namespace BBD.BodyMonitor.Models
 
             // signal generator needs a little time to start
             Thread.Sleep(50);
-        }
-
-        public void ClearBuffer()
-        {
-            samplesBuffer.Clear();
-        }
-
-        public float GetSignalGeneratorFrequency(string channelId)
-        {
-            // get the signal generator channel index
-            byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);
-
-            _ = dwf.FDwfAnalogOutFrequencyGet(dwfHandle, signalGeneratorChannelIndex, out double frequency);
-
-            return (float)frequency;
         }
     }
 }

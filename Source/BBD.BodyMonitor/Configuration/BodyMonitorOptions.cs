@@ -45,9 +45,6 @@ namespace BBD.BodyMonitor.Configuration
 
             SignalGenerator = new SignalGeneratorOptions()
             {
-                Enabled = bool.Parse(config["SignalGenerator:Enabled"]),
-                Frequency = ParseNumber(config["SignalGenerator:Frequency"]),
-                Resolution = ParseNumber(config["SignalGenerator:Resolution"]),
                 SignalDefinitions = config.GetSection("SignalGenerator:SignalDefinitions").Get<SignalDefinitionOptions[]>(),
                 Schedules = schedules
             };
