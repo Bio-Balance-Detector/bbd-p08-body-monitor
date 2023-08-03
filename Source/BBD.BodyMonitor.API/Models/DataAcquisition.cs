@@ -251,7 +251,7 @@ namespace BBD.BodyMonitor.Models
         /// <summary>
         /// Start the data acquisition.
         /// </summary>
-        public void Start()
+        public void Start(string channelId = "CH1")
         {
             terminateAcquisition = false;
             bool bufferError = false;
@@ -297,7 +297,7 @@ namespace BBD.BodyMonitor.Models
 
                         if (sts is not dwf.DwfStateConfig and not dwf.DwfStateArmed)
                         {
-                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts}");
+                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts} - {DwfStateToString(sts)}");
                         }
                         Thread.Sleep(100);
                     }
@@ -565,20 +565,35 @@ namespace BBD.BodyMonitor.Models
             {
                 _logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
                 _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-                _logger.LogTrace($"FDwfAnalogOutStatus end   | psts:{psts}");
+                _logger.LogTrace($"FDwfAnalogOutStatus end   | sts:{psts} - {DwfStateToString(psts)}");
 
                 if (psts == dwf.DwfStateRunning)
                 {
                     break;
                 }
 
-                _logger.LogWarning($"We got into an unusual signal generator state! psts:{psts}");
+                _logger.LogWarning($"We got into an unusual signal generator state! sts:{psts} - {DwfStateToString(psts)}");
                 Thread.Sleep(500);
                 break;
             }
 
             // signal generator needs a little time to start
             Thread.Sleep(50);
+        }
+
+        private object DwfStateToString(byte psts)
+        {
+            return psts switch
+            {
+                0 => "Ready",
+                1 => "Config",
+                2 => "Prefill",
+                3 => "Armed",
+                4 => "Wait",
+                5 => "Triggered",
+                6 => "Running",
+                _ => "Unknown",
+            };
         }
     }
 }
