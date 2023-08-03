@@ -18,7 +18,7 @@ namespace BBD.BodyMonitor.Models
         public int BlockSize { get; internal set; }
         public float BlockLength { get; private set; }
         public float BufferLength { get; private set; }
-        public int[] AcquisitionChannels { get; private set; }
+        public string[] AcquisitionChannels { get; private set; }
         private BufferErrorHandlingMode _bufferErrorHandling;
         public BufferErrorHandlingMode ErrorHandling
         {
@@ -132,7 +132,7 @@ namespace BBD.BodyMonitor.Models
         /// <param name="bufferLength"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public string? OpenDevice(int deviceIndex, int[] acquisitionChannels, float acquisitionSamplerate, float blockLength, float bufferLength)
+        public string? OpenDevice(int deviceIndex, string[] acquisitionChannels, float acquisitionSamplerate, float blockLength, float bufferLength)
         {
             DeviceIndex = deviceIndex;
             AcquisitionChannels = acquisitionChannels;
@@ -182,7 +182,7 @@ namespace BBD.BodyMonitor.Models
             _logger.LogTrace($"Device buffer size range: {bufferSizeMinimum:N0} - {bufferSizeMaximum:N0} samples, set to {bufferSize:N0}.");
             voltData = new double[bufferSize];
 
-            //set up acquisition
+            // set up acquisition parameters
             _ = dwf.FDwfAnalogInFrequencySet(dwfHandle, acquisitionSamplerate);
             _ = dwf.FDwfAnalogInFrequencyGet(dwfHandle, out double realSamplerate);
 
@@ -206,27 +206,18 @@ namespace BBD.BodyMonitor.Models
             _ = dwf.FDwfAnalogInAcquisitionModeSet(dwfHandle, dwf.acqmodeRecord);
             _ = dwf.FDwfAnalogInRecordLengthSet(dwfHandle, -1);
 
-            AcquisitionChannels = acquisitionChannels;
-            foreach (byte acquisitionChannel in acquisitionChannels)
+            foreach (string channelId in acquisitionChannels)
             {
-                byte acquisitionChannelIndex = 255;
-                if (acquisitionChannel == 1)
-                {
-                    acquisitionChannelIndex = 0;
-                }
-                else if (acquisitionChannel == 2)
-                {
-                    acquisitionChannelIndex = 1;
-                }
+                byte acquisitionChannelIndex = GetDataAcquisitionChannelIndex(channelId);
 
                 _ = dwf.FDwfAnalogInChannelEnableSet(dwfHandle, acquisitionChannelIndex, 1);
                 _ = dwf.FDwfAnalogInChannelRangeSet(dwfHandle, acquisitionChannelIndex, 5.0);
             }
 
-            //wait at least 2 seconds for the offset to stabilize
+            // wait at least 2 seconds for the offset to stabilize
             Thread.Sleep(2000);
 
-            //start data acquisition on CH0
+            // start data acquisition on all channels
             _ = dwf.FDwfAnalogInConfigure(dwfHandle, 0, 1);
 
             return serialNumber;
@@ -253,6 +244,8 @@ namespace BBD.BodyMonitor.Models
         /// </summary>
         public void Start(string channelId = "CH1")
         {
+            int channelIndex = GetDataAcquisitionChannelIndex(channelId);
+
             terminateAcquisition = false;
             bool bufferError = false;
 
@@ -334,7 +327,7 @@ namespace BBD.BodyMonitor.Models
                         voltData = new double[voltData.Length * 2];
                     }
 
-                    _ = dwf.FDwfAnalogInStatusData(dwfHandle, 0, voltData, cAvailable);     // get CH1 data chunk
+                    _ = dwf.FDwfAnalogInStatusData(dwfHandle, channelIndex, voltData, cAvailable);     // get CH1/CH2 data chunk
 
                     if (bufferError)
                     {
@@ -554,9 +547,20 @@ namespace BBD.BodyMonitor.Models
             {
                 "W1" => 0,
                 "W2" => 1,
-                _ => throw new ArgumentException($"The channel id '{channelId}' is not valid.", "channelId"),
+                _ => throw new ArgumentException($"The signal generator channel id '{channelId}' is not valid.", "channelId"),
             };
             return signalGeneratorChannelIndex;
+        }
+
+        private static byte GetDataAcquisitionChannelIndex(string channelId)
+        {
+            byte dataAcquisitionChannelIndex = channelId switch
+            {
+                "CH1" => 0,
+                "CH2" => 1,
+                _ => throw new ArgumentException($"The data acquisition channel id '{channelId}' is not valid.", "channelId"),
+            };
+            return dataAcquisitionChannelIndex;
         }
 
         private void ApplySignalGeneratorChanges(byte signalGeneratorChannelIndex)

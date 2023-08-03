@@ -34,7 +34,7 @@ namespace BBD.BodyMonitor.Configuration
             Acquisition = new AcqusitionOptions()
             {
                 Enabled = bool.Parse(config["Acquisition:Enabled"]),
-                Channels = config.GetSection("Acquisition:Channels").Get<string[]>().Select(ch => int.Parse(new string(ch.TakeLast(1).ToArray()))).ToArray(),
+                Channels = config.GetSection("Acquisition:Channels").Get<string[]>(),
                 Buffer = ParseNumber(config["Acquisition:Buffer"]),
                 Block = ParseNumber(config["Acquisition:Block"]),
                 Samplerate = (int)ParseNumber(config["Acquisition:Samplerate"])

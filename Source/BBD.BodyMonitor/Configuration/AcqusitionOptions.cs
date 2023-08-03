@@ -8,7 +8,7 @@ namespace BBD.BodyMonitor.Configuration
         /// <summary>
         /// Channels to acquire data from
         /// </summary>
-        public int[] Channels { get; set; } = new int[0];
+        public string[] Channels { get; set; } = new string[0];
         /// <summary>
         /// The length of the buffer in seconds
         /// </summary>

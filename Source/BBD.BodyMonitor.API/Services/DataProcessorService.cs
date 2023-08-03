@@ -365,7 +365,7 @@ namespace BBD.BodyMonitor.Services
             {
                 signalAmplitude = selfCalibrationAmplitudes[ai];
 
-                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new string[] { "CH1" }, samplerate, 0.1f, 1.0f);
                 calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
@@ -392,7 +392,7 @@ namespace BBD.BodyMonitor.Services
             {
                 signalFrequency = selfCalibrationFrequencies[fi];
 
-                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new string[] { "CH1" }, samplerate, 0.1f, 1.0f);
                 calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
@@ -419,7 +419,7 @@ namespace BBD.BodyMonitor.Services
             {
                 fftSize = selfCalibrationFFTSizes[si];
 
-                _ = calibration.OpenDevice(deviceIndex, new int[] { 1 }, samplerate, 0.1f, 1.0f);
+                _ = calibration.OpenDevice(deviceIndex, new string[] { "CH1" }, samplerate, 0.1f, 1.0f);
                 calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
