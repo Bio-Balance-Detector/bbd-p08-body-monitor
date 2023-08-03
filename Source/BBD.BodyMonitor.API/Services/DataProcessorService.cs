@@ -27,6 +27,7 @@ namespace BBD.BodyMonitor.Services
         private readonly float _inputAmplification = short.MaxValue / 1.0f;
         private System.Timers.Timer? _checkDiskSpaceTimer;
         private System.Timers.Timer? _signalGeneratorTimer;
+        private DateTime? _signalGeneratorTimerLastCheckedDate;
         private Dictionary<string, Queue<SignalGeneratorCommand>> _signalGeneratorCommandQueues;
         private DataAcquisition? _dataAcquisition;
         private DataAcquisition? calibration;
@@ -188,10 +189,12 @@ namespace BBD.BodyMonitor.Services
                     _signalGeneratorTimer.Stop();
                     _signalGeneratorTimer.Dispose();
                 }
-                _signalGeneratorTimer = new(1000);
-                _signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
-                _signalGeneratorTimer.AutoReset = true;
-                _signalGeneratorTimer.Enabled = true;
+                _signalGeneratorTimer = new(1000)
+                {
+                    //_signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
+                    AutoReset = true,
+                    Enabled = true
+                };
                 _logger.LogTrace($"Set up a timer to generate signals on '{_dataAcquisition.SerialNumber}'.");
 
                 // Start recording on the device
@@ -208,7 +211,72 @@ namespace BBD.BodyMonitor.Services
 
         private void _signalGeneratorTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            lock (_signalGeneratorCommandQueues)
+            {
+                DateTime currentTime = DateTime.Now;
+                DateTime comperasonDate = _signalGeneratorTimerLastCheckedDate.HasValue ? new(_signalGeneratorTimerLastCheckedDate.Value.Year, _signalGeneratorTimerLastCheckedDate.Value.Month, _signalGeneratorTimerLastCheckedDate.Value.Day, 0, 0, 0) : new(currentTime.Year, currentTime.Month, currentTime.Day, 0, 0, 0);
 
+                // Execute the next command in the queue for each channel
+                foreach (string channelId in _signalGeneratorCommandQueues.Keys)
+                {
+                    Queue<SignalGeneratorCommand> signalGeneratorCommands = _signalGeneratorCommandQueues[channelId];
+                    if (signalGeneratorCommands.Count > 0)
+                    {
+                        SignalGeneratorCommand signalGeneratorCommand = signalGeneratorCommands.Peek();
+                        DateTime timeToCheck = comperasonDate.AddMilliseconds(signalGeneratorCommand.Timestamp.TotalMilliseconds);
+                        if (timeToCheck <= currentTime)
+                        {
+                            signalGeneratorCommand = signalGeneratorCommands.Dequeue();
+                            if (signalGeneratorCommand == null)
+                            {
+                                break;
+                            }
+
+                            _logger.LogTrace($"Executing signal generator command '{signalGeneratorCommand.Command}' on channel '{channelId}' at {DateTime.Now:HH:mm:ss.fff}.");
+
+                            SignalGeneratorStatus status = _dataAcquisition.GetSingalGeneratorStatus(channelId);
+
+                            switch (signalGeneratorCommand.Command)
+                            {
+                                case SignalGeneratorCommandType.Start:
+                                    if (!status.IsRunning)
+                                    {
+                                        _logger.LogTrace($"Starting signal generator on channel '{channelId}'.");
+                                    }
+                                    else
+                                    {
+                                        _logger.LogTrace($"Changing signal generator parameters on channel '{channelId}'.");
+                                    }
+
+                                    if (signalGeneratorCommand.Options == null)
+                                    {
+                                        _logger.LogError($"Signal generator command options are null.");
+                                        break;
+                                    }
+
+                                    // Get the signal definition from the signalGeneratorCommand.Options.SignalName value
+                                    SignalDefinitionOptions? sd = _config.SignalGenerator.SignalDefinitions.FirstOrDefault(s => s.Name == signalGeneratorCommand.Options.SignalName);
+
+                                    if (sd == null)
+                                    {
+                                        _logger.LogError($"Signal definition '{signalGeneratorCommand.Options.SignalName}' not found.");
+                                        break;
+                                    }
+
+                                    // Pass the command paramters to the device
+                                    //_dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
+                                    break;
+                                case SignalGeneratorCommandType.Stop:
+                                    _logger.LogTrace($"Stopping signal generator on channel '{channelId}'.");
+                                    //_dataAcquisition.StopSingalGenerator(channelId);
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                _signalGeneratorTimerLastCheckedDate = comperasonDate;
+            }
         }
 
         public bool StopDataAcquisition(string deviceSerialNumber)
@@ -459,7 +527,7 @@ namespace BBD.BodyMonitor.Services
             frada.SubscribeToBlockReceived(0.05f, FrequencyResponseAnalysis_SamplesReceived);
             fftDataBlockCache = new FftDataBlockCache((int)frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
 
-            _ = Task.Run(frada.Start);
+            frada.Start("CH1");
 
             frada.ChangeSingalGenerator("W2", SignalFunction.Sine, frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, false, frequencyAnalysisSettings.Amplitude, null, false, TimeSpan.FromSeconds(45.0));
             //frada.ChangeSingalGeneratorFrequency(frequencyAnalysisSettings.EndFrequency);
