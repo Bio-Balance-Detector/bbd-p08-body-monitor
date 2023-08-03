@@ -38,19 +38,19 @@ namespace BBD.BodyMonitor.Configuration
         /// <summary>
         /// Peak amplitude of the signal. It can be a single value (eg. 500 mV), a voltage sweep range (indicated by ->, eg. 500 mV -> 600 mV), or a voltage ping-pong range (indicated by <->, eg. 500 mV <-> 600 mV).
         /// </summary>
-        public required string Voltage { get; set; }
+        public required string Amplitude { get; set; }
 
-        private float FrequencyFrom { get; set; }
+        public float FrequencyFrom { get; private set; }
 
-        private float FrequencyTo { get; set; }
+        public float FrequencyTo { get; private set; }
 
-        private float VoltageFrom { get; set; }
+        public float AmplitudeFrom { get; private set; }
 
-        private float VoltageTo { get; set; }
+        public float AmplitudeTo { get; private set; }
 
-        private PeriodicyMode FrequencyMode { get; set; }
+        public PeriodicyMode FrequencyMode { get; private set; }
 
-        private PeriodicyMode VoltageMode { get; set; }
+        public PeriodicyMode AmplitudeMode { get; private set; }
 
         public void ParseFrequency()
         {
@@ -69,20 +69,20 @@ namespace BBD.BodyMonitor.Configuration
             }
         }
 
-        public void ParseVoltage()
+        public void ParseAmplitude()
         {
             StringWithUnitToNumberConverter stringWithUnitToNumberConverter = new();
 
-            string[] parts = Voltage.Split(new[] { "->", "<->" }, StringSplitOptions.None);
-            VoltageFrom = (float)(double)stringWithUnitToNumberConverter.ConvertFrom(parts[0]);
+            string[] parts = Amplitude.Split(new[] { "->", "<->" }, StringSplitOptions.None);
+            AmplitudeFrom = (float)(double)stringWithUnitToNumberConverter.ConvertFrom(parts[0]);
             if (parts.Length > 1)
             {
-                VoltageTo = (float)(double)stringWithUnitToNumberConverter.ConvertFrom(parts[1]);
-                VoltageMode = Voltage.Contains("<->") ? PeriodicyMode.PingPong : PeriodicyMode.Sweep;
+                AmplitudeTo = (float)(double)stringWithUnitToNumberConverter.ConvertFrom(parts[1]);
+                AmplitudeMode = Amplitude.Contains("<->") ? PeriodicyMode.PingPong : PeriodicyMode.Sweep;
             }
             else
             {
-                VoltageMode = PeriodicyMode.SingleValue;
+                AmplitudeMode = PeriodicyMode.SingleValue;
             }
         }
 
@@ -97,11 +97,11 @@ namespace BBD.BodyMonitor.Configuration
                 PeriodicyMode.PingPong => $"{FrequencyFrom.ToString(numberFormat)} Hz <-> {FrequencyTo.ToString(numberFormat)} Hz",
                 _ => throw new ArgumentOutOfRangeException(),
             };
-            string voltageString = VoltageMode switch
+            string voltageString = AmplitudeMode switch
             {
-                PeriodicyMode.SingleValue => $"{VoltageFrom.ToString(numberFormat)} V",
-                PeriodicyMode.Sweep => $"{VoltageFrom.ToString(numberFormat)} V -> {VoltageTo.ToString(numberFormat)} V",
-                PeriodicyMode.PingPong => $"{VoltageFrom.ToString(numberFormat)} V <-> {VoltageTo.ToString(numberFormat)} V",
+                PeriodicyMode.SingleValue => $"{AmplitudeFrom.ToString(numberFormat)} V",
+                PeriodicyMode.Sweep => $"{AmplitudeFrom.ToString(numberFormat)} V -> {AmplitudeTo.ToString(numberFormat)} V",
+                PeriodicyMode.PingPong => $"{AmplitudeFrom.ToString(numberFormat)} V <-> {AmplitudeTo.ToString(numberFormat)} V",
                 _ => throw new ArgumentOutOfRangeException(),
             };
             return $"{Name}={Function},{frequencyString},{voltageString}";

@@ -52,7 +52,7 @@ namespace BBD.BodyMonitor.Configuration
             foreach (SignalDefinitionOptions signalDefinition in SignalGenerator.SignalDefinitions)
             {
                 signalDefinition.ParseFrequency();
-                signalDefinition.ParseVoltage();
+                signalDefinition.ParseAmplitude();
             }
 
             DataWriter = new DataWriterOptions()
