@@ -306,50 +306,55 @@ namespace BBD.BodyMonitor.Services
                                 break;
                             }
 
-                            _logger.LogTrace($"Executing signal generator command '{signalGeneratorCommand.Command}' on channel '{channelId}' at {DateTime.Now:HH:mm:ss.fff}.");
-
-                            SignalGeneratorStatus status = _dataAcquisition.GetSingalGeneratorStatus(channelId);
-
-                            switch (signalGeneratorCommand.Command)
-                            {
-                                case SignalGeneratorCommandType.Start:
-                                    if (!status.IsRunning)
-                                    {
-                                        _logger.LogTrace($"Starting signal generator on channel '{channelId}'.");
-                                    }
-                                    else
-                                    {
-                                        _logger.LogTrace($"Changing signal generator parameters on channel '{channelId}'.");
-                                    }
-
-                                    if (signalGeneratorCommand.Options == null)
-                                    {
-                                        _logger.LogError($"Signal generator command options are null.");
-                                        break;
-                                    }
-
-                                    // Get the signal definition from the signalGeneratorCommand.Options.SignalName value
-                                    SignalDefinitionOptions? sd = _config.SignalGenerator.SignalDefinitions.FirstOrDefault(s => s.Name == signalGeneratorCommand.Options.SignalName);
-
-                                    if (sd == null)
-                                    {
-                                        _logger.LogError($"Signal definition '{signalGeneratorCommand.Options.SignalName}' not found.");
-                                        break;
-                                    }
-
-                                    // Pass the command paramters to the device
-                                    _dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
-                                    break;
-                                case SignalGeneratorCommandType.Stop:
-                                    _logger.LogTrace($"Stopping signal generator on channel '{channelId}'.");
-                                    _dataAcquisition.StopSingalGenerator(channelId);
-                                    break;
-                            }
+                            ExecuteSignalGeneratorCommand(channelId, signalGeneratorCommand);
                         }
                     }
                 }
 
                 _signalGeneratorTimerLastCheckedDate = comperasonDate;
+            }
+        }
+
+        private void ExecuteSignalGeneratorCommand(string channelId, SignalGeneratorCommand signalGeneratorCommand)
+        {
+            _logger.LogTrace($"Executing signal generator command '{signalGeneratorCommand.Command}' on channel '{channelId}' at {DateTime.Now:HH:mm:ss.fff}.");
+
+            SignalGeneratorStatus status = _dataAcquisition.GetSingalGeneratorStatus(channelId);
+
+            switch (signalGeneratorCommand.Command)
+            {
+                case SignalGeneratorCommandType.Start:
+                    if (!status.IsRunning)
+                    {
+                        _logger.LogTrace($"Starting signal generator on channel '{channelId}'.");
+                    }
+                    else
+                    {
+                        _logger.LogTrace($"Changing signal generator parameters on channel '{channelId}'.");
+                    }
+
+                    if (signalGeneratorCommand.Options == null)
+                    {
+                        _logger.LogError($"Signal generator command options are null.");
+                        break;
+                    }
+
+                    // Get the signal definition from the signalGeneratorCommand.Options.SignalName value
+                    SignalDefinitionOptions? sd = _config.SignalGenerator.SignalDefinitions.FirstOrDefault(s => s.Name == signalGeneratorCommand.Options.SignalName);
+
+                    if (sd == null)
+                    {
+                        _logger.LogError($"Signal definition '{signalGeneratorCommand.Options.SignalName}' not found.");
+                        break;
+                    }
+
+                    // Pass the command paramters to the device
+                    _dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
+                    break;
+                case SignalGeneratorCommandType.Stop:
+                    _logger.LogTrace($"Stopping signal generator on channel '{channelId}'.");
+                    _dataAcquisition.StopSingalGenerator(channelId);
+                    break;
             }
         }
 
