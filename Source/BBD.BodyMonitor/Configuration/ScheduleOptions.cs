@@ -44,11 +44,19 @@
             string signalName = parts[2][..parts[2].IndexOf('(')];
             string signalLength = parts[2].Substring(parts[2].IndexOf('(') + 1, parts[2].IndexOf(')') - parts[2].IndexOf('(') - 1);
 
+            TimeSpan timeSpanToStart = TimeSpanParse(timeToStart).Value;
+            TimeSpan? timeSpanToStop = timeToEnd == null ? null : TimeSpanParse(timeToEnd);
+
+            if ((timeSpanToStop != null) && (timeSpanToStop < timeSpanToStart))
+            {
+                timeSpanToStop = timeSpanToStop.Value + TimeSpan.FromDays(1);
+            }
+
             return new ScheduleOptions
             {
                 ChannelId = parts[0],
-                TimeToStart = TimeSpanParse(timeToStart).Value,
-                TimeToStop = TimeSpanParse(timeToEnd),
+                TimeToStart = timeSpanToStart,
+                TimeToStop = timeSpanToStop,
                 RepeatPeriod = TimeSpanParse(repeatPeriod),
                 SignalName = signalName,
                 SignalLength = TimeSpanParse(signalLength).Value

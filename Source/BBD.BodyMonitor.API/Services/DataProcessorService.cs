@@ -164,23 +164,97 @@ namespace BBD.BodyMonitor.Services
                 {
                     string channelId = signalGeneratorChannelGroup.Key;
 
-                    Queue<SignalGeneratorCommand> signalGeneratorCommands = new();
+                    List<SignalGeneratorCommand> signalGeneratorCommands = new();
+                    // Create a start and stop command for each schedule
                     foreach (ScheduleOptions? schedule in signalGeneratorChannelGroup.ToArray())
                     {
-                        signalGeneratorCommands.Enqueue(new SignalGeneratorCommand()
+                        // add start and stop commands
+                        signalGeneratorCommands.Add(new SignalGeneratorCommand()
                         {
                             Timestamp = schedule.TimeToStart,
                             Command = SignalGeneratorCommandType.Start,
                             Options = schedule
                         });
-                        signalGeneratorCommands.Enqueue(new SignalGeneratorCommand()
+                        signalGeneratorCommands.Add(new SignalGeneratorCommand()
                         {
                             Timestamp = schedule.TimeToStart + schedule.SignalLength,
                             Command = SignalGeneratorCommandType.Stop,
                             Options = schedule
                         });
+
+                        // add repeating commands if the repeat period is defined
+                        if (schedule.RepeatPeriod != null)
+                        {
+                            TimeSpan repeatUntil = schedule.TimeToStart.Add(TimeSpan.FromDays(1));
+                            TimeSpan nextRepeat = schedule.TimeToStart + schedule.RepeatPeriod.Value;
+                            while ((nextRepeat < repeatUntil) && ((schedule.TimeToStop == null) || (nextRepeat < schedule.TimeToStop)))
+                            {
+                                TimeSpan start = nextRepeat;
+                                if (start.Days > 0)
+                                {
+                                    start = start.Subtract(new TimeSpan(start.Days, 0, 0, 0));
+                                }
+                                signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                                {
+                                    Timestamp = start,
+                                    Command = SignalGeneratorCommandType.Start,
+                                    Options = schedule
+                                });
+
+                                TimeSpan stop = nextRepeat + schedule.SignalLength;
+                                if (stop.Days > 0)
+                                {
+                                    stop = stop.Subtract(new TimeSpan(stop.Days, 0, 0, 0));
+                                }
+                                signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                                {
+                                    Timestamp = stop,
+                                    Command = SignalGeneratorCommandType.Stop,
+                                    Options = schedule
+                                });
+
+                                nextRepeat += schedule.RepeatPeriod.Value;
+                            }
+                        }
+
+                        // add a stop command if the time to stop is defined
+                        if (schedule.TimeToStop != null)
+                        {
+                            signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                            {
+                                Timestamp = schedule.TimeToStop.Value,
+                                Command = SignalGeneratorCommandType.Stop,
+                                Options = schedule
+                            });
+                        }
                     }
-                    _signalGeneratorCommandQueues.Add(channelId, signalGeneratorCommands);
+
+                    // Convert them all from local to UTC timezone
+                    foreach (SignalGeneratorCommand command in signalGeneratorCommands)
+                    {
+                        command.Timestamp = new DateTime(command.Timestamp.Add(TimeSpan.FromDays(1)).Ticks, DateTimeKind.Local).ToUniversalTime().TimeOfDay;
+                    }
+
+                    // Sort the list by timestamp
+                    signalGeneratorCommands.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
+
+                    // Rotate the list until we reach the current time
+                    SignalGeneratorCommand? firstCommand = signalGeneratorCommands.FirstOrDefault();
+                    if (firstCommand != null)
+                    {
+                        while (signalGeneratorCommands[0].Timestamp < DateTime.UtcNow.TimeOfDay)
+                        {
+                            signalGeneratorCommands.Add(signalGeneratorCommands[0]);
+                            signalGeneratorCommands.RemoveAt(0);
+
+                            if (firstCommand == signalGeneratorCommands.First())
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    _signalGeneratorCommandQueues.Add(channelId, new Queue<SignalGeneratorCommand>(signalGeneratorCommands));
                 }
 
                 // Start the timer that handles signal generator on the device
@@ -191,10 +265,10 @@ namespace BBD.BodyMonitor.Services
                 }
                 _signalGeneratorTimer = new(1000)
                 {
-                    //_signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
                     AutoReset = true,
                     Enabled = true
                 };
+                _signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
                 _logger.LogTrace($"Set up a timer to generate signals on '{_dataAcquisition.SerialNumber}'.");
 
                 // Start recording on the device
@@ -213,7 +287,7 @@ namespace BBD.BodyMonitor.Services
         {
             lock (_signalGeneratorCommandQueues)
             {
-                DateTime currentTime = DateTime.Now;
+                DateTime currentTime = DateTime.UtcNow;
                 DateTime comperasonDate = _signalGeneratorTimerLastCheckedDate.HasValue ? new(_signalGeneratorTimerLastCheckedDate.Value.Year, _signalGeneratorTimerLastCheckedDate.Value.Month, _signalGeneratorTimerLastCheckedDate.Value.Day, 0, 0, 0) : new(currentTime.Year, currentTime.Month, currentTime.Day, 0, 0, 0);
 
                 // Execute the next command in the queue for each channel
@@ -264,11 +338,11 @@ namespace BBD.BodyMonitor.Services
                                     }
 
                                     // Pass the command paramters to the device
-                                    //_dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
+                                    _dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
                                     break;
                                 case SignalGeneratorCommandType.Stop:
                                     _logger.LogTrace($"Stopping signal generator on channel '{channelId}'.");
-                                    //_dataAcquisition.StopSingalGenerator(channelId);
+                                    _dataAcquisition.StopSingalGenerator(channelId);
                                     break;
                             }
                         }
