@@ -210,6 +210,7 @@ The confusion matrix of a model gives us an estimate of the true positive, true 
 
 Generating video about a session could help understand in an intuitive way what happened during that session. The following sample videos were generated on a PC from the raw data that was generated on either on Raspberry Pi or a Windows workstation.
 
+* 2022-10-30, 0.25 Hz - 125 kHz, 100 uV,  5x speed: https://youtu.be/K0LUZHJvA_A
 * 2022-05-31, 0.0 Hz to 800  Hz, 500 uV, 60x speed: https://youtu.be/TAWqZWBXpZg
 * 2022-05-31, 0.0 Hz to 150 kHz, 100 uV, 60x speed: https://youtu.be/ZTBsz2m_lBs
 * 2022-05-31, 0.0 Hz to 398 kHz, 750 uV, 60x speed: https://youtu.be/88tr0x3rEP8
