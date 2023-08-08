@@ -513,7 +513,7 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1);
             }
 
-            _logger.LogTrace($"Generating {function} wave at {startFrequency:N} Hz with {startAmplitude:N} V of amplitude at channel {signalGeneratorChannelIndex}...");
+            _logger.LogTrace($"Generating {function} wave at {startFrequency:N} Hz with {startAmplitude:N} V of amplitude on channel {signalGeneratorChannelIndex}...");
 
             _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
             if (psts != dwf.DwfStateRunning)
