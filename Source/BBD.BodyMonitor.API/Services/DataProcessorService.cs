@@ -145,12 +145,12 @@ namespace BBD.BodyMonitor.Services
                     _dataAcquisition.SubscribeToBlockReceived(_config.Indicators.Interval, Indicators_BlockReceived);
                 }
 
-                // Start signal generation
-                StartSignalGeneration(_dataAcquisition);
-
                 // Start recording on the device
                 _logger.LogInformation($"Recording data on '{_dataAcquisition.SerialNumber}' at {SimplifyNumber(_dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {_dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + "...");
                 _dataAcquisition.Start();
+
+                // Start signal generation
+                StartSignalGeneration(_dataAcquisition);
             }
             catch (Exception)
             {
@@ -290,7 +290,7 @@ namespace BBD.BodyMonitor.Services
                 _signalGeneratorTimer.Stop();
                 _signalGeneratorTimer.Dispose();
             }
-            _signalGeneratorTimer = new(1000)
+            _signalGeneratorTimer = new(100)
             {
                 AutoReset = true,
                 Enabled = true
@@ -335,7 +335,7 @@ namespace BBD.BodyMonitor.Services
         {
             _logger.LogTrace($"Executing signal generator command '{signalGeneratorCommand.Command}' on channel '{channelId}' at {DateTime.Now:HH:mm:ss.fff}.");
 
-            SignalGeneratorStatus status = _dataAcquisition.GetSingalGeneratorStatus(channelId);
+            SignalGeneratorStatus status = _dataAcquisition.GetSignalGeneratorStatus(channelId);
 
             switch (signalGeneratorCommand.Command)
             {
@@ -365,7 +365,7 @@ namespace BBD.BodyMonitor.Services
                     }
 
                     // Pass the command paramters to the device
-                    _dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
+                    _dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyFrom == sd.FrequencyTo ? null : sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeFrom == sd.AmplitudeTo ? null : sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
                     break;
                 case SignalGeneratorCommandType.Stop:
                     _logger.LogTrace($"Stopping signal generator on channel '{channelId}'.");
@@ -656,7 +656,7 @@ namespace BBD.BodyMonitor.Services
                 //    _logger.LogInformation($"{result[i]:0.00000} @ ~{frequencyToTest:0.00} Hz == {maxValue:0.00000} @ {maxIndex} ~{maxFreq:0.00} Hz");
                 //}
 
-                _logger.LogInformation($"{frada.GetSingalGeneratorStatus("W2").Frequency:0.00} Hz -> {maxValue:0.00000} @ {lastMaxIndex + maxIndex,7} ~{maxFreq,10:0.00} Hz");
+                _logger.LogInformation($"{frada.GetSignalGeneratorStatus("W2").Frequency:0.00} Hz -> {maxValue:0.00000} @ {lastMaxIndex + maxIndex,7} ~{maxFreq,10:0.00} Hz");
 
                 result[(int)(maxFreq / frequencyAnalysisSettings.FrequencyStep)] = maxValue;
 
@@ -899,7 +899,7 @@ namespace BBD.BodyMonitor.Services
                     sw.Stop();
                     _logger.LogTrace($"#{threadId} Signal processing completed in {sw.ElapsedMilliseconds:N0} ms.");
 
-                    SignalGeneratorStatus signalGeneratorStatus = _dataAcquisition.GetSingalGeneratorStatus("W2");
+                    SignalGeneratorStatus signalGeneratorStatus = _dataAcquisition.GetSignalGeneratorStatus("W2");
 
                     if (signalGeneratorStatus.IsRunning)
                     {

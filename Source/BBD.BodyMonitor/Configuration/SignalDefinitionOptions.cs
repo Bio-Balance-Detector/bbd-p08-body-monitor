@@ -65,6 +65,7 @@ namespace BBD.BodyMonitor.Configuration
             }
             else
             {
+                FrequencyTo = FrequencyFrom;
                 FrequencyMode = PeriodicyMode.SingleValue;
             }
         }
@@ -82,6 +83,7 @@ namespace BBD.BodyMonitor.Configuration
             }
             else
             {
+                AmplitudeTo = AmplitudeFrom;
                 AmplitudeMode = PeriodicyMode.SingleValue;
             }
         }

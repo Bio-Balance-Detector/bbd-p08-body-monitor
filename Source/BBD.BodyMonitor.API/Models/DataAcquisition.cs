@@ -443,11 +443,29 @@ namespace BBD.BodyMonitor.Models
             if (endFrequency.HasValue && duration.HasValue)
             {
                 // enable the frequency modulation
+                byte fmFunction = isFrequencyPingPong ? dwf.funcTriangle : startFrequency < endFrequency.Value ? dwf.funcRampUp : dwf.funcRampDown;
+                double fmSimmetry = 100;
+                double fmPhase = 0;
+                if (fmFunction == dwf.funcRampUp)
+                {
+                    fmSimmetry = 100;
+                }
+                else if (fmFunction == dwf.funcRampDown)
+                {
+                    fmSimmetry = 0;
+                }
+                else if (fmFunction == dwf.funcTriangle)
+                {
+                    fmSimmetry = 50;
+                    fmPhase = 270;
+                }
+
                 _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1);
-                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, isFrequencyPingPong ? dwf.funcTriangle : dwf.funcRampUp);
+                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmFunction);
                 _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1.0 / duration.Value.TotalSeconds);
                 _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100.0 * (endFrequency.Value - middleFrequency) / middleFrequency);
-                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100);
+                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmSimmetry);
+                _ = dwf.FDwfAnalogOutNodePhaseSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmPhase);
             }
             else
             {
@@ -458,11 +476,29 @@ namespace BBD.BodyMonitor.Models
             if (endAmplitude.HasValue && duration.HasValue)
             {
                 // enable the amplitude modulation
+                byte amFunction = isAmplitudePingPong ? dwf.funcTriangle : dwf.funcRampUp;
+                double amSimmetry = 100;
+                double amPhase = 0;
+                if (amFunction == dwf.funcRampUp)
+                {
+                    amSimmetry = 100;
+                }
+                else if (amFunction == dwf.funcRampDown)
+                {
+                    amSimmetry = 0;
+                }
+                else if (amFunction == dwf.funcTriangle)
+                {
+                    amSimmetry = 50;
+                    amPhase = 270;
+                }
+
                 _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 1);
-                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, isAmplitudePingPong ? dwf.funcTriangle : dwf.funcRampUp);
+                _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amFunction);
                 _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 1.0 / duration.Value.TotalSeconds);
                 _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 100.0 * (endAmplitude.Value - middleAmplitude) / middleAmplitude);
-                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 100);
+                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amSimmetry);
+                _ = dwf.FDwfAnalogOutNodePhaseSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amPhase);
             }
             else
             {
@@ -511,7 +547,7 @@ namespace BBD.BodyMonitor.Models
             ApplySignalGeneratorChanges(signalGeneratorChannelIndex);
         }
 
-        public SignalGeneratorStatus GetSingalGeneratorStatus(string channelId)
+        public SignalGeneratorStatus GetSignalGeneratorStatus(string channelId)
         {
             SignalGeneratorStatus signalGeneratorStatus = new()
             {
