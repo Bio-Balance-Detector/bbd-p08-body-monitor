@@ -180,6 +180,9 @@ namespace BBD.BodyMonitor.Services
 
         private void StartSignalGeneration(DataAcquisition? _dataAcquisition)
         {
+            TimeSpan currentTime = DateTime.UtcNow.TimeOfDay;
+            currentTime = new TimeSpan(currentTime.Hours, currentTime.Minutes, currentTime.Seconds);
+
             _config.ParseSignalGeneratorParameters();
 
             // Create the signal generator command queue based on the schedule configuration
@@ -266,7 +269,7 @@ namespace BBD.BodyMonitor.Services
                 SignalGeneratorCommand? firstCommand = signalGeneratorCommands.FirstOrDefault();
                 if (firstCommand != null)
                 {
-                    while (signalGeneratorCommands[0].Timestamp < DateTime.UtcNow.TimeOfDay)
+                    while (signalGeneratorCommands[0].Timestamp < currentTime)
                     {
                         signalGeneratorCommands.Add(signalGeneratorCommands[0]);
                         signalGeneratorCommands.RemoveAt(0);
