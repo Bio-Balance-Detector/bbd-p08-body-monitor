@@ -100,20 +100,7 @@ namespace BBD.BodyMonitor.Services
         [Obsolete]
         public string? StartDataAcquisition(string deviceSerialNumber, Session? session)
         {
-            // Stop previous timer if any
-            if (_checkDiskSpaceTimer != null)
-            {
-                _checkDiskSpaceTimer.Stop();
-                _checkDiskSpaceTimer.Dispose();
-                _checkDiskSpaceTimer = null;
-                _logger.LogTrace("Previous timer to check disk space was stopped.");
-            }
-            // Check disk space every 10 seconds
-            _checkDiskSpaceTimer = new(10000);
-            _checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
-            _checkDiskSpaceTimer.AutoReset = true;
-            _checkDiskSpaceTimer.Enabled = true;
-            _logger.LogTrace($"Set up a timer to check disk space on '{spaceCheckDrive.Name}' every {_checkDiskSpaceTimer.Interval / 1000:0} seconds.");
+            StartDiskSpaceChecker(spaceCheckDrive);
 
             // Check if a device with the serial number is available
             int deviceIndex = GetDeviceIndexFromSerialNumber(deviceSerialNumber);
@@ -158,118 +145,8 @@ namespace BBD.BodyMonitor.Services
                     _dataAcquisition.SubscribeToBlockReceived(_config.Indicators.Interval, Indicators_BlockReceived);
                 }
 
-                // Create the signal generator command queue based on the schedule configuration
-                _signalGeneratorCommandQueues = new();
-                foreach (IGrouping<string, ScheduleOptions> signalGeneratorChannelGroup in _config.SignalGenerator.Schedules.GroupBy(s => s.ChannelId))
-                {
-                    string channelId = signalGeneratorChannelGroup.Key;
-
-                    List<SignalGeneratorCommand> signalGeneratorCommands = new();
-                    // Create a start and stop command for each schedule
-                    foreach (ScheduleOptions? schedule in signalGeneratorChannelGroup.ToArray())
-                    {
-                        // add start and stop commands
-                        signalGeneratorCommands.Add(new SignalGeneratorCommand()
-                        {
-                            Timestamp = schedule.TimeToStart,
-                            Command = SignalGeneratorCommandType.Start,
-                            Options = schedule
-                        });
-                        signalGeneratorCommands.Add(new SignalGeneratorCommand()
-                        {
-                            Timestamp = schedule.TimeToStart + schedule.SignalLength,
-                            Command = SignalGeneratorCommandType.Stop,
-                            Options = schedule
-                        });
-
-                        // add repeating commands if the repeat period is defined
-                        if (schedule.RepeatPeriod != null)
-                        {
-                            TimeSpan repeatUntil = schedule.TimeToStart.Add(TimeSpan.FromDays(1));
-                            TimeSpan nextRepeat = schedule.TimeToStart + schedule.RepeatPeriod.Value;
-                            while ((nextRepeat < repeatUntil) && ((schedule.TimeToStop == null) || (nextRepeat < schedule.TimeToStop)))
-                            {
-                                TimeSpan start = nextRepeat;
-                                if (start.Days > 0)
-                                {
-                                    start = start.Subtract(new TimeSpan(start.Days, 0, 0, 0));
-                                }
-                                signalGeneratorCommands.Add(new SignalGeneratorCommand()
-                                {
-                                    Timestamp = start,
-                                    Command = SignalGeneratorCommandType.Start,
-                                    Options = schedule
-                                });
-
-                                TimeSpan stop = nextRepeat + schedule.SignalLength;
-                                if (stop.Days > 0)
-                                {
-                                    stop = stop.Subtract(new TimeSpan(stop.Days, 0, 0, 0));
-                                }
-                                signalGeneratorCommands.Add(new SignalGeneratorCommand()
-                                {
-                                    Timestamp = stop,
-                                    Command = SignalGeneratorCommandType.Stop,
-                                    Options = schedule
-                                });
-
-                                nextRepeat += schedule.RepeatPeriod.Value;
-                            }
-                        }
-
-                        // add a stop command if the time to stop is defined
-                        if (schedule.TimeToStop != null)
-                        {
-                            signalGeneratorCommands.Add(new SignalGeneratorCommand()
-                            {
-                                Timestamp = schedule.TimeToStop.Value,
-                                Command = SignalGeneratorCommandType.Stop,
-                                Options = schedule
-                            });
-                        }
-                    }
-
-                    // Convert them all from local to UTC timezone
-                    foreach (SignalGeneratorCommand command in signalGeneratorCommands)
-                    {
-                        command.Timestamp = new DateTime(command.Timestamp.Add(TimeSpan.FromDays(1)).Ticks, DateTimeKind.Local).ToUniversalTime().TimeOfDay;
-                    }
-
-                    // Sort the list by timestamp
-                    signalGeneratorCommands.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
-
-                    // Rotate the list until we reach the current time
-                    SignalGeneratorCommand? firstCommand = signalGeneratorCommands.FirstOrDefault();
-                    if (firstCommand != null)
-                    {
-                        while (signalGeneratorCommands[0].Timestamp < DateTime.UtcNow.TimeOfDay)
-                        {
-                            signalGeneratorCommands.Add(signalGeneratorCommands[0]);
-                            signalGeneratorCommands.RemoveAt(0);
-
-                            if (firstCommand == signalGeneratorCommands.First())
-                            {
-                                break;
-                            }
-                        }
-                    }
-
-                    _signalGeneratorCommandQueues.Add(channelId, new Queue<SignalGeneratorCommand>(signalGeneratorCommands));
-                }
-
-                // Start the timer that handles signal generator on the device
-                if (_signalGeneratorTimer != null)
-                {
-                    _signalGeneratorTimer.Stop();
-                    _signalGeneratorTimer.Dispose();
-                }
-                _signalGeneratorTimer = new(1000)
-                {
-                    AutoReset = true,
-                    Enabled = true
-                };
-                _signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
-                _logger.LogTrace($"Set up a timer to generate signals on '{_dataAcquisition.SerialNumber}'.");
+                // Start signal generation
+                StartSignalGeneration(_dataAcquisition);
 
                 // Start recording on the device
                 _logger.LogInformation($"Recording data on '{_dataAcquisition.SerialNumber}' at {SimplifyNumber(_dataAcquisition.Samplerate)}Hz" + (_config.Postprocessing.Enabled ? $" with the effective FFT resolution of {_dataAcquisition.Samplerate / 2.0 / (_config.Postprocessing.FFTSize / 2):0.00} Hz" : "") + "...");
@@ -281,6 +158,142 @@ namespace BBD.BodyMonitor.Services
             }
 
             return deviceSerialNumber;
+        }
+
+        private void StartDiskSpaceChecker(DriveInfo? spaceCheckDrive)
+        {
+            // Stop previous timer if any
+            if (_checkDiskSpaceTimer != null)
+            {
+                _checkDiskSpaceTimer.Stop();
+                _checkDiskSpaceTimer.Dispose();
+                _checkDiskSpaceTimer = null;
+                _logger.LogTrace("Previous timer to check disk space was stopped.");
+            }
+            // Check disk space every 10 seconds
+            _checkDiskSpaceTimer = new(10000);
+            _checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
+            _checkDiskSpaceTimer.AutoReset = true;
+            _checkDiskSpaceTimer.Enabled = true;
+            _logger.LogTrace($"Set up a timer to check disk space on '{spaceCheckDrive.Name}' every {_checkDiskSpaceTimer.Interval / 1000:0} seconds.");
+        }
+
+        private void StartSignalGeneration(DataAcquisition? _dataAcquisition)
+        {
+            _config.ParseSignalGeneratorParameters();
+
+            // Create the signal generator command queue based on the schedule configuration
+            _signalGeneratorCommandQueues = new();
+            foreach (IGrouping<string, ScheduleOptions> signalGeneratorChannelGroup in _config.SignalGenerator.Schedules.GroupBy(s => s.ChannelId))
+            {
+                string channelId = signalGeneratorChannelGroup.Key;
+
+                List<SignalGeneratorCommand> signalGeneratorCommands = new();
+                // Create a start and stop command for each schedule
+                foreach (ScheduleOptions? schedule in signalGeneratorChannelGroup.ToArray())
+                {
+                    // add start and stop commands
+                    signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                    {
+                        Timestamp = schedule.TimeToStart,
+                        Command = SignalGeneratorCommandType.Start,
+                        Options = schedule
+                    });
+                    signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                    {
+                        Timestamp = schedule.TimeToStart + schedule.SignalLength,
+                        Command = SignalGeneratorCommandType.Stop,
+                        Options = schedule
+                    });
+
+                    // add repeating commands if the repeat period is defined
+                    if (schedule.RepeatPeriod != null)
+                    {
+                        TimeSpan repeatUntil = schedule.TimeToStart.Add(TimeSpan.FromDays(1));
+                        TimeSpan nextRepeat = schedule.TimeToStart + schedule.RepeatPeriod.Value;
+                        while ((nextRepeat < repeatUntil) && ((schedule.TimeToStop == null) || (nextRepeat < schedule.TimeToStop)))
+                        {
+                            TimeSpan start = nextRepeat;
+                            if (start.Days > 0)
+                            {
+                                start = start.Subtract(new TimeSpan(start.Days, 0, 0, 0));
+                            }
+                            signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                            {
+                                Timestamp = start,
+                                Command = SignalGeneratorCommandType.Start,
+                                Options = schedule
+                            });
+
+                            TimeSpan stop = nextRepeat + schedule.SignalLength;
+                            if (stop.Days > 0)
+                            {
+                                stop = stop.Subtract(new TimeSpan(stop.Days, 0, 0, 0));
+                            }
+                            signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                            {
+                                Timestamp = stop,
+                                Command = SignalGeneratorCommandType.Stop,
+                                Options = schedule
+                            });
+
+                            nextRepeat += schedule.RepeatPeriod.Value;
+                        }
+                    }
+
+                    // add a stop command if the time to stop is defined
+                    if (schedule.TimeToStop != null)
+                    {
+                        signalGeneratorCommands.Add(new SignalGeneratorCommand()
+                        {
+                            Timestamp = schedule.TimeToStop.Value,
+                            Command = SignalGeneratorCommandType.Stop,
+                            Options = schedule
+                        });
+                    }
+                }
+
+                // Convert them all from local to UTC timezone
+                foreach (SignalGeneratorCommand command in signalGeneratorCommands)
+                {
+                    command.Timestamp = DateTime.Today.AddTicks(command.Timestamp.Ticks).ToUniversalTime().TimeOfDay;
+                }
+
+                // Sort the list by timestamp
+                signalGeneratorCommands.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
+
+                // Rotate the list until we reach the current time
+                SignalGeneratorCommand? firstCommand = signalGeneratorCommands.FirstOrDefault();
+                if (firstCommand != null)
+                {
+                    while (signalGeneratorCommands[0].Timestamp < DateTime.UtcNow.TimeOfDay)
+                    {
+                        signalGeneratorCommands.Add(signalGeneratorCommands[0]);
+                        signalGeneratorCommands.RemoveAt(0);
+
+                        if (firstCommand == signalGeneratorCommands.First())
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                _signalGeneratorCommandQueues.Add(channelId, new Queue<SignalGeneratorCommand>(signalGeneratorCommands));
+            }
+
+            // Start the timer that handles signal generator on the device
+            if (_signalGeneratorTimer != null)
+            {
+                _signalGeneratorTimer.Stop();
+                _signalGeneratorTimer.Dispose();
+            }
+            _signalGeneratorTimer = new(1000)
+            {
+                AutoReset = true,
+                Enabled = true
+            };
+            _signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
+            _logger.LogTrace($"Set up a timer to generate signals on '{_dataAcquisition.SerialNumber}'.");
         }
 
         private void _signalGeneratorTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)

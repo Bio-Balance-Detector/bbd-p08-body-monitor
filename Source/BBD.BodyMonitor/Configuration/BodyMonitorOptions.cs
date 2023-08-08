@@ -5,6 +5,7 @@ namespace BBD.BodyMonitor.Configuration
 {
     public class BodyMonitorOptions
     {
+        private readonly IConfigurationSection _configRoot;
         public string DataDirectory { get; set; } = string.Empty;
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public long MinimumAvailableFreeSpace { get; set; } = 0;
@@ -25,6 +26,7 @@ namespace BBD.BodyMonitor.Configuration
         [Obsolete]
         public BodyMonitorOptions(IConfigurationSection config)
         {
+            _configRoot = config;
             DataDirectory = config["DataDirectory"];
             MinimumAvailableFreeSpace = (long)ParseNumber(config["MinimumAvailableFreeSpace"]);
             DeviceSerialNumber = config["DeviceSerialNumber"];
@@ -40,20 +42,7 @@ namespace BBD.BodyMonitor.Configuration
                 Samplerate = (int)ParseNumber(config["Acquisition:Samplerate"])
             };
 
-            string[]? scheduleStrings = config.GetSection("SignalGenerator:Schedule").Get<string[]>();
-            ScheduleOptions[] schedules = scheduleStrings.Select(ScheduleOptions.Parse).ToArray();
-
-            SignalGenerator = new SignalGeneratorOptions()
-            {
-                SignalDefinitions = config.GetSection("SignalGenerator:SignalDefinitions").Get<SignalDefinitionOptions[]>(),
-                Schedules = schedules
-            };
-
-            foreach (SignalDefinitionOptions signalDefinition in SignalGenerator.SignalDefinitions)
-            {
-                signalDefinition.ParseFrequency();
-                signalDefinition.ParseAmplitude();
-            }
+            ParseSignalGeneratorParameters();
 
             DataWriter = new DataWriterOptions()
             {
@@ -126,6 +115,24 @@ namespace BBD.BodyMonitor.Configuration
                 APIEndpoint = new Uri(config["ThingSpeak:APIEndpoint"]),
                 APIKey = config["ThingSpeak:APIKey"]
             };
+        }
+
+        public void ParseSignalGeneratorParameters()
+        {
+            string[]? scheduleStrings = _configRoot.GetSection("SignalGenerator:Schedule").Get<string[]>();
+            ScheduleOptions[] schedules = scheduleStrings.Select(ScheduleOptions.Parse).ToArray();
+
+            SignalGenerator = new SignalGeneratorOptions()
+            {
+                SignalDefinitions = _configRoot.GetSection("SignalGenerator:SignalDefinitions").Get<SignalDefinitionOptions[]>(),
+                Schedules = schedules
+            };
+
+            foreach (SignalDefinitionOptions signalDefinition in SignalGenerator.SignalDefinitions)
+            {
+                signalDefinition.ParseFrequency();
+                signalDefinition.ParseAmplitude();
+            }
         }
 
         [Obsolete("Use StringWithUnitToNumberConverter.ConvertFrom instead")]

@@ -11,11 +11,11 @@
         /// </summary>
         public required string ChannelId { get; set; }
         /// <summary>
-        /// Time to start the signal. It can be a specific time (eg. 19:15), or a relative time (eg. * means the time when the application started).
+        /// Local time to start the signal. It can be a specific time (eg. 19:15), or a relative time (eg. * means the time when the application started).
         /// </summary>
         public TimeSpan TimeToStart { get; set; }
         /// <summary>
-        /// Time to stop the signal. Optional, it can be a specific time (eg. 19:17).
+        /// Local time to stop the signal. Optional, it can be a specific time (eg. 19:17).
         /// </summary>
         public TimeSpan? TimeToStop { get; set; }
         /// <summary>
@@ -94,7 +94,7 @@
             }
             else if (str == "*")
             {
-                result = new TimeSpan(DateTime.UtcNow.Hour, DateTime.UtcNow.Minute, DateTime.UtcNow.Second);
+                result = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second);
             }
             else if (colonParts.Length == 2)
             {
