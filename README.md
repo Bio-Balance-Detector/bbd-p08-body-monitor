@@ -55,7 +55,7 @@ If you're a healthcare provider interested in collaborating, please [reach out](
 
 ## Contributing
 
-I truly appreciate your interest in BBD Body Monitor. While code contributions are valuable, reporting issues is equally critical. It's feedback from users like you that allows us to continuously improve BBD Body Monitor. Here's how you can help:
+I truly appreciate your interest in BBD Body Monitor. While code contributions are valuable, reporting issues and feature ideas are equally critical. It's feedback from users like you that allows us to continuously improve BBD Body Monitor. Here's how you can help:
 
 ### Submitting Issues
 
