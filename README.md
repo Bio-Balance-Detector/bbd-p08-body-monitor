@@ -28,11 +28,19 @@ It will be a convenient, wearable device having sensors on our forearm or calf g
   - Frustration
 - Correlate fitness and medical data with physical and mental medical conditions for early detection of health imbalances
 
+## Demo
 
-## Requirements
+![BBD_2022-10-28_125kHz_75pc-200pc_of_median mp4_20230823_115545 691](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/b6a4ee24-2dd2-40be-9f3b-c6fce88d172c)
+
+Watch a video of a rendered recording - https://www.youtube.com/embed/K0LUZHJvA_A
+
+The software gives real-time estimations of various state confidence levels:
+![image](https://user-images.githubusercontent.com/910321/171152444-69388f52-aa0c-4665-8ef3-1c761da85a11.png)
+
+## Technical Requirements
 This is the 8th prototype of the Bio Balance Detector project. The device must record bio-potential data in a convenient and mobile way. The recorded data must be processed onboard and give audio and/or visual feedback depending on the measured data. The device must work for at least 8 hours to record sleep, and it must be battery powered to avoid the 50/60 Hz artifacts that are present in all devices that are powered from the typical power outlet. An algorithm will be developed to recognize the different states we usually have, like wakefulness, relaxation, sleeps etc. If that is successful it can be more gradual, potentially recognizing emotions like contentment, joyfulness, the flow state, anger or frustration. The long-term goal is to find correlation between these measurements and physical and mental medical conditions.
 
-Technically the requirements above mean:
+These requirements above mean:
 * a small form factor
 * a convenient to wear conducting material to act as the sensor
 * CPU to calculate 0.25Hz resolution FFT on the fly
