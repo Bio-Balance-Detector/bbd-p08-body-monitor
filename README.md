@@ -39,9 +39,9 @@ The software gives real-time estimations of various state confidence levels:
 
 ## Technical Details
 
-You can read the exact technical requeirements that led to the hardware and software stack choices of the project, and you can set up your own test system using the setup guides. 
+You can read the exact [technical requirements](/Documentation/TechnicalRequirements.md) that led to the hardware and software stack choices of the project, and you can set up your own test system using the [setup guides](/Documentation/Setup.md). 
 
-If you are brave enough, you can also take a peek at the workflow that I use during my daily work, including the data acquisition, ML model traning and state predictions.
+If you are brave enough, you can even take a peek at [the workflow](/Documentation/Workflow.md) that I use during my daily work, including the data acquisition, ML model traning and state predictions.
  
 ## Conclusion
 
