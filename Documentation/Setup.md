@@ -86,4 +86,4 @@ Using the Body Monitor on Android makes it mobile, but it still needs another co
 5) Before you start the data acquisition make sure that you select the "Digilent USB device" in the VirtualHere client and you select "Use this device"
 6) Run the `bbd.bodymonitor` as you would normally do
 
-![Hardware Components](./Photos/Android_mobile_configuration.jpg) 
+![Android mobile configuration](../Photos/Android_mobile_configuration.jpg) 
