@@ -4,11 +4,13 @@
 
 # BBD Prototype #8 - Body Monitor
 
+## Unlocking Mental States: Bio-Potential Analysis with Machine Learning for Holistic Health Insights.
+
 BBD Body Monitor is a single channel data acquisition system (DAS) to provide a bio-potential reading in the 0.25Hz - 125kHz frequency range. The main focus of the prototype is to use machine learning to detect different mental states (eg. focused wakefulness, relaxation, meditation, REM sleeping, deep sleeping or lucid dreaming) by digitizing potential changes on our bodies. 
 If this stage succeeds, fitness and medical data will be integrated into the machine learning framework for early detection of health imbalances.
 
 ## Requirements
-The device must record bio-potential data in a convenient and mobile way. The recorded data must be processed onboard and give audio and/or visual feedback depending on the measured data. The device must work for at least 8 hours to record sleep, and it must be battery powered to avoid the 50/60 Hz artifacts that are present in all devices that are powered from the typical power outlet. An algorithm will be developed to recognize the different states we usually have, like wakefulness, relaxation, sleeps etc. If that is successful it can be more gradual, potentially recognizing emotions like contentment, joyfulness, the flow state, anger or frustration. The long-term goal is to find correlation between these measurements and physical and mental medical conditions.
+This is the 8th prototype of the Bio Balance Detector project. The device must record bio-potential data in a convenient and mobile way. The recorded data must be processed onboard and give audio and/or visual feedback depending on the measured data. The device must work for at least 8 hours to record sleep, and it must be battery powered to avoid the 50/60 Hz artifacts that are present in all devices that are powered from the typical power outlet. An algorithm will be developed to recognize the different states we usually have, like wakefulness, relaxation, sleeps etc. If that is successful it can be more gradual, potentially recognizing emotions like contentment, joyfulness, the flow state, anger or frustration. The long-term goal is to find correlation between these measurements and physical and mental medical conditions.
 
 Technically the requirements above mean:
 * a small form factor
