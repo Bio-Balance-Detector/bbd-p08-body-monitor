@@ -10,7 +10,7 @@ BBD Body Monitor is a single channel data acquisition system (DAS) to provide a 
 
 If this stage succeeds, fitness and medical data will be integrated into the machine learning framework for early detection of health imbalances. 
 
-It will be a convenient, wearable device having sensors on our forearm or calf.
+It will be a convenient, wearable device having sensors on our forearm or calf giving real-time feedback on our condition.
 
 ## Goals
 - Detect various mental states such as:
