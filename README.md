@@ -2,6 +2,8 @@
   <img src="https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Business/Branding/Logos/BioBalanceDetectorLogo_810x275.png"/>
 </p>
 
+> 👋 I'm looking for healthcare providers interested in collaborating!👋
+
 # BBD Body Monitor
 
 ## Bio-Potential Analysis with Machine Learning for Holistic Health Insights
