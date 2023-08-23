@@ -252,7 +252,7 @@ Generating video about a session could help understand in an intuitive way what 
 * 2021-01-21, 0.2 Hz to 100 kHz, 60x speed: https://www.youtube.com/watch?v=Kx8WTaREeTs
 * 2021-01-21, 0.2 Hz to   2 kHz, 60x speed: https://www.youtube.com/watch?v=u7TJLMuWv-U
 
-![image](https://user-images.githubusercontent.com/910321/171387862-b8123722-d452-48cf-b15e-a83cb830f240.png)
+![BBD_2022-10-28_125kHz_75pc-200pc_of_median mp4_20230823_115545 691](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/b6a4ee24-2dd2-40be-9f3b-c6fce88d172c)
   
 ## Conclusion
 
