@@ -76,7 +76,7 @@ I truly appreciate your interest in BBD Body Monitor. While code contributions a
 While I emphasize issue submissions, if you're a developer willing to fix an issue you've experienced, I'm not going to stop you! However, please start with submitting the issue first. Here's a brief guide if you decide to contribute with code:
 
 * Fork the repository on GitHub.
-* Create a topic branch based on the `master`.
+* Create a topic branch based on the `main`.
 * Ensure you've added or updated any necessary tests for your changes.
 * Make sure all tests pass before submitting a pull request.
 
