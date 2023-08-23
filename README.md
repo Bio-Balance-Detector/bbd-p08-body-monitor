@@ -4,7 +4,7 @@
 
 # BBD Prototype #8 - Body Monitor
 
-## Unlocking Mental States: Bio-Potential Analysis with Machine Learning for Holistic Health Insights.
+## Bio-Potential Analysis with Machine Learning for Holistic Health Insights
 
 BBD Body Monitor is a single channel data acquisition system (DAS) to provide a bio-potential reading in the 0.25Hz - 125kHz frequency range. The main focus of the prototype is to use machine learning to detect different mental states (eg. focused wakefulness, relaxation, meditation, REM sleeping, deep sleeping or lucid dreaming) by digitizing potential changes on our bodies. 
 If this stage succeeds, fitness and medical data will be integrated into the machine learning framework for early detection of health imbalances.
