@@ -51,7 +51,7 @@ The project is actively ongoing and the results are promising. Detecting differe
 
 As a next step I will need to collect as much data as possible, so I'm looking for healthcare providers to work with. One such potential cooperation could be done with labs that analyze blood samples. If I could make quick measurements before/during/after the blood sampling and I had enough (anonymized) data to look for correlations between my measurements and the blood test results, it would potentially lead to a new, non-invasive, cheap way to check for health imbalances.
 
-If you're a healthcare provider interested in collaborating, please **reach out**.
+If you're a healthcare provider interested in collaborating, please [reach out](mailto:info@biobalancedetector.com).
 
 ## Contributing
 
