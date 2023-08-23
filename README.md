@@ -2,7 +2,7 @@
   <img src="https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Business/Branding/Logos/BioBalanceDetectorLogo_810x275.png"/>
 </p>
 
-# BBD Prototype #8 - Body Monitor
+# BBD Body Monitor
 
 ## Bio-Potential Analysis with Machine Learning for Holistic Health Insights
 
