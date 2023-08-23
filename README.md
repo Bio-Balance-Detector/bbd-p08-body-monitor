@@ -50,3 +50,38 @@ The project is actively ongoing and the results are promising. Detecting differe
 The question still remains: is it possible to detect health issues with this technique?
 
 As a next step I will need to collect as much data as possible, so I'm looking for healthcare providers to work with. One such potential cooperation could be done with labs that analyze blood samples. If I could make quick measurements before/during/after the blood sampling and I had enough (anonymized) data to look for correlations between my measurements and the blood test results, it would potentially lead to a new, non-invasive, cheap way to check for health imbalances.
+
+## Contributing
+
+I truly appreciate your interest in BBD Body Monitor. While code contributions are valuable, reporting issues is equally critical. It's feedback from users like you that allows us to continuously improve BBD Body Monitor. Here's how you can help:
+
+### Submitting Issues
+
+* Make sure you have a [GitHub account](https://github.com/signup/free).
+* Search the issue tracker to ensure your report is a new issue. Duplicates will be closed.
+* Create a new issue, being as descriptive as possible:
+  * Clearly describe the issue, including steps to reproduce if it's a bug.
+  * Include screenshots or videos if they help to clarify the problem.
+  * Mention the version of the BBD Body Monitor you're using and on which platform.
+  * Use a clear and descriptive title for the issue to identify the problem.
+
+#### Benefits of Submitting Issues
+
+1. **Voice Your Needs & Problems:** By sharing what you need or what's not working, you help guide the development direction.
+2. **Join the Community Conversation:** Engage in discussions, and help us understand the context and importance of the problems you face.
+3. **Faster Fixes:** Clear, well-documented issues often receive quicker solutions.
+
+### Contributing Code
+
+While I emphasize issue submissions, if you're a developer willing to fix an issue you've experienced, I'm not going to stop you! However, please start with submitting the issue first. Here's a brief guide if you decide to contribute with code:
+
+* Fork the repository on GitHub.
+* Create a topic branch based on the `master`.
+* Ensure you've added or updated any necessary tests for your changes.
+* Make sure all tests pass before submitting a pull request.
+
+### Additional Resources
+
+* [General GitHub documentation](https://help.github.com/)
+* [GitHub issue submission tutorial](https://help.github.com/articles/creating-an-issue/)
+* [GitHub pull request documentation](https://help.github.com/send-pull-requests/)
