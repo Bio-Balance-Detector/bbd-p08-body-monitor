@@ -43,7 +43,7 @@ WebApplication app = builder.Build();
 string versionString = System.Reflection.Assembly.GetEntryAssembly().GetName().Version.ToString();
 DataProcessorService.ShowWelcomeScreen(versionString);
 
-app.Logger.LogInformation($"Bio Balance Detector Body Monitor v{versionString}");
+app.Logger.LogInformation($"Bio Balance Detector Body Monitor API v{versionString}");
 app.Logger.LogInformation($"(The current UTC time is {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss})");
 
 
