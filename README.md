@@ -4,6 +4,11 @@
   <img src="https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Business/Branding/Logos/BioBalanceDetectorLogo_810x275.png"/>
 </p>
 
+<p align="center">
+    <a href="https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/releases"><img src="https://img.shields.io/github/v/release/Bio-Balance-Detector/bbd-p08-body-monitor" alt="Release version" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/Bio-Balance-Detector/bbd-p08-body-monitor" alt="License"/></a>
+</p>
+
 # BBD Body Monitor
 
 ## Bio-Potential Analysis with Machine Learning for Holistic Health Insights
