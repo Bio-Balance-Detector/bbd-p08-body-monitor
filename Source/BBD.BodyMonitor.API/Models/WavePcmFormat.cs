@@ -7,7 +7,6 @@ namespace BBD.BodyMonitor.Models
         /* Data             The actual sound data. */
         public byte[] Data { get; set; } = new byte[0];
 
-        public WavePcmFormat() { }
         public WavePcmFormat(ushort numChannels = 2, uint sampleRate = 44100, ushort bitsPerSample = 16, byte[]? data = null)
         {
             Data = data ?? new byte[0];
