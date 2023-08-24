@@ -20,6 +20,7 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getconfig
 GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getsysteminformation
 
 ###
+
 GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata
 
 ###
@@ -31,6 +32,8 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata/1671105/100000
 GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/savedata/0x81D21088
 
 ###
+
+# Prepare the data for the machine learning model training in the TrainingData folder, using MLP09 profile, with 200 rows of data
 
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/200
 
@@ -53,6 +56,12 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData
 ###
 
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_None/Subject_None/3500
+
+###
+
+# Prepare the data for the machine learning model training in the TrainingData folder, using MLP01 profile, with 3500 rows of data
+
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP01/Subject_/Activity_Meditation/Activity_Meditation/3500
 
 ###
 
