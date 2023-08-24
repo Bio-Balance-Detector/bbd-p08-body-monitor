@@ -731,7 +731,7 @@ namespace BBD.BodyMonitor.Services
             }
 
             string samplerate = $"{SimplifyNumber(_dataAcquisition.Samplerate)}sps";
-            string deviceChannel = $"{_dataAcquisition.SerialNumber[^4..].ToString()?.ToLower()}-ch{_dataAcquisition.AcquisitionChannels[0]}";
+            string deviceChannel = $"{_dataAcquisition.SerialNumber[^4..].ToString()?.ToLower()}-{_dataAcquisition.AcquisitionChannels[0]}";
 
             if (_config.DataWriter.SingleFile)
             {
@@ -2379,7 +2379,6 @@ namespace BBD.BodyMonitor.Services
                     try
                     {
                         FileInfo fi = new(wavFilename);
-                        totalBytesProcessed += fi.Length;
 
                         FileStream waveFileStream = new(wavFilename, FileMode.Open);
                         WavePcmFormatHeader waveHeader = WaveFileExtensions.ReadWaveFileHeader(waveFileStream);
@@ -2391,21 +2390,30 @@ namespace BBD.BodyMonitor.Services
                         DateTime estimatedStartTime = lastWriteTime.AddSeconds(-waveFileTotalLength);
 
                         int frameCounter = 0;
-                        int totalFrameCount = (int)(waveFileTotalLength / interval);
+                        int totalFrameCount = (int)((waveFileTotalLength - dataBlockLength) / interval) + 1;
                         string frameCounterFormatterString = new('0', totalFrameCount.ToString().Length);
 
                         sw.Start();
                         for (float position = 0.0f; position + dataBlockLength < waveFileTotalLength; position += interval)
                         {
                             frameCounter++;
+                            totalBytesProcessed += fi.Length / totalFrameCount;
 
                             DateTime currentTime = estimatedStartTime.AddSeconds(position);
 
-                            DiscreteSignal ds = WaveFileExtensions.ReadAsDiscreateSignal(waveFileStream, position, dataBlockLength);
-                            FftDataV3 fftData = fftDataBlockCacheTemp.CreateFftData(ds, currentTime, (int)(waveHeader.SampleRate * dataBlockLength));
-                            fftData = fftData.ApplyMLProfile(mlProfile);
-                            string pathToFile = Path.Combine(Path.GetDirectoryName(wavFilename), GenerateBinaryFftFilename(fftData, frameCounter, frameCounterFormatterString));
-                            FftDataV3.SaveAsBinary(fftData, pathToFile, false);
+                            try
+                            {
+                                DiscreteSignal ds = WaveFileExtensions.ReadAsDiscreateSignal(waveFileStream, position, dataBlockLength);
+                                FftDataV3 fftData = fftDataBlockCacheTemp.CreateFftData(ds, currentTime, (int)(waveHeader.SampleRate * dataBlockLength));
+                                fftData = fftData.ApplyMLProfile(mlProfile);
+                                string pathToFile = Path.Combine(Path.GetDirectoryName(wavFilename), GenerateBinaryFftFilename(fftData, frameCounter, frameCounterFormatterString));
+                                FftDataV3.SaveAsBinary(fftData, pathToFile, false);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"Error while generating FFT file for {wavFilename} at {currentTime}: {ex.Message}");
+                                totalBytesToProcess = -1;
+                            }
                         }
                         sw.Stop();
                         //_logger.LogInformation($"Generated all the FFT files for '{filename}'.");
@@ -2415,6 +2423,7 @@ namespace BBD.BodyMonitor.Services
                         throw new Exception($"There was an error while generating FFT files for {wavFilename}: {ex.Message}");
                     }
                 }
+                totalBytesProcessed = totalBytesToProcess;
                 _logger.LogInformation($"Generated 100% of the FFT files in {sw.ElapsedMilliseconds / 1000 / 60:0.0} minutes.");
             }
         }
