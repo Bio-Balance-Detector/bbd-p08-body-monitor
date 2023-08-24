@@ -1018,13 +1018,14 @@ namespace BBD.BodyMonitor.Services
                     }
                     catch (IndexOutOfRangeException)
                     {
-                        _logger.LogError($"The FFT size of {_config.Postprocessing.FFTSize:N0} is too high for the sample rate of {_config.Acquisition.Samplerate:N0}. Decrease the FFT size or increase the sampling rate.");
+                        _logger.LogError($"#{threadId} The FFT size of {_config.Postprocessing.FFTSize:N0} is too high for the sample rate of {_config.Acquisition.Samplerate:N0}. Decrease the FFT size or increase the sampling rate.");
                         _dataAcquisition.Stop();
                         return;
                     }
 
                     if (resampledFFTData == null)
                     {
+                        _logger.LogWarning($"#{threadId} No FFT data is available.");
                         return;
                     }
 
@@ -1181,63 +1182,81 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 0,
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20221103_2022-11-02_MLP14_0p25Hz-6250Hz_IsSubject_None_3710rows_#14_1,0000.zip",
-                    DisplayText = "Not attached (MLP14-R1)?"
+                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2048rows__#006_0,9983.zip",
+                    DisplayText = "Not attached?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 1,
-                    IndicatorName = "Session_SegmentedData_Sleep_Level",
+                    IndicatorName = "IsActivity_WorkingAtComputer",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20221106__TrainingData.Sleep__MLP14_0p25Hz-6250Hz__Session_SegmentedData_Sleep_Level__15372rows__#11_0,4839.zip",
-                    DisplayText = "Sleep stage (MLP14-R2):"
+                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_WorkingAtComputer__460rows__#000_1,0000.zip",
+                    DisplayText = "Working?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 2,
-                    IndicatorName = "Session_SegmentedData_Sleep_Level",
-                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP15")),
-                    MLModelFilename = "BBD_20221106__TrainingData.Sleep.MLP15__MLP15_1p00Hz-25000Hz__Session_SegmentedData_Sleep_Level__15372rows__#08_0,5312.zip",
-                    DisplayText = "Sleep stage (MLP15-R2):"
+                    IndicatorName = "IsActivity_Meditation",
+                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_Meditation__618rows__#000_1,0000.zip",
+                    DisplayText = "Meditating?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 3,
-                    IndicatorName = "Session_SegmentedData_Sleep_Level",
-                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP16")),
-                    MLModelFilename = "BBD_20221106__TrainingData.Sleep.MLP16__MLP16_5p00Hz-125000Hz__Session_SegmentedData_Sleep_Level__15372rows__#06_0,6588.zip",
-                    DisplayText = "Sleep stage (MLP16-R2):"
-                },
-                new IndicatorEvaluationTaskDescriptor()
-                {
-                    BlockIndex = blockIndex,
-                    IndicatorIndex = 5,
-                    IndicatorName = "Session_SegmentedData_BloodTest_Cholesterol",
+                    IndicatorName = "IsActivity_DoingPushups",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20221028__TrainingData.BloodTest__MLP14_0p25Hz-6250Hz__Session_SegmentedData_BloodTest_Cholesterol__560rows__#00_0,9943.zip",
-                    DisplayText = "Cholesterol (MLP14-R1):"
+                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_DoingPushups__158rows__#000_1,0000.zip",
+                    DisplayText = "Doing pushups?"
                 },
-                new IndicatorEvaluationTaskDescriptor()
-                {
-                    BlockIndex = blockIndex,
-                    IndicatorIndex = 6,
-                    IndicatorName = "Session_SegmentedData_HeartRate_BeatsPerMinute",
-                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP12")),
-                    MLModelFilename = "BBD_20221122__TrainingData.HeartRate.MLP12__MLP12_0p25Hz-250Hz__Session_SegmentedData_HeartRate_BeatsPerMinute__10613rows__#42_0,5182.zip",
-                    DisplayText = "Heart BPM (MLP12-R1):"
-                },
-                new IndicatorEvaluationTaskDescriptor()
-                {
-                    BlockIndex = blockIndex,
-                    IndicatorIndex = 7,
-                    IndicatorName = "Session_SegmentedData_HeartRate_BeatsPerMinute",
-                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20221122__TrainingData.HeartRate.MLP14__MLP14_0p25Hz-6250Hz__Session_SegmentedData_HeartRate_BeatsPerMinute__10613rows__#17_0,4278.zip",
-                    DisplayText = "Heart BPM (MLP14-R1):"
-                },
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 2,
+                //    IndicatorName = "Session_SegmentedData_Sleep_Level",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP15")),
+                //    MLModelFilename = "BBD_20221106__TrainingData.Sleep.MLP15__MLP15_1p00Hz-25000Hz__Session_SegmentedData_Sleep_Level__15372rows__#08_0,5312.zip",
+                //    DisplayText = "Sleep stage (MLP15-R2):"
+                //},
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 3,
+                //    IndicatorName = "Session_SegmentedData_Sleep_Level",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP16")),
+                //    MLModelFilename = "BBD_20221106__TrainingData.Sleep.MLP16__MLP16_5p00Hz-125000Hz__Session_SegmentedData_Sleep_Level__15372rows__#06_0,6588.zip",
+                //    DisplayText = "Sleep stage (MLP16-R2):"
+                //},
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 5,
+                //    IndicatorName = "Session_SegmentedData_BloodTest_Cholesterol",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                //    MLModelFilename = "BBD_20221028__TrainingData.BloodTest__MLP14_0p25Hz-6250Hz__Session_SegmentedData_BloodTest_Cholesterol__560rows__#00_0,9943.zip",
+                //    DisplayText = "Cholesterol (MLP14-R1):"
+                //},
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 6,
+                //    IndicatorName = "Session_SegmentedData_HeartRate_BeatsPerMinute",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP12")),
+                //    MLModelFilename = "BBD_20221122__TrainingData.HeartRate.MLP12__MLP12_0p25Hz-250Hz__Session_SegmentedData_HeartRate_BeatsPerMinute__10613rows__#42_0,5182.zip",
+                //    DisplayText = "Heart BPM (MLP12-R1):"
+                //},
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 7,
+                //    IndicatorName = "Session_SegmentedData_HeartRate_BeatsPerMinute",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                //    MLModelFilename = "BBD_20221122__TrainingData.HeartRate.MLP14__MLP14_0p25Hz-6250Hz__Session_SegmentedData_HeartRate_BeatsPerMinute__10613rows__#17_0,4278.zip",
+                //    DisplayText = "Heart BPM (MLP14-R1):"
+                //},
                 //new IndicatorEvaluationTaskDescriptor()
                 //{
                 //    BlockIndex = blockIndex,
