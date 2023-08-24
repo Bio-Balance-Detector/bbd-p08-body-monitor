@@ -33,6 +33,11 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/savedata/0x81D21088
 
 ###
 
+# Generate an FFT files in TrainingData folder from WAV files, using MLP14 profile, with 0.5 seconds resolution
+GET {{BBD.BodyMonitor.Web_HostAddress}}/Postprocessor/generatefft/TrainingData/MLP14/0.5
+
+###
+
 # Prepare the data for the machine learning model training in the TrainingData folder, using MLP09 profile, with 200 rows of data
 
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/200
@@ -59,24 +64,34 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData
 
 ###
 
-# Prepare the data for the machine learning model training in the TrainingData folder, using MLP01 profile, with 3500 rows of data
+# #Activity: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
 
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP01/Subject_/Activity_Meditation/Activity_Meditation/3500
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Activity_WorkingAtComputer/Activity_WorkingAtComputer/3500
+
+###
+
+# #Subject: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
+
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Subject_None/Subject_None/3500
 
 ###
 
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_TimeaNagy_1414rows.csv/MLP09/10
 
-
 ###
 
 # Balanced, randomized CSV data source trained for 1000 seconds
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_AndrasFuchs_1000rows.csv/MLP09/1800
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_AndrasFuchs_1000rows.csv/MLP09/1000
 
 ###
 
 # Balanced, randomized CSV data source trained for 1800 seconds
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_AndrasFuchs_1000rows.csv/MLP09/1800
+
+###
+
+# Balanced, randomized CSV data source trained for 1800 seconds
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_WorkingAtComputer__460rows.csv/MLP14/1800
 
 ###
 
