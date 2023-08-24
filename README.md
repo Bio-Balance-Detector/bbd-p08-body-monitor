@@ -1,5 +1,13 @@
+> 👋 I'm looking for healthcare providers who share our vision and are willing to explore uncharted territories!👋
+
 <p align="center">
   <img src="https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Business/Branding/Logos/BioBalanceDetectorLogo_810x275.png"/>
+</p>
+
+<p align="center">
+    <a href="https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/releases"><img src="https://img.shields.io/github/v/release/Bio-Balance-Detector/bbd-p08-body-monitor" alt="Release version" /></a>
+    <img src="https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20raspberry%20%7C%20android-lightgrey" alt="Platforms" />
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/Bio-Balance-Detector/bbd-p08-body-monitor" alt="License"/></a>
 </p>
 
 # BBD Body Monitor
@@ -87,3 +95,23 @@ While I emphasize issue submissions, if you're a developer willing to fix an iss
 * [General GitHub documentation](https://help.github.com/)
 * [GitHub issue submission tutorial](https://help.github.com/articles/creating-an-issue/)
 * [GitHub pull request documentation](https://help.github.com/send-pull-requests/)
+
+## 🚀 Collaborate with Us: Opportunity for Healthcare Providers 🚀
+
+The future of health diagnostics is evolving, and BBD Body Monitor is at the forefront of this transformation. But we need your help. We're looking for healthcare providers who share our vision and are willing to explore uncharted territories.
+
+**What's the Opportunity?**
+- **Install BBD Body Monitor at Your Facility:** Our single-channel data acquisition system offers bio-potential readings, applying machine learning for holistic health insights.
+- **Participate in Cutting-Edge Research:** By working with us, you can be part of the exciting journey towards early detection of health imbalances through non-invasive methods.
+- **Enhance Patient Experience:** With real-time feedback on various mental states and emotions, your patients will have more informed and personalized health experiences.
+
+**What We Need from You?**
+- **Location:** An agreed location within your facility to install BBD Body Monitor.
+- **Data Collaboration:** Regular access to anonymized health data from your patients, ensuring utmost confidentiality and compliance with all relevant legal and ethical standards.
+
+**What You Get in Return?**
+- **Access to Innovative Technology:** Gain firsthand access to emerging technology that may shape the future of medical diagnostics.
+- **Recognition as a Pioneer:** Your organization could be recognized as a leading participant in a groundbreaking project.
+- **Potential for New Non-Invasive Methods:** Contribute to potential advancements in non-invasive and cost-effective health monitoring.
+
+If you're a healthcare provider ready to embrace innovation and join a pioneering project, we want to hear from you. Please [reach out to us](mailto:info@biobalancedetector.com), and let's discuss how we can collaborate to drive healthcare forward.
