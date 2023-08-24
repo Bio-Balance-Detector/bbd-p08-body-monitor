@@ -68,6 +68,11 @@ namespace BBD.BodyMonitor.Models
                     ? throw new Exception("Only 8, 16, 24 and 32-bit WAV files are supported.")
                     : (byte)(BitsPerSample / 8);
 
+        /// <summary>
+        /// This constructor is required for dynamic object creation during deserialization.
+        /// </summary>
+        public WavePcmFormatHeader() { }
+
         public WavePcmFormatHeader(ushort numChannels = 2, uint sampleRate = 44100, ushort bitsPerSample = 16)
         {
             NumChannels = numChannels;
