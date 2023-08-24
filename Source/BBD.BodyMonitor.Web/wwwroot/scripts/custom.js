@@ -556,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const latitude  = position.coords.latitude;
                     const longitude = position.coords.longitude;
                     locationCoordinates.innerHTML = '<strong>Longitude:</strong> ' + longitude + '<br><strong>Latitude:</strong> '+ latitude;
-                    var mapL1 = 'https://www.google.com/maps/embed/v1/view?key=AIzaSyAM3nxDVrkjyKwdIZp8QOplmBKLRVI5S_Y&center=';
+                    var mapL1 = 'https://www.google.com/maps/embed/v1/view?key=&center=';
                     var mapL2 = latitude+',';
                     var mapL3 = longitude;
                     var mapL4 = '&zoom=16&maptype=satellite'
