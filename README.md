@@ -6,6 +6,7 @@
 
 <p align="center">
     <a href="https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/releases"><img src="https://img.shields.io/github/v/release/Bio-Balance-Detector/bbd-p08-body-monitor" alt="Release version" /></a>
+    <img src="https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20raspberry%20%7C%20android-lightgrey" alt="Platforms" />
     <a href="LICENSE"><img src="https://img.shields.io/github/license/Bio-Balance-Detector/bbd-p08-body-monitor" alt="License"/></a>
 </p>
 
