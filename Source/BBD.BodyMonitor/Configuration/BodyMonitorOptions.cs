@@ -120,7 +120,7 @@ namespace BBD.BodyMonitor.Configuration
         public void ParseSignalGeneratorParameters()
         {
             string[]? scheduleStrings = _configRoot.GetSection("SignalGenerator:Schedule").Get<string[]>();
-            ScheduleOptions[] schedules = scheduleStrings.Select(ScheduleOptions.Parse).ToArray();
+            ScheduleOptions[] schedules = scheduleStrings == null ? new ScheduleOptions[0] : scheduleStrings.Select(ScheduleOptions.Parse).ToArray();
 
             SignalGenerator = new SignalGeneratorOptions()
             {
