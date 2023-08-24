@@ -8,5 +8,6 @@ namespace BBD.BodyMonitor.Configuration
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public float Interval { get; set; } = 1.0f;
         public string[] ModelsToUse { get; set; } = new string[0];
+        public int AverageOf { get; internal set; }
     }
 }

@@ -93,6 +93,7 @@ namespace BBD.BodyMonitor.Configuration
             {
                 Enabled = bool.Parse(config["Indicators:Enabled"]),
                 Interval = ParseNumber(config["Indicators:Interval"]),
+                AverageOf = (int)ParseNumber(config["Indicators:AverageOf"]),
                 ModelsToUse = config.GetSection("Indicators:ModelsToUse").Get<string[]>()
             };
 

@@ -49,7 +49,9 @@ namespace BBD.BodyMonitor.Services
         private Pen[]? chartPens;
         private DateTime? _waveFileTimestamp;
         private string _currentWavFilename;
+        private int _indicatorEvaluationCounter;
         private readonly List<string> disabledIndicators = new();
+        private readonly Dictionary<string, List<IndicatorEvaluationResult>> recentIndicatorResults = new();
         private readonly Dictionary<string, Queue<string>> _waveFileWriteQueue = new();
 
         [Obsolete]
@@ -1173,6 +1175,7 @@ namespace BBD.BodyMonitor.Services
         public IndicatorEvaluationResult[] EvaluateIndicators(ILogger? logger, long blockIndex, FftDataV3 inputData)
         {
             List<IndicatorEvaluationResult> result = new();
+            List<IndicatorEvaluationResult> mostRecentResults = new();
 
             IndicatorEvaluationTaskDescriptor[] taskDescriptors = new IndicatorEvaluationTaskDescriptor[]
             {
@@ -1330,14 +1333,19 @@ namespace BBD.BodyMonitor.Services
             List<Task> tasks = new();
             foreach (IndicatorEvaluationTaskDescriptor td in taskDescriptors)
             {
+                if (!_config.Indicators.ModelsToUse.Contains(td.IndicatorName))
+                {
+                    continue;
+                }
+
                 Task task = Task.Run(() =>
                 {
                     IndicatorEvaluationResult evalResult = EvaluateIndicator(blockIndex, td.IndicatorIndex, td.IndicatorName, td.DisplayText, td.MLModelFilename, inputData.ApplyMLProfile(td.MLProfile));
                     if (evalResult != null)
                     {
-                        lock (result)
+                        lock (mostRecentResults)
                         {
-                            result.Add(evalResult);
+                            mostRecentResults.Add(evalResult);
                         }
                     }
                 });
@@ -1347,6 +1355,46 @@ namespace BBD.BodyMonitor.Services
 
             sw.Stop();
             logger?.LogTrace($"#{blockIndex:0000} Predictions were completed in {sw.ElapsedMilliseconds:N0} ms.");
+
+            _indicatorEvaluationCounter++;
+            foreach (IndicatorEvaluationResult? ir in mostRecentResults.OrderBy(r => r.IndicatorIndex))
+            {
+                string indicatorKey = $"{ir.IndicatorIndex:0000}_{ir.IndicatorName}";
+
+                if (!recentIndicatorResults.ContainsKey(indicatorKey))
+                {
+                    recentIndicatorResults.Add(indicatorKey, new List<IndicatorEvaluationResult>());
+                }
+
+                if (_config.Indicators.AverageOf > recentIndicatorResults[indicatorKey].Count)
+                {
+                    recentIndicatorResults[indicatorKey].Add(ir);
+                }
+                else
+                {
+                    recentIndicatorResults[indicatorKey][_indicatorEvaluationCounter % _config.Indicators.AverageOf] = ir;
+                }
+            }
+
+            foreach (List<IndicatorEvaluationResult> recentIndicatorResult in recentIndicatorResults.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value))
+            {
+                IndicatorEvaluationResult? firstResult = recentIndicatorResult.FirstOrDefault();
+
+                if (firstResult == null)
+                {
+                    continue;
+                }
+
+                result.Add(new IndicatorEvaluationResult()
+                {
+                    BlockIndex = firstResult.BlockIndex,
+                    IndicatorIndex = firstResult.IndicatorIndex,
+                    IndicatorName = firstResult.IndicatorName,
+                    DisplayText = firstResult.DisplayText,
+                    PredictionScore = recentIndicatorResult.Average(r => r.PredictionScore),
+                    Value = recentIndicatorResult.Average(r => r.Value)
+                });
+            }
 
             return result.OrderBy(r => r.IndicatorIndex).ToArray();
         }
