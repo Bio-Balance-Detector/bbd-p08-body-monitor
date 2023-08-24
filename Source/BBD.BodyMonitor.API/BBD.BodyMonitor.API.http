@@ -20,7 +20,6 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getconfig
 GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getsysteminformation
 
 ###
-
 GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata
 
 ###
@@ -31,12 +30,20 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata/1671105/100000
 
 GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/savedata/0x81D21088
 
-
 ###
 
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/200
+
+### 
+
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/1000
+
+###
+
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/3500
+
+###
+
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP10/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/3500
 
 ###

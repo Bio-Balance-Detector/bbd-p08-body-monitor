@@ -1,5 +1,6 @@
 ﻿namespace Fitbit.Api.Portable
 {
+    using Fitbit.Portable;
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;

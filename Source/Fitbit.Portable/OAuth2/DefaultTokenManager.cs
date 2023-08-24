@@ -1,5 +1,6 @@
 ﻿namespace Fitbit.Api.Portable.OAuth2
 {
+    using Fitbit.Portable;
     using System.Collections.Generic;
     using System.Net.Http;
     using System.Threading.Tasks;

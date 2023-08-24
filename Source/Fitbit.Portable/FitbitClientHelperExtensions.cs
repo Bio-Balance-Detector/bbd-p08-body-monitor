@@ -1,4 +1,5 @@
 ﻿using Fitbit.Models;
+using Fitbit.Portable;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;

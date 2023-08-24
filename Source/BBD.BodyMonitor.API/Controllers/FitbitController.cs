@@ -6,6 +6,7 @@ using Fitbit.Api.Portable;
 using Fitbit.Api.Portable.Models;
 using Fitbit.Api.Portable.OAuth2;
 using Fitbit.Models;
+using Fitbit.Portable;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.Json;

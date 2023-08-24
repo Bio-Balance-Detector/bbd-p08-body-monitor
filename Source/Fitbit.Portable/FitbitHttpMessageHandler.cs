@@ -1,5 +1,6 @@
 ﻿namespace Fitbit.Api.Portable
 {
+    using Fitbit.Portable;
     using System;
     using System.Diagnostics;
     using System.Net.Http;
