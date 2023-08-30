@@ -20,21 +20,27 @@ If this stage succeeds, fitness and medical data will be integrated into the mac
 
 We're designing it to be a convenient wearable device, with sensors located on the forearm or calf, providing real-time feedback on your condition. 
 
-## Goals
-- Detect various mental states such as:
-  - Focused wakefulness
-  - Relaxation
-  - Meditation
-  - REM sleep
-  - Deep sleep
-  - Lucid dreaming
-- Detect various emotions such as:
-  - Contentment
-  - Joyfulness
-  - Flow state
-  - Anger
-  - Frustration
-- Correlate fitness and medical data with physical and mental medical conditions for early detection of health imbalances
+## Impact
+
+Given my background as a C# software developer for 20 years and researcher with interests in health preservation, AI, and bio-electromagnetism, I'm uniquely positioned to lead this project. As the visionary behind the Bio Balance Detector series, my latest innovation is the BBD Body Monitor - a portable, Raspberry Pi-powered device that's revolutionizing healthcare monitoring. I'm leveraging the power of Raspberry Pi and AI to create a portable, battery-powered device that not only acquires crucial health data but also predicts mental states and detects physical activities. Integrated with Fitbit and capable of incorporating medical history and blood tests, this device offers a comprehensive view of an individual's health. With built-in scheduling and untapped potential for treatment applications, I aim to revolutionize healthcare by providing practitioners with a multi-faceted tool for proactive patient care.
+
+And given its current state and future potential, here's how it could impact the healthcare sector:
+
+1. **Holistic Health Monitoring:** Combines multiple data points like mental state, physical activity, sleep patterns, and medical history for a comprehensive health overview.
+  
+2. **Predictive Analytics:** Uses AI to predict mental states, which could be a game-changer in mental health treatment and monitoring.
+  
+3. **Activity Recognition:** Can detect activities like exercise, providing valuable data for fitness and rehabilitation programs.
+  
+4. **Portability & Convenience:** Runs on a small Raspberry Pi, battery-powered for 8 hours, making it versatile and easy to use in various settings.
+  
+5. **Sleep Monitoring:** Integrated with Fitbit, it offers robust sleep tracking, which is crucial for overall well-being, detecting unusual states like sleep paralysis and lucid dreaming.
+  
+6. **Data-Driven Healthcare:** Allows for the uploading of medical history and blood tests, enabling healthcare providers to make informed decisions.
+  
+7. **Scheduling:** Helps both patients and healthcare providers keep track of health metrics and treatments over time.
+  
+8. **Untapped Treatment Potential:** The signal generator module could pave the way for treating specific conditions in the future.
 
 ## Demo
 
