@@ -1,4 +1,4 @@
-> 👋 I'm looking for healthcare practitioners who share my vision and is willing to explore uncharted territories!👋
+> 👋 I'm looking for healthcare practitioners who share my vision and are willing to explore uncharted territories!👋
 
 <p align="center">
   <img src="https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Business/Branding/Logos/BioBalanceDetectorLogo_810x275.png"/>
