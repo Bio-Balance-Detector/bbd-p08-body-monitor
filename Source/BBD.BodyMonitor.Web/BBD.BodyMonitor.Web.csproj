@@ -13,4 +13,10 @@
 		<ProjectReference Include="..\BBD.BodyMonitor\BBD.BodyMonitor.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Content Update="Pages\Acquisition.razor">
+	    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+	  </Content>
+	</ItemGroup>
+
 </Project>

@@ -1,5 +1,6 @@
 using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
+using BBD.BodyMonitor.Indicators;
 using System.Text.Json;
 
 namespace BBD.BodyMonitor.Web.Data
@@ -9,7 +10,11 @@ namespace BBD.BodyMonitor.Web.Data
         private static ServerOptions _server = new();
         private static readonly HttpClient _client = new();
 
+        private readonly Mutex _streamMutex = new();
+
         public static SystemInformation? SystemInformation = null;
+
+        public static IndicatorEvaluationResult[]? IndicatorResults = null;
 
         public BioBalanceDetectorService(IConfiguration configuration)
         {
@@ -117,6 +122,67 @@ namespace BBD.BodyMonitor.Web.Data
             //{
             //    response.Content.ReadAsStream(cancellationToken) Async().Result.FlushAsync();
             //}, null, 0, 250);
+        }
+
+        // call the StreamIndicators API endpoint
+        public async void StreamIndicatorsAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    HttpResponseMessage response = await _client.GetAsync("dataacquisition/streamindicators", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    _ = response.EnsureSuccessStatusCode();
+
+                    await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    StreamReader reader = new(stream);
+
+                    lock (_streamMutex)
+                    {
+                        try
+                        {
+                            bool? isEndOfStream = null;
+
+                            while (!isEndOfStream.HasValue || !isEndOfStream.Value)
+                            {
+                                isEndOfStream = null;
+
+                                try
+                                {
+                                    isEndOfStream = reader.EndOfStream;
+                                }
+                                catch (System.IO.IOException)
+                                {
+                                    Thread.Sleep(100);
+                                    continue;
+                                }
+
+                                string? json = reader.ReadLine();
+                                IndicatorEvaluationResult[]? indicatorResults = JsonSerializer.Deserialize<IndicatorEvaluationResult[]?>(json);
+
+                                // Update a local variable with the new data as needed
+                                IndicatorResults = indicatorResults;
+                            }
+                        }
+                        catch (System.IO.IOException)
+                        {
+                            reader.Close();
+                            reader.Dispose();
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    Thread.Sleep(1000);
+                }
+
+                Thread.Sleep(500);
+            }
+        }
+
+        public IndicatorEvaluationResult? GetIndicator(string indicatorName)
+        {
+            return IndicatorResults?.FirstOrDefault(x => x.IndicatorName == indicatorName);
         }
     }
 }

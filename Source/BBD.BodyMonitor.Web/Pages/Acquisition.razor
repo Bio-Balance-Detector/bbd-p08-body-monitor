@@ -1,0 +1,141 @@
+﻿@page "/acquisition"
+@using BBD.BodyMonitor.Configuration;
+@using BBD.BodyMonitor.Environment;
+@using BBD.BodyMonitor.Indicators;
+@using BBD.BodyMonitor.Sessions;
+@using BBD.BodyMonitor.Web.Data
+@inject IConfiguration Configuration
+@inject BioBalanceDetectorService BBDService
+
+<PageTitle>Acquisition</PageTitle>
+
+@*show the current status of the BBD service*@
+@if (BioBalanceDetectorService.SystemInformation == null)
+{
+    <p><em>Connecting to a Bio Balance Detector service...</em></p>
+}
+else
+{
+    <p>
+        <div class="list-group list-custom-small list-icon-0">
+            <a data-bs-toggle="collapse" href="#collapse-server" class="collapsed" aria-expanded="false">
+                <i class="fa font-14 fa-server color-bbd-gradient-3"></i>
+                <span class="font-14">Server: @GetSelectedServerName()</span>
+                <i class="fa fa-angle-down"></i>
+            </a>
+        </div>
+        <div class="collapse" id="collapse-server" style="">
+            <div class="list-group list-custom-small ms-4 ps-2">
+                @foreach (ServerOptions server in Configuration.GetSection("Servers").Get<ServerOptions[]>())
+                {
+                    <a id="@server.Address" href="#">
+                        <span class="flex-fill font-400 opacity-70">@server.Name (@server.Address)</span>
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="divider divider-margins"></div>
+
+        <div class="content">
+            @{
+                String[] indicatorAttached = GetIndicatorTexts("IsSubject_None");
+                <h4>@indicatorAttached[0]<span class="badge float-end color-red-dark"></span></h4>
+                <h5><span class="badge float-start color-red-dark"></span><span class="badge float-end color-red-dark"></span></h5>
+                <div class="progress" style="height:24px;">
+                    <div class="progress-bar border-0 bg-red-dark text-start ps-2" role="progressbar" style="width: @indicatorAttached[1]%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                        <span class="position-absolute color-white">@indicatorAttached[2]</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="divider divider-margins"></div>
+
+        <div class="content">
+            @{
+                String[] indicatorWorking = GetIndicatorTexts("IsActivity_WorkingAtComputer");
+                <h4>@indicatorWorking[0]<span class="badge float-end color-green-dark"></span></h4>
+                <h5><span class="badge float-start color-green-dark"></span><span class="badge float-end color-green-dark"></span></h5>
+                <div class="progress" style="height:24px;">
+                    <div class="progress-bar border-0 bg-green-dark text-start ps-2" role="progressbar" style="width: @indicatorWorking[1]%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                        <span class="position-absolute color-white">@indicatorWorking[2]</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="divider divider-margins"></div>
+
+        <div class="content">
+            @{
+                String[] indicatorMeditating = GetIndicatorTexts("IsActivity_Meditation");
+                <h4>@indicatorMeditating[0]<span class="badge float-end color-yellow-dark"></span></h4>
+                <h5><span class="badge float-start color-yellow-dark"></span><span class="badge float-end color-yellow-dark"></span></h5>
+                <div class="progress" style="height:24px;">
+                    <div class="progress-bar border-0 bg-yellow-dark text-start ps-2" role="progressbar" style="width: @indicatorMeditating[1]%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                        <span class="position-absolute color-white">@indicatorMeditating[2]</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="divider divider-margins"></div>
+
+        <div class="content">
+            @{
+                String[] indicatorDoingPushups = GetIndicatorTexts("IsActivity_DoingPushups");
+                <h4>@indicatorDoingPushups[0]<span class="badge float-end color-blue-dark"></span></h4>
+                <h5><span class="badge float-start color-blue-dark"></span><span class="badge float-end color-blue-dark"></span></h5>
+                <div class="progress" style="height:24px;">
+                    <div class="progress-bar border-0 bg-blue-dark text-start ps-2" role="progressbar" style="width: @indicatorDoingPushups[1]%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                        <span class="position-absolute color-white">@indicatorDoingPushups[2]</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="divider divider-margins"></div>
+    </p>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Timer timer = new Timer((state) =>
+        {
+            // Get the system information from the BBD service
+            //BBDService.StreamSystemInformationAsync(new CancellationToken());
+            //systemInformation = BBDService.GetSystemInformationAsync().Result;
+
+            // Invoke the StateHasChanged method to update the Blazor page
+            InvokeAsync(StateHasChanged);
+        }, null, 0, 150);
+
+        BBDService.StreamIndicatorsAsync(new CancellationToken());       
+    }
+
+    protected String GetSelectedServerName()
+    {
+        return BBDService.GetServerName() ?? "N/A";
+    }
+
+    protected String[] GetIndicatorTexts(string indicatorName)
+    {
+        IndicatorEvaluationResult? indicator = BBDService.GetIndicator(indicatorName);
+
+        if (indicator == null)
+        {
+            return new string[] { $"Indicator '{indicatorName}' was not found", "0", "N/A" };
+        }
+
+        float predictionScore = Math.Min(100, Math.Max(0, indicator.PredictionScore * 100));
+        if (indicator.Negate)
+        {
+            predictionScore = 100.0f - predictionScore;
+        }
+
+        return new string[] { indicator.Description, predictionScore.ToString("0"), predictionScore.ToString("0.00") + "%" };
+    }
+}
