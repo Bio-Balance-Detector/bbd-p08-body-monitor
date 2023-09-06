@@ -1,6 +1,8 @@
 using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
 using BBD.BodyMonitor.Indicators;
+using System.Diagnostics;
+using System.Net.WebSockets;
 using System.Text.Json;
 
 namespace BBD.BodyMonitor.Web.Data
@@ -15,6 +17,10 @@ namespace BBD.BodyMonitor.Web.Data
         public static SystemInformation? SystemInformation = null;
 
         public static IndicatorEvaluationResult[]? IndicatorResults = null;
+
+        public event EventHandler<SystemInformation>? SystemInformationUpdated;
+
+        public event EventHandler<IndicatorEvaluationResult[]?>? IndicatorsUpdated;
 
         public BioBalanceDetectorService(IConfiguration configuration)
         {
@@ -131,48 +137,44 @@ namespace BBD.BodyMonitor.Web.Data
             {
                 try
                 {
-                    HttpResponseMessage response = await _client.GetAsync("dataacquisition/streamindicators", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                    _ = response.EnsureSuccessStatusCode();
+                    Debug.Print("StreamIndicatorsAsync: connecting to the websockets endpoint");
 
-                    await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                    StreamReader reader = new(stream);
+                    ClientWebSocket clientWebSocket = new();
+                    await clientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/dataacquisition/streamindicators"), cancellationToken);
 
-                    lock (_streamMutex)
+                    try
                     {
-                        try
+                        while (true)
                         {
-                            bool? isEndOfStream = null;
+                            ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
+                            WebSocketReceiveResult result = await clientWebSocket.ReceiveAsync(buffer, cancellationToken);
 
-                            while (!isEndOfStream.HasValue || !isEndOfStream.Value)
+                            if (result.MessageType == WebSocketMessageType.Close)
                             {
-                                isEndOfStream = null;
-
-                                try
-                                {
-                                    isEndOfStream = reader.EndOfStream;
-                                }
-                                catch (System.IO.IOException)
-                                {
-                                    Thread.Sleep(100);
-                                    continue;
-                                }
-
-                                string? json = reader.ReadLine();
-                                IndicatorEvaluationResult[]? indicatorResults = JsonSerializer.Deserialize<IndicatorEvaluationResult[]?>(json);
-
-                                // Update a local variable with the new data as needed
-                                IndicatorResults = indicatorResults;
+                                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
+                                break;
                             }
-                        }
-                        catch (System.IO.IOException)
-                        {
-                            reader.Close();
-                            reader.Dispose();
+
+                            byte[] data = buffer.Slice(0, result.Count).ToArray();
+                            string json = System.Text.Encoding.UTF8.GetString(data);
+
+                            IndicatorEvaluationResult[]? indicatorResults = JsonSerializer.Deserialize<IndicatorEvaluationResult[]?>(json);
+
+                            // Update a local variable with the new data as needed
+                            IndicatorResults = indicatorResults;
+
+                            // Call the event handler
+                            IndicatorsUpdated?.Invoke(this, indicatorResults);
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        Debug.Print($"StreamIndicatorsAsync: exception {ex.Message}");
+                    }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Debug.Print($"StreamIndicatorsAsync: exception {ex.Message}, waiting 1000 ms before reconnect attempt");
                     Thread.Sleep(1000);
                 }
 

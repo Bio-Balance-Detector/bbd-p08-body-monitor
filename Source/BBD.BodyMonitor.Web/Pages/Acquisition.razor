@@ -103,17 +103,15 @@ else
 @code {
     protected override async Task OnInitializedAsync()
     {
-        Timer timer = new Timer((state) =>
-        {
-            // Get the system information from the BBD service
-            //BBDService.StreamSystemInformationAsync(new CancellationToken());
-            //systemInformation = BBDService.GetSystemInformationAsync().Result;
+        BBDService.StreamIndicatorsAsync(new CancellationToken());
 
-            // Invoke the StateHasChanged method to update the Blazor page
-            InvokeAsync(StateHasChanged);
-        }, null, 0, 150);
+        BBDService.IndicatorsUpdated += BBDService_IndicatorsUpdated;
+    }
 
-        BBDService.StreamIndicatorsAsync(new CancellationToken());       
+    protected void BBDService_IndicatorsUpdated(object? sender, IndicatorEvaluationResult[]? e)
+    {
+        // Invoke the StateHasChanged method to update the Blazor page
+        InvokeAsync(StateHasChanged);
     }
 
     protected String GetSelectedServerName()
