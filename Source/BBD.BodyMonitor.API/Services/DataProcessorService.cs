@@ -1,6 +1,7 @@
 ﻿using BBD.BodyMonitor.Buffering;
 using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
+using BBD.BodyMonitor.Indicators;
 using BBD.BodyMonitor.MLProfiles;
 using BBD.BodyMonitor.Models;
 using BBD.BodyMonitor.Sessions;
@@ -10,6 +11,7 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using NWaves.Audio;
 using NWaves.Signals;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Text;
@@ -53,6 +55,7 @@ namespace BBD.BodyMonitor.Services
         private readonly List<string> disabledIndicators = new();
         private readonly Dictionary<string, List<IndicatorEvaluationResult>> recentIndicatorResults = new();
         private readonly Dictionary<string, Queue<string>> _waveFileWriteQueue = new();
+        private readonly ConcurrentDictionary<DateTime, IndicatorEvaluationResult[]> _indicatorResultsDictionary = new();
 
         [Obsolete]
         public DataProcessorService(ILogger<DataProcessorService> logger, IConfiguration configRoot, IOptionsMonitor<BodyMonitorOptions> bodyMonitorOptions, ISessionManagerService sessionManager)
@@ -1033,11 +1036,12 @@ namespace BBD.BodyMonitor.Services
 
                     if (_config.Indicators.Enabled)
                     {
-                        IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(_logger, dataBlock.EndIndex, resampledFFTData);
+                        IndicatorEvaluationResult[] indicatorResults = EvaluateIndicators(_logger, dataBlock.EndIndex, resampledFFTData);
+                        _ = _indicatorResultsDictionary.TryAdd(DateTime.UtcNow, indicatorResults);
 
-                        if (evaluationResults.Length > 0)
+                        if (indicatorResults.Length > 0)
                         {
-                            _logger.LogInformation($"#{threadId} {resampledFFTData.Start:HH:mm:ss}-{resampledFFTData.Start?.AddSeconds(_config.Postprocessing.Interval):HH:mm:ss} {string.Join(" | ", evaluationResults.Select(er => er.DisplayText + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00").PadLeft(7)))}.");
+                            _logger.LogInformation($"#{threadId} {resampledFFTData.Start:HH:mm:ss}-{resampledFFTData.Start?.AddSeconds(_config.Postprocessing.Interval):HH:mm:ss} {string.Join(" | ", indicatorResults.Select(er => er.Text + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00").PadLeft(7)))}.");
                         }
                     }
 
@@ -1186,7 +1190,9 @@ namespace BBD.BodyMonitor.Services
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
                     MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2048rows__#006_0,9983.zip",
-                    DisplayText = "Not attached?"
+                    Negate = true,
+                    Text = "Attached?",
+                    Description = "Is the device attached to a subject?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
@@ -1195,7 +1201,9 @@ namespace BBD.BodyMonitor.Services
                     IndicatorName = "IsActivity_WorkingAtComputer",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
                     MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_WorkingAtComputer__460rows__#000_1,0000.zip",
-                    DisplayText = "Working?"
+                    Negate = false,
+                    Text = "Working?",
+                    Description = "Is the subject working at a computer?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
@@ -1204,7 +1212,9 @@ namespace BBD.BodyMonitor.Services
                     IndicatorName = "IsActivity_Meditation",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
                     MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_Meditation__618rows__#000_1,0000.zip",
-                    DisplayText = "Meditating?"
+                    Negate = false,
+                    Text = "Meditating?",
+                    Description = "Is the subject meditating?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
@@ -1213,7 +1223,9 @@ namespace BBD.BodyMonitor.Services
                     IndicatorName = "IsActivity_DoingPushups",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
                     MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_DoingPushups__158rows__#000_1,0000.zip",
-                    DisplayText = "Doing pushups?"
+                    Negate = false,
+                    Text = "Doing pushups?",
+                    Description = "Is the subject doing pushups?"
                 },
                 //new IndicatorEvaluationTaskDescriptor()
                 //{
@@ -1340,7 +1352,7 @@ namespace BBD.BodyMonitor.Services
 
                 Task task = Task.Run(() =>
                 {
-                    IndicatorEvaluationResult evalResult = EvaluateIndicator(blockIndex, td.IndicatorIndex, td.IndicatorName, td.DisplayText, td.MLModelFilename, inputData.ApplyMLProfile(td.MLProfile));
+                    IndicatorEvaluationResult evalResult = EvaluateIndicator(blockIndex, td.IndicatorIndex, td.IndicatorName, td.Negate, td.Text, td.Description, td.MLModelFilename, inputData.ApplyMLProfile(td.MLProfile));
                     if (evalResult != null)
                     {
                         lock (mostRecentResults)
@@ -1378,7 +1390,7 @@ namespace BBD.BodyMonitor.Services
 
             foreach (List<IndicatorEvaluationResult> recentIndicatorResult in recentIndicatorResults.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value))
             {
-                IndicatorEvaluationResult? firstResult = recentIndicatorResult.FirstOrDefault();
+                IndicatorEvaluationResult? firstResult = recentIndicatorResult?.FirstOrDefault();
 
                 if (firstResult == null)
                 {
@@ -1390,7 +1402,9 @@ namespace BBD.BodyMonitor.Services
                     BlockIndex = firstResult.BlockIndex,
                     IndicatorIndex = firstResult.IndicatorIndex,
                     IndicatorName = firstResult.IndicatorName,
-                    DisplayText = firstResult.DisplayText,
+                    Negate = firstResult.Negate,
+                    Text = firstResult.Text,
+                    Description = firstResult.Description,
                     PredictionScore = recentIndicatorResult.Average(r => r.PredictionScore),
                     Value = recentIndicatorResult.Average(r => r.Value)
                 });
@@ -1399,7 +1413,7 @@ namespace BBD.BodyMonitor.Services
             return result.OrderBy(r => r.IndicatorIndex).ToArray();
         }
 
-        public IndicatorEvaluationResult? EvaluateIndicator(long blockIndex, int indicatorIndex, string indicatorName, string displayText, string mlModelFilename, FftDataV3 inputData)
+        public IndicatorEvaluationResult? EvaluateIndicator(long blockIndex, int indicatorIndex, string indicatorName, bool negate, string text, string description, string mlModelFilename, FftDataV3 inputData)
         {
             if (!System.IO.File.Exists(mlModelFilename))
             {
@@ -1459,7 +1473,9 @@ namespace BBD.BodyMonitor.Services
                 BlockIndex = blockIndex,
                 IndicatorIndex = indicatorIndex,
                 IndicatorName = indicatorName,
-                DisplayText = displayText,
+                Negate = negate,
+                Text = text,
+                Description = description,
                 Value = (float)metric.MeanAbsoluteError,
                 PredictionScore = (float)metric.MeanAbsoluteError
             };
@@ -1513,7 +1529,7 @@ namespace BBD.BodyMonitor.Services
                     }
 
                     IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(null, 0, fftData);
-                    string evaluationResultsString = string.Join(System.Environment.NewLine, evaluationResults.Select(er => er.DisplayText + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00")));
+                    string evaluationResultsString = string.Join(System.Environment.NewLine, evaluationResults.Select(er => er.Text + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00")));
 
                     fftData.ApplyMedianFilter();
                     fftData.ApplyCompressorFilter(0.25);
@@ -2667,6 +2683,15 @@ namespace BBD.BodyMonitor.Services
             ConnectedDevice? device = ListDevices().FirstOrDefault(d => d.SerialNumber.ToLowerInvariant() == deviceSerialNumber?.ToLowerInvariant());
 
             return device != null ? device.Index : -1;
+        }
+
+        public IndicatorEvaluationResult[]? GetLatestIndicatorResults()
+        {
+            DateTime lastKey = _indicatorResultsDictionary.OrderBy(ir => ir.Key).LastOrDefault().Key;
+
+            _ = _indicatorResultsDictionary.TryGetValue(lastKey, out IndicatorEvaluationResult[]? result);
+
+            return result;
         }
     }
 }

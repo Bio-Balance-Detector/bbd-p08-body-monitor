@@ -1,3 +1,4 @@
+using BBD.BodyMonitor.Indicators;
 using BBD.BodyMonitor.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -72,5 +73,32 @@ namespace BBD.BodyMonitor.Controllers
             session = _sessionManager.FinishSession(session);
             _sessionManager.SaveSession(session);
         }
+
+
+        // Add a streaming endpoint for evaluated indicators
+        [HttpGet]
+        [Route("streamindicators")]
+        public async Task StreamIndicators()
+        {
+            HttpResponse response = Response;
+            response.Headers.Add("Content-Type", "text/event-stream");
+            response.Headers.Add("Cache-Control", "no-cache");
+            response.Headers.Add("Connection", "keep-alive");
+
+            StreamWriter writer = new(response.Body, System.Text.Encoding.UTF8);
+
+            while (!response.HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                IndicatorEvaluationResult[]? indicatorResults = _dataProcessor.GetLatestIndicatorResults();
+                if (indicatorResults != null)
+                {
+                    await writer.WriteAsync(System.Text.Json.JsonSerializer.Serialize(indicatorResults));
+                    await writer.WriteAsync("\n");
+                    await writer.FlushAsync();
+                }
+                await Task.Delay(50);
+            }
+        }
+
     }
 }

@@ -1,5 +1,6 @@
 ﻿using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Environment;
+using BBD.BodyMonitor.Indicators;
 using BBD.BodyMonitor.Sessions;
 
 namespace BBD.BodyMonitor.Services
@@ -16,5 +17,6 @@ namespace BBD.BodyMonitor.Services
         void FrequencyResponseAnalysis(string deviceSerialNumber);
         void GenerateFFT(string foldername, MLProfile mlProfile, float interval);
         void GenerateEDF(string dataFoldername, DateTime fromDateTime, DateTime toDateTime);
+        IndicatorEvaluationResult[]? GetLatestIndicatorResults();
     }
 }
