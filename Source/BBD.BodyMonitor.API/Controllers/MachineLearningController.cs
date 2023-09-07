@@ -1,16 +1,14 @@
 using BBD.BodyMonitor.Configuration;
+using BBD.BodyMonitor.Models;
 using BBD.BodyMonitor.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.AutoML.CodeGen;
-using Microsoft.ML.SearchSpace.Option;
 using Microsoft.ML.SearchSpace;
-using System.Reflection.Emit;
-using BBD.BodyMonitor.Models;
-using Microsoft.ML.Runtime;
+using Microsoft.ML.SearchSpace.Option;
 
-namespace BBD.BodyMonitor.API.Controllers
+namespace BBD.BodyMonitor.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -43,7 +41,7 @@ namespace BBD.BodyMonitor.API.Controllers
             {
                 BodyMonitorOptions config = _dataProcessor.GetConfig();
 
-                var mlProfile = config.MachineLearning.Profiles.FirstOrDefault(p => p.Name.StartsWith(mlProfileName));
+                MLProfile? mlProfile = config.MachineLearning.Profiles.FirstOrDefault(p => p.Name.StartsWith(mlProfileName));
 
                 if (mlProfile == null)
                 {
@@ -81,7 +79,7 @@ namespace BBD.BodyMonitor.API.Controllers
             {
                 _logger.LogInformation("Starting model training for {length} seconds, using '{filename}' as data source with the '{profile}' profile.", trainingTimeInSeconds, Path.GetFileName(preparedTrainingDataFilename), mlProfileName);
 
-                var mlContext = new MLContext();
+                MLContext mlContext = new();
 
                 IDataView? data = null;
 
@@ -109,58 +107,55 @@ namespace BBD.BodyMonitor.API.Controllers
                 {
                     data = mlContext.Data.LoadFromTextFile<MLProfiles.MLP14>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',');
                 }
-                else if (mlProfileName.StartsWith("MLP15"))
-                {
-                    data = mlContext.Data.LoadFromTextFile<MLProfiles.MLP15>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',');
-                }
-                else if (mlProfileName.StartsWith("MLP16"))
-                {
-                    data = mlContext.Data.LoadFromTextFile<MLProfiles.MLP16>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',');
-                }
                 else
                 {
-                    throw new Exception($"ML Profile '{mlProfileName}' is not supported yet.");
+                    data = mlProfileName.StartsWith("MLP15")
+                        ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP15>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
+                        : mlProfileName.StartsWith("MLP16")
+                                            ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP16>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
+                                            : throw new Exception($"ML Profile '{mlProfileName}' is not supported yet.");
                 }
 
-                var trainTestData = mlContext.Data.TrainTestSplit(data, testFraction: 0.1);
+                DataOperationsCatalog.TrainTestData trainTestData = mlContext.Data.TrainTestSplit(data, testFraction: 0.1);
 
 
                 // We have to limit the search space for LightGBM to prevent out of memory expecion. See: https://github.com/dotnet/machinelearning/issues/6465#issuecomment-1335148576
-                var lgbmDefaultOption = new LgbmOption
+                LgbmOption lgbmDefaultOption = new()
                 {
                     LabelColumnName = "Label",
                     FeatureColumnName = "Features",
                 };
-                var lgbmSearchSpace = new SearchSpace<LgbmOption>(lgbmDefaultOption);
+                SearchSpace<LgbmOption> lgbmSearchSpace = new(lgbmDefaultOption)
+                {
+                    // use a smaller NumberOfLeaves and NumberOfTrees to avoid OOM
+                    ["NumberOfLeaves"] = new UniformIntOption(4, 1024 * 4, true, 4),
+                    ["NumberOfTrees"] = new UniformIntOption(4, 1024 * 4, true, 4)
+                };
 
-                // use a smaller NumberOfLeaves and NumberOfTrees to avoid OOM
-                lgbmSearchSpace["NumberOfLeaves"] = new UniformIntOption(4, 1024 * 4, true, 4);
-                lgbmSearchSpace["NumberOfTrees"] = new UniformIntOption(4, 1024 * 4, true, 4);
-
-                var pipeline =
+                SweepablePipeline pipeline =
                     mlContext.Auto().Featurizer(trainTestData.TrainSet, numericColumns: new[] { "Features" })
-                        //.Append(mlContext.Auto().Regression(useFastTree: true, useLbfgs: false, useSdca: false, useFastForest: true, useLgbm: false));
-                        .Append(mlContext.Auto().Regression(useFastTree: true, useLbfgs: true, useSdca: true, useFastForest: true, useLgbm: false));
-                        //.Append(mlContext.Auto().Regression(useFastTree: false, useLbfgs: false, useSdca: false, useFastForest: false, useLgbm: true, lgbmSearchSpace: lgbmSearchSpace));
+                        .Append(mlContext.Auto().Regression(useFastTree: true, useFastForest: true, useLbfgs: false, useSdca: false, useLgbm: false));
+                //.Append(mlContext.Auto().Regression(useFastTree: true, useFastForest: true, useLbfgs: true, useSdca: true, useLgbm: false));
+                //.Append(mlContext.Auto().Regression(useFastTree: false, useFastForest: false, useLbfgs: false, useSdca: false, useLgbm: true, lgbmSearchSpace: lgbmSearchSpace));
 
-                var monitor = new MLExperimentMonitor(_logger, mlContext, pipeline, data.Schema, modelFilename);
+                MLExperimentMonitor monitor = new(_logger, mlContext, pipeline, data.Schema, modelFilename);
 
-                var experiment = mlContext.Auto().CreateExperiment();
+                AutoMLExperiment experiment = mlContext.Auto().CreateExperiment();
 
-                experiment
+                _ = experiment
                     .SetPipeline(pipeline)
                     .SetTrainingTimeInSeconds(trainingTimeInSeconds)
                     .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: "Label")
                     .SetDataset(trainTestData.TrainSet, trainTestData.TestSet)
                     .SetMonitor(monitor);
-                    //.SetPerformanceMonitor((service) =>
-                    //{
-                    //    var channel = service.GetService<IChannel>();
-                    //    var settings = service.GetRequiredService<AutoMLExperiment.AutoMLExperimentSettings>();
-                    //    return new MLExperimentPerformanceMonitor(_logger, pipeline, settings, channel, 100);
-                    //});
+                //.SetPerformanceMonitor((service) =>
+                //{
+                //    var channel = service.GetService<IChannel>();
+                //    var settings = service.GetRequiredService<AutoMLExperiment.AutoMLExperimentSettings>();
+                //    return new MLExperimentPerformanceMonitor(_logger, pipeline, settings, channel, 100);
+                //});
 
-                var result = await experiment.RunAsync();
+                TrialResult result = await experiment.RunAsync();
 
                 _logger.LogInformation($"AutoML result: {result.Metric}. Saving model as '{modelFilename}'");
 
