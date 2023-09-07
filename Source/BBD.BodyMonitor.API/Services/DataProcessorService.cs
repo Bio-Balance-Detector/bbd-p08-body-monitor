@@ -53,7 +53,7 @@ namespace BBD.BodyMonitor.Services
         private string _currentWavFilename;
         private int _indicatorEvaluationCounter;
         private readonly List<string> disabledIndicators = new();
-        private readonly Dictionary<string, List<IndicatorEvaluationResult>> recentIndicatorResults = new();
+        private readonly ConcurrentDictionary<string, List<IndicatorEvaluationResult>> _recentIndicatorResults = new();
         private readonly Dictionary<string, Queue<string>> _waveFileWriteQueue = new();
         private readonly ConcurrentDictionary<DateTime, IndicatorEvaluationResult[]> _indicatorResultsDictionary = new();
 
@@ -1041,7 +1041,7 @@ namespace BBD.BodyMonitor.Services
 
                         if (indicatorResults.Length > 0)
                         {
-                            _logger.LogInformation($"#{threadId} {resampledFFTData.Start:HH:mm:ss}-{resampledFFTData.Start?.AddSeconds(_config.Postprocessing.Interval):HH:mm:ss} {string.Join(" | ", indicatorResults.Select(er => er.Text + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00").PadLeft(7)))}.");
+                            _logger.LogInformation($"#{threadId} {resampledFFTData.Start:HH:mm:ss}-{resampledFFTData.Start?.AddSeconds(_config.Postprocessing.Interval):HH:mm:ss} {string.Join(" | ", indicatorResults.Select(er => er.Text + " " + (!er.Negate ? er.PredictionScore : 1.0f - er.PredictionScore).ToString("+0.00;-0.00; 0.00").PadLeft(7)))}.");
                         }
                     }
 
@@ -1373,22 +1373,22 @@ namespace BBD.BodyMonitor.Services
             {
                 string indicatorKey = $"{ir.IndicatorIndex:0000}_{ir.IndicatorName}";
 
-                if (!recentIndicatorResults.ContainsKey(indicatorKey))
+                if (!_recentIndicatorResults.ContainsKey(indicatorKey))
                 {
-                    recentIndicatorResults.Add(indicatorKey, new List<IndicatorEvaluationResult>());
+                    _ = _recentIndicatorResults.TryAdd(indicatorKey, new List<IndicatorEvaluationResult>());
                 }
 
-                if (_config.Indicators.AverageOf > recentIndicatorResults[indicatorKey].Count)
+                if (_config.Indicators.AverageOf > _recentIndicatorResults[indicatorKey].Count)
                 {
-                    recentIndicatorResults[indicatorKey].Add(ir);
+                    _recentIndicatorResults[indicatorKey].Add(ir);
                 }
                 else
                 {
-                    recentIndicatorResults[indicatorKey][_indicatorEvaluationCounter % _config.Indicators.AverageOf] = ir;
+                    _recentIndicatorResults[indicatorKey][_indicatorEvaluationCounter % _config.Indicators.AverageOf] = ir;
                 }
             }
 
-            foreach (List<IndicatorEvaluationResult> recentIndicatorResult in recentIndicatorResults.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value))
+            foreach (List<IndicatorEvaluationResult> recentIndicatorResult in _recentIndicatorResults.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value))
             {
                 IndicatorEvaluationResult? firstResult = recentIndicatorResult?.FirstOrDefault();
 

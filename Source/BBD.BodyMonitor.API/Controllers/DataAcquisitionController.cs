@@ -82,8 +82,6 @@ namespace BBD.BodyMonitor.Controllers
         [Route("streamindicators")]
         public async Task StreamIndicators()
         {
-            IndicatorEvaluationResult[]? indicatorResults = _dataProcessor.GetLatestIndicatorResults();
-
             HttpResponse response = Response;
             CancellationToken cancellationToken = response.HttpContext.RequestAborted;
 
@@ -99,10 +97,13 @@ namespace BBD.BodyMonitor.Controllers
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
+                    IndicatorEvaluationResult[]? indicatorResults = _dataProcessor.GetLatestIndicatorResults();
+
                     if (indicatorResults != null)
                     {
                         string json = System.Text.Json.JsonSerializer.Serialize(indicatorResults);
                         await webSocket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, cancellationToken);
+                        _logger.LogTrace($"Sent {json.Length} bytes to client on the websocket channel");
                     }
                     await Task.Delay(TimeSpan.FromSeconds(1));
                 }
