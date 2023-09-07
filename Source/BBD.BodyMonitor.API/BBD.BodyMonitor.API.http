@@ -3,12 +3,12 @@
 @BBD.BodyMonitor.Web_HostAddress = https://localhost:7061
 #@BBD.BodyMonitor.Web_HostAddress = https://192.168.1.65:7061
 
-# Start data acquisition
+# 01 | Start data acquisition
 GET {{BBD.BodyMonitor.Web_HostAddress}}/DataAcquisition/start
 
 ###
 
-# Stop data acquisition
+# 01 | Stop data acquisition
 GET {{BBD.BodyMonitor.Web_HostAddress}}/DataAcquisition/stop
 
 ###
@@ -33,7 +33,7 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/savedata/0x81D21088
 
 ###
 
-# Generate an FFT files in TrainingData folder from WAV files, using MLP14 profile, with 0.5 seconds resolution
+# 02 | Generate an FFT files in TrainingData folder from WAV files, using MLP14 profile, with 0.5 seconds resolution
 GET {{BBD.BodyMonitor.Web_HostAddress}}/Postprocessor/generatefft/TrainingData/MLP14/0.5
 
 ###
@@ -64,15 +64,15 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData
 
 ###
 
-# #Activity: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
+# 03-A | #Subject: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
 
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Activity_WorkingAtComputer/Activity_WorkingAtComputer/3500
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Subject_None/Subject_None/3500
 
 ###
 
-# #Subject: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
+# 03-B | #Activity: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
 
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Subject_None/Subject_None/3500
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Activity_WorkingAtComputer/Activity_WorkingAtComputer/3500
 
 ###
 
@@ -85,12 +85,12 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_Train
 
 ###
 
-# Balanced, randomized CSV data source trained for 1800 seconds
+# 04-A | #Subject: Balanced, randomized CSV data source trained for 1800 seconds
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2048rows.csv/MLP14/1800
 
 ###
 
-# Balanced, randomized CSV data source trained for 1800 seconds
+# 04-B | #Activity: Balanced, randomized CSV data source trained for 1800 seconds
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_WorkingAtComputer__460rows.csv/MLP14/1800
 
 ###
