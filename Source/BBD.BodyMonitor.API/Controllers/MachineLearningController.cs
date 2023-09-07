@@ -103,17 +103,15 @@ namespace BBD.BodyMonitor.Controllers
                 {
                     data = mlContext.Data.LoadFromTextFile<MLProfiles.MLP12>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',');
                 }
-                else if (mlProfileName.StartsWith("MLP14"))
-                {
-                    data = mlContext.Data.LoadFromTextFile<MLProfiles.MLP14>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',');
-                }
                 else
                 {
-                    data = mlProfileName.StartsWith("MLP15")
-                        ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP15>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
-                        : mlProfileName.StartsWith("MLP16")
-                                            ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP16>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
-                                            : throw new Exception($"ML Profile '{mlProfileName}' is not supported yet.");
+                    data = mlProfileName.StartsWith("MLP14")
+                        ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP14>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
+                        : mlProfileName.StartsWith("MLP15")
+                                            ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP15>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
+                                            : mlProfileName.StartsWith("MLP16")
+                                                                ? mlContext.Data.LoadFromTextFile<MLProfiles.MLP16>(preparedTrainingDataFilename, hasHeader: true, separatorChar: ',')
+                                                                : throw new Exception($"ML Profile '{mlProfileName}' is not supported yet.");
                 }
 
                 DataOperationsCatalog.TrainTestData trainTestData = mlContext.Data.TrainTestSplit(data, testFraction: 0.1);
@@ -134,7 +132,7 @@ namespace BBD.BodyMonitor.Controllers
 
                 SweepablePipeline pipeline =
                     mlContext.Auto().Featurizer(trainTestData.TrainSet, numericColumns: new[] { "Features" })
-                        .Append(mlContext.Auto().Regression(useFastTree: true, useFastForest: true, useLbfgs: false, useSdca: false, useLgbm: false));
+                        .Append(mlContext.Auto().Regression(useFastTree: false, useFastForest: true, useLbfgs: false, useSdca: false, useLgbm: false));
                 //.Append(mlContext.Auto().Regression(useFastTree: true, useFastForest: true, useLbfgs: true, useSdca: true, useLgbm: false));
                 //.Append(mlContext.Auto().Regression(useFastTree: false, useFastForest: false, useLbfgs: false, useSdca: false, useLgbm: true, lgbmSearchSpace: lgbmSearchSpace));
 
