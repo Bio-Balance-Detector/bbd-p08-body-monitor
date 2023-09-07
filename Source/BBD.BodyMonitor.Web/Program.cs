@@ -37,8 +37,6 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseWebSockets();
-
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
