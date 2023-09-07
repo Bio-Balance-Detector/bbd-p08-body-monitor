@@ -142,11 +142,12 @@ namespace BBD.BodyMonitor.Web.Data
                     ClientWebSocket clientWebSocket = new();
                     await clientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/dataacquisition/streamindicators"), cancellationToken);
 
+                    ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
+
                     try
                     {
-                        while (true)
+                        while (!cancellationToken.IsCancellationRequested)
                         {
-                            ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
                             WebSocketReceiveResult result = await clientWebSocket.ReceiveAsync(buffer, cancellationToken);
 
                             if (result.MessageType == WebSocketMessageType.Close)
@@ -160,11 +161,14 @@ namespace BBD.BodyMonitor.Web.Data
 
                             IndicatorEvaluationResult[]? indicatorResults = JsonSerializer.Deserialize<IndicatorEvaluationResult[]?>(json);
 
-                            // Update a local variable with the new data as needed
-                            IndicatorResults = indicatorResults;
+                            if ((indicatorResults != null) && (indicatorResults.Length > 0))
+                            {
+                                // Update a local variable with the new data as needed
+                                IndicatorResults = indicatorResults;
 
-                            // Call the event handler
-                            IndicatorsUpdated?.Invoke(this, indicatorResults);
+                                // Call the event handler
+                                IndicatorsUpdated?.Invoke(this, indicatorResults);
+                            }
                         }
                     }
                     catch (Exception ex)
