@@ -1189,7 +1189,7 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 0,
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2048rows__#006_0,9983.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows__#004_0,9807.zip",
                     Negate = true,
                     Text = "Attached?",
                     Description = "Is the device attached to a subject?"
@@ -1198,35 +1198,68 @@ namespace BBD.BodyMonitor.Services
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 1,
-                    IndicatorName = "IsActivity_WorkingAtComputer",
+                    IndicatorName = "IsSubject_0xBAC08836",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_WorkingAtComputer__460rows__#000_1,0000.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_0xBAC08836__3500rows__#000_0,9906.zip",
                     Negate = false,
-                    Text = "Working?",
-                    Description = "Is the subject working at a computer?"
+                    Text = "Andras?",
+                    Description = "Is the subject Andras?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 2,
-                    IndicatorName = "IsActivity_Meditation",
+                    IndicatorName = "IsSubject_0x81D21088",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_Meditation__618rows__#000_1,0000.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_0x81D21088__3500rows__#006_0,9802.zip",
                     Negate = false,
-                    Text = "Meditating?",
-                    Description = "Is the subject meditating?"
+                    Text = "Water?",
+                    Description = "Is the subject water?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 3,
-                    IndicatorName = "IsActivity_DoingPushups",
+                    IndicatorName = "IsAdditive_HimalayanSalt",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_DoingPushups__158rows__#000_1,0000.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsAdditive_HimalayanSalt__3500rows__#002_0,9728.zip",
                     Negate = false,
-                    Text = "Doing pushups?",
-                    Description = "Is the subject doing pushups?"
+                    Text = "Salty?",
+                    Description = "Does it contain Himalayan salt?"
                 },
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 1,
+                //    IndicatorName = "IsActivity_WorkingAtComputer",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                //    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_WorkingAtComputer__460rows__#000_1,0000.zip",
+                //    Negate = false,
+                //    Text = "Working?",
+                //    Description = "Is the subject working at a computer?"
+                //},
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 2,
+                //    IndicatorName = "IsActivity_Meditation",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                //    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_Meditation__618rows__#000_1,0000.zip",
+                //    Negate = false,
+                //    Text = "Meditating?",
+                //    Description = "Is the subject meditating?"
+                //},
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 3,
+                //    IndicatorName = "IsActivity_DoingPushups",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                //    MLModelFilename = "BBD_20230824__TrainingData__MLP14_0p25Hz-6250Hz__IsActivity_DoingPushups__158rows__#000_1,0000.zip",
+                //    Negate = false,
+                //    Text = "Doing pushups?",
+                //    Description = "Is the subject doing pushups?"
+                //},
                 //new IndicatorEvaluationTaskDescriptor()
                 //{
                 //    BlockIndex = blockIndex,
@@ -1422,6 +1455,7 @@ namespace BBD.BodyMonitor.Services
 
             if (!System.IO.File.Exists(mlModelFilename))
             {
+                _logger.LogWarning($"The ML model file '{mlModelFilename}' does not exist.");
                 return null;
             }
 
