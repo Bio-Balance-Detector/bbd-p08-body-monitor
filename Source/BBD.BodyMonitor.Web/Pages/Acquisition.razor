@@ -55,7 +55,7 @@ else
 
         <div class="content">
             @{
-                String[] indicatorWorking = GetIndicatorTexts("IsActivity_WorkingAtComputer");
+                String[] indicatorWorking = GetIndicatorTexts("IsSubject_0xBAC08836");
                 <h4>@indicatorWorking[0]<span class="badge float-end color-green-dark"></span></h4>
                 <h5><span class="badge float-start color-green-dark"></span><span class="badge float-end color-green-dark"></span></h5>
                 <div class="progress" style="height:24px;">
@@ -70,7 +70,7 @@ else
 
         <div class="content">
             @{
-                String[] indicatorMeditating = GetIndicatorTexts("IsActivity_Meditation");
+                String[] indicatorMeditating = GetIndicatorTexts("IsAdditive_20pcVinegar");
                 <h4>@indicatorMeditating[0]<span class="badge float-end color-yellow-dark"></span></h4>
                 <h5><span class="badge float-start color-yellow-dark"></span><span class="badge float-end color-yellow-dark"></span></h5>
                 <div class="progress" style="height:24px;">
@@ -85,7 +85,7 @@ else
 
         <div class="content">
             @{
-                String[] indicatorDoingPushups = GetIndicatorTexts("IsActivity_DoingPushups");
+                String[] indicatorDoingPushups = GetIndicatorTexts("IsAdditive_HimalayanSalt");
                 <h4>@indicatorDoingPushups[0]<span class="badge float-end color-blue-dark"></span></h4>
                 <h5><span class="badge float-start color-blue-dark"></span><span class="badge float-end color-blue-dark"></span></h5>
                 <div class="progress" style="height:24px;">
@@ -105,13 +105,7 @@ else
     {
         BBDService.StreamIndicatorsAsync(new CancellationToken());
 
-        BBDService.IndicatorsUpdated += BBDService_IndicatorsUpdated;
-    }
-
-    protected void BBDService_IndicatorsUpdated(object? sender, IndicatorEvaluationResult[]? e)
-    {
-        // Invoke the StateHasChanged method to update the Blazor page
-        InvokeAsync(StateHasChanged);
+        BBDService.IndicatorsUpdated += (sender, args) => StateHasChanged();
     }
 
     protected String GetSelectedServerName()

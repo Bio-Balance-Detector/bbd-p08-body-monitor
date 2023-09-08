@@ -105,12 +105,15 @@ namespace BBD.BodyMonitor.Controllers
                         await webSocket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, cancellationToken);
                         _logger.LogTrace($"Sent {json.Length} bytes to client on the websocket channel");
                     }
-                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    await Task.Delay(100, cancellationToken);
                 }
             }
             finally
             {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "DisposedWebSocket", cancellationToken);
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "DisposedWebSocket", cancellationToken);
+                }
             }
         }
 

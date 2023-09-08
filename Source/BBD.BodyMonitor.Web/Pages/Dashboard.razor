@@ -123,15 +123,7 @@ else
     {
         BBDService.StreamSystemInformationAsync(new CancellationToken());
 
-        Timer timer = new Timer((state) =>
-        {
-            // Get the system information from the BBD service
-            //BBDService.StreamSystemInformationAsync(new CancellationToken());
-            //systemInformation = BBDService.GetSystemInformationAsync().Result;
-
-            // Invoke the StateHasChanged method to update the Blazor page
-            InvokeAsync(StateHasChanged);
-        }, null, 0, 500);
+        BBDService.SystemInformationUpdated += (sender, args) => StateHasChanged();
     }
 
     protected void Start() => BBDService.Start();

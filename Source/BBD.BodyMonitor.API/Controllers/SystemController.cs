@@ -5,6 +5,8 @@ using BBD.BodyMonitor.Sessions;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Text;
 
 namespace BBD.BodyMonitor.Controllers
 {
@@ -170,19 +172,37 @@ namespace BBD.BodyMonitor.Controllers
         public async Task StreamSystemInformation()
         {
             HttpResponse response = Response;
-            response.Headers.Add("Content-Type", "text/event-stream");
-            response.Headers.Add("Cache-Control", "no-cache");
-            response.Headers.Add("Connection", "keep-alive");
+            CancellationToken cancellationToken = response.HttpContext.RequestAborted;
 
-            StreamWriter writer = new(response.Body, System.Text.Encoding.UTF8);
-
-            while (!response.HttpContext.RequestAborted.IsCancellationRequested)
+            if (!response.HttpContext.WebSockets.IsWebSocketRequest)
             {
-                SystemInformation systemInformation = GetSystemInformation();
-                await writer.WriteAsync(System.Text.Json.JsonSerializer.Serialize(systemInformation));
-                await writer.WriteAsync("\n");
-                await writer.FlushAsync();
-                await Task.Delay(500);
+                response.StatusCode = 400;
+                return;
+            }
+
+            WebSocket webSocket = await response.HttpContext.WebSockets.AcceptWebSocketAsync();
+
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    SystemInformation systemInformation = GetSystemInformation();
+
+                    if (systemInformation != null)
+                    {
+                        string json = System.Text.Json.JsonSerializer.Serialize(systemInformation);
+                        await webSocket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, cancellationToken);
+                        _logger.LogTrace($"Sent {json.Length} bytes to client on the websocket channel");
+                    }
+                    await Task.Delay(100, cancellationToken);
+                }
+            }
+            finally
+            {
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "DisposedWebSocket", cancellationToken);
+                }
             }
         }
     }

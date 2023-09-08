@@ -14,7 +14,11 @@ namespace BBD.BodyMonitor.Web.Data
 
         private readonly Mutex _streamMutex = new();
 
+        private static ClientWebSocket? systemInformationClientWebSocket = null;
+
         public static SystemInformation? SystemInformation = null;
+
+        private static ClientWebSocket? indicatorsClientWebSocket = null;
 
         public static IndicatorEvaluationResult[]? IndicatorResults = null;
 
@@ -106,41 +110,23 @@ namespace BBD.BodyMonitor.Web.Data
             _ = _client.GetAsync("dataacquisition/stop");
         }
 
-        // call the StreamSystemInformation API endpoint
+        // connect to the StreamSystemInformation API endpoint
         public async void StreamSystemInformationAsync(CancellationToken cancellationToken)
         {
-            HttpResponseMessage response = await _client.GetAsync("system/streamsysteminformation", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            _ = response.EnsureSuccessStatusCode();
-
-            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using StreamReader reader = new(stream);
-
-            while (!reader.EndOfStream)
+            if (systemInformationClientWebSocket != null)
             {
-                string? json = await reader.ReadLineAsync();
-                SystemInformation? systemInformation = JsonSerializer.Deserialize<SystemInformation>(json);
-
-                // Update a local variable with the new data as needed
-                SystemInformation = systemInformation;
+                return;
             }
 
-            //Timer timer = new Timer((state) =>
-            //{
-            //    response.Content.ReadAsStream(cancellationToken) Async().Result.FlushAsync();
-            //}, null, 0, 250);
-        }
 
-        // call the StreamIndicators API endpoint
-        public async void StreamIndicatorsAsync(CancellationToken cancellationToken)
-        {
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    Debug.Print("StreamIndicatorsAsync: connecting to the websockets endpoint");
+                    Debug.Print("StreamSystemInformationAsync: connecting to the websockets endpoint");
 
-                    ClientWebSocket clientWebSocket = new();
-                    await clientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/dataacquisition/streamindicators"), cancellationToken);
+                    systemInformationClientWebSocket = new();
+                    await systemInformationClientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/system/streamsysteminformation"), cancellationToken);
 
                     ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
 
@@ -148,11 +134,72 @@ namespace BBD.BodyMonitor.Web.Data
                     {
                         while (!cancellationToken.IsCancellationRequested)
                         {
-                            WebSocketReceiveResult result = await clientWebSocket.ReceiveAsync(buffer, cancellationToken);
+                            WebSocketReceiveResult result = await systemInformationClientWebSocket.ReceiveAsync(buffer, cancellationToken);
 
                             if (result.MessageType == WebSocketMessageType.Close)
                             {
-                                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
+                                await systemInformationClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
+                                break;
+                            }
+
+                            byte[] data = buffer.Slice(0, result.Count).ToArray();
+                            string json = System.Text.Encoding.UTF8.GetString(data);
+
+                            SystemInformation? systemInformation = JsonSerializer.Deserialize<SystemInformation?>(json);
+
+                            if (systemInformation != null)
+                            {
+                                // Update a local variable with the new data as needed
+                                SystemInformation = systemInformation;
+
+                                // Call the event handler
+                                SystemInformationUpdated?.Invoke(this, systemInformation);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.Print($"StreamSystemInformationAsync: exception {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.Print($"StreamSystemInformationAsync: exception {ex.Message}, waiting 1000 ms before reconnect attempt");
+                    Thread.Sleep(1000);
+                }
+
+                Thread.Sleep(500);
+            }
+        }
+
+        // connect to the StreamIndicators API endpoint
+        public async void StreamIndicatorsAsync(CancellationToken cancellationToken)
+        {
+            if (indicatorsClientWebSocket != null)
+            {
+                return;
+            }
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    Debug.Print("StreamIndicatorsAsync: connecting to the websockets endpoint");
+
+                    indicatorsClientWebSocket = new();
+                    await indicatorsClientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/dataacquisition/streamindicators"), cancellationToken);
+
+                    ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
+
+                    try
+                    {
+                        while (!cancellationToken.IsCancellationRequested)
+                        {
+                            WebSocketReceiveResult result = await indicatorsClientWebSocket.ReceiveAsync(buffer, cancellationToken);
+
+                            if (result.MessageType == WebSocketMessageType.Close)
+                            {
+                                await indicatorsClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
                                 break;
                             }
 
@@ -174,6 +221,10 @@ namespace BBD.BodyMonitor.Web.Data
                     catch (Exception ex)
                     {
                         Debug.Print($"StreamIndicatorsAsync: exception {ex.Message}");
+                    }
+                    finally
+                    {
+                        indicatorsClientWebSocket = null;
                     }
                 }
                 catch (Exception ex)
