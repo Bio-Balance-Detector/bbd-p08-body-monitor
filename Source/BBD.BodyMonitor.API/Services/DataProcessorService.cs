@@ -1189,7 +1189,7 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 0,
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows__#004_0,9807.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows__#005_0,9907.zip",
                     Negate = true,
                     Text = "Attached?",
                     Description = "Is the device attached to a subject?"
@@ -1205,27 +1205,38 @@ namespace BBD.BodyMonitor.Services
                     Text = "Andras?",
                     Description = "Is the subject Andras?"
                 },
-                new IndicatorEvaluationTaskDescriptor()
-                {
-                    BlockIndex = blockIndex,
-                    IndicatorIndex = 2,
-                    IndicatorName = "IsSubject_0x81D21088",
-                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_0x81D21088__3500rows__#006_0,9802.zip",
-                    Negate = false,
-                    Text = "Water?",
-                    Description = "Is the subject water?"
-                },
+                //new IndicatorEvaluationTaskDescriptor()
+                //{
+                //    BlockIndex = blockIndex,
+                //    IndicatorIndex = 2,
+                //    IndicatorName = "IsSubject_0x81D21088",
+                //    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                //    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_0x81D21088__3500rows__#007_0,9812.zip",
+                //    Negate = false,
+                //    Text = "Water?",
+                //    Description = "Is the subject water?"
+                //},
                 new IndicatorEvaluationTaskDescriptor()
                 {
                     BlockIndex = blockIndex,
                     IndicatorIndex = 3,
                     IndicatorName = "IsAdditive_HimalayanSalt",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsAdditive_HimalayanSalt__3500rows__#002_0,9728.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsAdditive_HimalayanSalt__3500rows__#007_0,9495.zip",
                     Negate = false,
                     Text = "Salty?",
-                    Description = "Does it contain Himalayan salt?"
+                    Description = "Is it water, containing Himalayan salt?"
+                },
+                new IndicatorEvaluationTaskDescriptor()
+                {
+                    BlockIndex = blockIndex,
+                    IndicatorIndex = 4,
+                    IndicatorName = "IsAdditive_20pcVinegar",
+                    MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsAdditive_20pcVinegar__3500rows__#007_0,9721.zip",
+                    Negate = false,
+                    Text = "Vinegar?",
+                    Description = "Is it water, containing vinegar?"
                 },
                 //new IndicatorEvaluationTaskDescriptor()
                 //{
