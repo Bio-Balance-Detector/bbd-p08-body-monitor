@@ -1,4 +1,5 @@
 ﻿using BBD.BodyMonitor.Buffering;
+using BBD.BodyMonitor.Filters;
 using NWaves.Signals;
 using NWaves.Transforms;
 
@@ -88,6 +89,15 @@ namespace BBD.BodyMonitor.Models
             }
 
         }
+
+        /// <summary>
+        /// Create FFT data from a signal and apply some filters
+        /// </summary>
+        /// <param name="signal"></param>
+        /// <param name="startTime"></param>
+        /// <param name="sampleCount"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public FftDataV3 CreateFftData(DiscreteSignal signal, DateTimeOffset startTime, int sampleCount)
         {
             FftDataV3 fftData = new()
@@ -120,7 +130,26 @@ namespace BBD.BodyMonitor.Models
 
             //_logger.LogTrace($"#{threadId} The maximum magnitude values are ( {string.Join(" | ", fftData.MagnitudeData[maxIndexStart..maxIndexEnd].Select(m => string.Format("{0,10:N}", m * 1000 * 1000)))} ) µV around {fftData.GetBinFromIndex(magnitudeStats.MaxIndex)}.");
 
+            //MagnitudeStats magnitudeStatsBeforeDownsample = fftData.GetMagnitudeStats();
+
             FftDataV3 resampledFFTData = fftData.Downsample(ResampleFFTResolutionToHz);
+
+            //MagnitudeStats magnitudeStatsAfterDownsample = resampledFFTData.GetMagnitudeStats();
+
+            resampledFFTData = resampledFFTData.RemoveNoiseFromTheMains();
+
+            //MagnitudeStats magnitudeStatsAfterNoiseRemoval = resampledFFTData.GetMagnitudeStats();
+
+            resampledFFTData = resampledFFTData.MakeItRelative();
+
+            //MagnitudeStats magnitudeStatsAfterRelative1 = resampledFFTData.GetMagnitudeStats();
+
+            //resampledFFTData = resampledFFTData.MakeItRelative();
+
+            //MagnitudeStats magnitudeStatsAfterRelative2 = resampledFFTData.GetMagnitudeStats();
+
+            //Console.WriteLine($"{magnitudeStatsBeforeDownsample} {magnitudeStatsAfterDownsample} {magnitudeStatsAfterNoiseRemoval} {magnitudeStatsAfterRelative1} {magnitudeStatsAfterRelative2}");
+
             return resampledFFTData;
         }
     }
