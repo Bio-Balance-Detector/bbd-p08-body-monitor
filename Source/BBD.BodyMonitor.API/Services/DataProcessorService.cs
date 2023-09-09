@@ -1189,7 +1189,7 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 0,
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows__#005_0,9907.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows__#008_0,9620.zip",
                     Negate = true,
                     Text = "Attached?",
                     Description = "Is the device attached to a subject?"
@@ -2472,6 +2472,7 @@ namespace BBD.BodyMonitor.Services
 
             if (Directory.Exists(folderFullPath))
             {
+                // calculate the total size of the files to process
                 long totalBytesToProcess = 0;
                 long totalBytesProcessed = 0;
                 if (Directory.Exists(folderFullPath))
@@ -2485,6 +2486,7 @@ namespace BBD.BodyMonitor.Services
                     }
                 }
 
+                // start a thread that shows the progress
                 Stopwatch sw = new();
                 _ = Task.Run(() =>
                 {
@@ -2500,6 +2502,7 @@ namespace BBD.BodyMonitor.Services
                     }
                 });
 
+                // generate the FFT files
                 foreach (string filename in Directory.GetFiles(folderFullPath, "*.wav", SearchOption.AllDirectories).OrderBy(n => n))
                 {
                     string wavFilename = Path.GetFullPath(filename);
@@ -2513,10 +2516,12 @@ namespace BBD.BodyMonitor.Services
 
                         FftDataBlockCache fftDataBlockCacheTemp = new((int)waveHeader.SampleRate, _config.Postprocessing.FFTSize, dataBlockLength, _config.Postprocessing.ResampleFFTResolutionToHz);
 
+                        // calculate the estimated start time of the file
                         float waveFileTotalLength = (float)waveHeader.DataChuckSize / (waveHeader.SampleRate * waveHeader.BytesPerSample);
                         DateTime lastWriteTime = File.GetLastWriteTimeUtc(wavFilename);
                         DateTime estimatedStartTime = lastWriteTime.AddSeconds(-waveFileTotalLength);
 
+                        // calculate the number of frames
                         int frameCounter = 0;
                         int totalFrameCount = (int)((waveFileTotalLength - dataBlockLength) / interval) + 1;
                         string frameCounterFormatterString = new('0', totalFrameCount.ToString().Length);
@@ -2531,9 +2536,16 @@ namespace BBD.BodyMonitor.Services
 
                             try
                             {
+                                // read the data block from the WAV file
                                 DiscreteSignal ds = WaveFileExtensions.ReadAsDiscreateSignal(waveFileStream, position, dataBlockLength);
+
+                                // generate the FFT data
                                 FftDataV3 fftData = fftDataBlockCacheTemp.CreateFftData(ds, currentTime, (int)(waveHeader.SampleRate * dataBlockLength));
+
+                                // apply the machine learning profile
                                 fftData = fftData.ApplyMLProfile(mlProfile);
+
+                                // save the FFT data to a binary file
                                 string pathToFile = Path.Combine(Path.GetDirectoryName(wavFilename), GenerateBinaryFftFilename(fftData, frameCounter, frameCounterFormatterString));
                                 FftDataV3.SaveAsBinary(fftData, pathToFile, false);
                             }
