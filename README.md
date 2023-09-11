@@ -1,4 +1,4 @@
-> 👋 I'm looking for healthcare practitioners who share my vision and are willing to explore uncharted territories!👋
+> 👋 I'm looking for healthcare practitioners who share my vision and are willing to explore uncharted territories!
 
 <p align="center">
   <img src="https://github.com/andrasfuchs/BioBalanceDetector/blob/master/Business/Branding/Logos/BioBalanceDetectorLogo_810x275.png"/>
@@ -43,6 +43,13 @@ And given its current state and future potential, here's how it could impact the
 8. **Untapped Treatment Potential:** The signal generator module could pave the way for treating specific conditions in the future.
 
 ## Demo
+
+Web application
+
+![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/2029e0ce-71fc-404f-be30-17d99d4f1c4c)
+![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/640f59cf-5d64-40d1-b725-545ad2eab682)
+
+Frequency Analyzer
 
 ![BBD_2022-10-28_125kHz_75pc-200pc_of_median mp4_20230823_115545 691](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/b6a4ee24-2dd2-40be-9f3b-c6fce88d172c)
 
