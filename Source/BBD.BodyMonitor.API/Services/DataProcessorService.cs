@@ -887,6 +887,12 @@ namespace BBD.BodyMonitor.Services
                     FftDataV3? resampledFFTData = null;
                     try
                     {
+                        if (dataBlock.Data.Max() == 0)
+                        {
+                            // if all samples are zero then we can't do anything
+                            return;
+                        }
+
                         resampledFFTData = fftDataBlockCache.Get(dataBlock);
                     }
                     catch (IndexOutOfRangeException)
