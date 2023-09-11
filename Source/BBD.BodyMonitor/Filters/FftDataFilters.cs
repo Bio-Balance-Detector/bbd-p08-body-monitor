@@ -44,13 +44,14 @@
             float avg60Hz = result.MagnitudeData[index57Hz..index63Hz].Average();
             float avg = result.MagnitudeData[index47Hz..index63Hz].Average();
 
-            if ((avg50Hz > avg * 0.9) || (avg60Hz > avg * 0.9))
+            if ((avg50Hz > avg * 1.1) || (avg60Hz > avg * 1.1))
             {
                 // compare the averages of the two ranges
                 if (avg50Hz > avg60Hz)
                 {
                     // remove the 50 Hz peak by setting it to the minimum of the 47-53 Hz range
-                    float min = result.MagnitudeData[index47Hz..index53Hz].Min();
+                    //float min = result.MagnitudeData[index47Hz..index53Hz].Min();
+                    float min = 0;
                     for (int i = index47Hz; i < index53Hz; i++)
                     {
                         result.MagnitudeData[i] = min;
@@ -59,7 +60,8 @@
                 else
                 {
                     // remove the 60 Hz peak by setting it to the minimum of the 57-63 Hz range
-                    float min = result.MagnitudeData[index57Hz..index63Hz].Min();
+                    //float min = result.MagnitudeData[index57Hz..index63Hz].Min();
+                    float min = 0;
                     for (int i = index57Hz; i < index63Hz; i++)
                     {
                         result.MagnitudeData[i] = min;
