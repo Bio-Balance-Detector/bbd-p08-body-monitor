@@ -1,7 +1,20 @@
 @BBD.BodyMonitor.API_HostAddress = https://0.0.0.0:7061
-# For more info on HTTP files go to https://aka.ms/vs/httpfile
+
+# Desktop PC
 @BBD.BodyMonitor.Web_HostAddress = https://localhost:7061
+
+# Raspberry Pi 4
 #@BBD.BodyMonitor.Web_HostAddress = https://192.168.1.65:7061
+
+# 00 | SYSTEM: Get the current configuration
+GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getconfig
+
+###
+
+# 00 | SYSTEM: Get system information, including the current configuration
+GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getsysteminformation
+
+###
 
 # 01 | DATA ACQUISITION: Start data acquisition
 GET {{BBD.BodyMonitor.Web_HostAddress}}/DataAcquisition/start
@@ -13,60 +26,14 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/DataAcquisition/stop
 
 ###
 
-GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getconfig
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/system/getsysteminformation
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata/1671105/100000
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/savedata/0x81D21088
-
-###
-
 # 02 | DATA CONVERSION: Generate an FFT files in TrainingData folder from WAV files, using MLP14 profile, with 0.5 seconds resolution
 GET {{BBD.BodyMonitor.Web_HostAddress}}/Postprocessor/generatefft/TrainingData/MLP14/0.5
 
 ###
 
-# Prepare the data for the machine learning model training in the TrainingData folder, using MLP09 profile, with 200 rows of data
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/200
-
-### 
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/1000
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/3500
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP10/Subject_/Subject_AndrasFuchs/Subject_AndrasFuchs/3500
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_TimeaNagy/Subject_TimeaNagy/3500
-
-###
-
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP09/Subject_/Subject_None/Subject_None/3500
-
-###
-
 # 03-A | TRAINING DATA PREPARATION for #Subject: Prepare the data for the machine learning model training in the TrainingData folder, using MLP14 profile, with 3500 rows of data
 
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Subject_None/Subject_None/35
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData/MLP14/Subject_/Subject_None/Subject_None/3500
 
 ###
 
@@ -82,17 +49,13 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/pretraining/TrainingData
 
 ###
 
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_TimeaNagy_1414rows.csv/MLP09/10
-
-###
-
-# Balanced, randomized CSV data source trained for 1000 seconds
+# MODEL TRAINING: Balanced, randomized CSV data source trained for 1000 seconds
 GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_TrainingData_MLP09_5p0Hz-150000Hz_IsSubject_AndrasFuchs_1000rows.csv/MLP09/1000
 
 ###
 
 # 04-A | MODEL TRAINING on #Subject: Balanced, randomized CSV data source trained for 1800 seconds
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows.csv/MLP14/180000
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows.csv/MLP14/180000
 
 ###
 
@@ -108,3 +71,18 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230907__Trai
 
 # Generate an EDF file from multiple WAV files
 GET {{BBD.BodyMonitor.Web_HostAddress}}/Postprocessor/generateedf/2022-12-08/2022-12-08/2022-12-09
+
+###
+
+# THINGSPEAK: Get sensor data from ThingSpeak
+GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata
+
+###
+
+GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/getsensordata/1671105/100000
+
+###
+
+# THINGSPEAK: Save sensor data lcoally
+
+GET {{BBD.BodyMonitor.Web_HostAddress}}/ThingSpeak/savedata/0x81D21088
