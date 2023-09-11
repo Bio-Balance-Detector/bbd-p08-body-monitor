@@ -44,16 +44,18 @@ And given its current state and future potential, here's how it could impact the
 
 ## Demo
 
-Web application
+### Web application
 
 ![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/eba3ef5f-00b0-4f59-94fc-5cb4109da023)
 ![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/b597c2ce-339b-4029-a652-b5c51482477d)
 
-Frequency Analyzer
+### Frequency Analyzer
 
 ![BBD_2022-10-28_125kHz_75pc-200pc_of_median mp4_20230823_115545 691](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/b6a4ee24-2dd2-40be-9f3b-c6fce88d172c)
 
-Watch the BBD Body Monitor in Action! - https://www.youtube.com/embed/K0LUZHJvA_A
+Watch the frequency analyzer in action! - https://www.youtube.com/embed/K0LUZHJvA_A
+
+### Backend console
 
 The software gives real-time estimations of various state confidence levels:
 ![image](https://user-images.githubusercontent.com/910321/171152444-69388f52-aa0c-4665-8ef3-1c761da85a11.png)
