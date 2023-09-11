@@ -14,9 +14,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Content Update="Pages\Acquisition.razor">
-	    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-	  </Content>
+		<Content Update="Pages\Acquisition.razor">
+			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+		</Content>
 	</ItemGroup>
 
 </Project>
