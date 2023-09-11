@@ -965,7 +965,6 @@ namespace BBD.BodyMonitor.Services
                         });
                     }
 
-
                     if (_config.Postprocessing.SaveAsPNG.Enabled)
                     {
                         MLProfile? mlProfile = _config.MachineLearning.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(_config.Postprocessing.SaveAsPNG.MLProfile) && p.Name.StartsWith(_config.Postprocessing.SaveAsPNG.MLProfile));

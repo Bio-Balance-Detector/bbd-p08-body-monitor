@@ -22,7 +22,10 @@
                 return fftData;
             }
 
-            FftDataV3 result = new(fftData);
+            FftDataV3 result = new(fftData)
+            {
+                MagnitudeData = fftData.MagnitudeData.ToArray()
+            };
 
             // get the index of 47-53 Hz
             int index47Hz = (int)((47 - result.FirstFrequency) / result.FrequencyStep);
@@ -31,6 +34,11 @@
             // get the index of 54-63 Hz
             int index57Hz = (int)((57 - result.FirstFrequency) / result.FrequencyStep);
             int index63Hz = (int)((63 - result.FirstFrequency) / result.FrequencyStep);
+
+            if (result.MagnitudeData.Length < index63Hz)
+            {
+                return result;
+            }
 
             float avg50Hz = result.MagnitudeData[index47Hz..index53Hz].Average();
             float avg60Hz = result.MagnitudeData[index57Hz..index63Hz].Average();
@@ -59,6 +67,8 @@
                 }
             }
 
+            _ = result.AppliedFilters.Append("RemoveNoiseFromTheMains");
+
             return result;
         }
 
@@ -69,13 +79,18 @@
         /// <returns></returns>
         public static FftDataV3 MakeItRelative(this FftDataV3 fftData)
         {
-            FftDataV3 result = new(fftData);
+            FftDataV3 result = new(fftData)
+            {
+                MagnitudeData = fftData.MagnitudeData.ToArray()
+            };
 
             float fftTotal = result.MagnitudeData.Sum();
             for (int i = 0; i < result.MagnitudeData.Length; i++)
             {
                 result.MagnitudeData[i] /= fftTotal;
             }
+
+            _ = result.AppliedFilters.Append("MakeItRelative");
 
             return result;
         }
