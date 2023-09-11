@@ -1194,7 +1194,7 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 0,
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__3500rows__#007_0,9475.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows__#004_0,9630.zip",
                     Negate = true,
                     Text = "Attached?",
                     Description = "Is the device attached to a subject?"

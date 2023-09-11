@@ -128,7 +128,7 @@ namespace BBD.BodyMonitor.Web.Data
                     systemInformationClientWebSocket = new();
                     await systemInformationClientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/system/streamsysteminformation"), cancellationToken);
 
-                    ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
+                    ArraySegment<byte> buffer = new(new byte[64 * 1024 * 1024]);
 
                     try
                     {
@@ -189,7 +189,7 @@ namespace BBD.BodyMonitor.Web.Data
                     indicatorsClientWebSocket = new();
                     await indicatorsClientWebSocket.ConnectAsync(new Uri("wss://localhost:7061/dataacquisition/streamindicators"), cancellationToken);
 
-                    ArraySegment<byte> buffer = new(new byte[1024 * 1024]);
+                    ArraySegment<byte> buffer = new(new byte[64 * 1024 * 1024]);
 
                     try
                     {
