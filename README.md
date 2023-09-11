@@ -46,8 +46,8 @@ And given its current state and future potential, here's how it could impact the
 
 Web application
 
-![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/2029e0ce-71fc-404f-be30-17d99d4f1c4c)
-![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/640f59cf-5d64-40d1-b725-545ad2eab682)
+![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/eba3ef5f-00b0-4f59-94fc-5cb4109da023)
+![image](https://github.com/Bio-Balance-Detector/bbd-p08-body-monitor/assets/910321/b597c2ce-339b-4029-a652-b5c51482477d)
 
 Frequency Analyzer
 
