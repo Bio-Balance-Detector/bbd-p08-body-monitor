@@ -55,7 +55,7 @@ GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20220829_Train
 ###
 
 # 04-A | MODEL TRAINING on #Subject: Balanced, randomized CSV data source trained for 1800 seconds
-GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows.csv/MLP14/180000
+GET {{BBD.BodyMonitor.Web_HostAddress}}/MachineLearning/train/BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows.csv/MLP14/1800
 
 ###
 
