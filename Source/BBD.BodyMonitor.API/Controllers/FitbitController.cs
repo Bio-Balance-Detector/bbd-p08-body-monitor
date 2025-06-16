@@ -72,6 +72,7 @@ namespace BBD.BodyMonitor.Controllers
         /// The user should be redirected to the returned URL to authorize the application.
         /// </remarks>
         /// <returns>The Fitbit authentication URL.</returns>
+        /// <response code="200">Returns the Fitbit authentication URL.</response>
         [HttpGet]
         [Route("authenticate")]
         public string Authenticate()
@@ -92,6 +93,9 @@ namespace BBD.BodyMonitor.Controllers
         /// The provided code is used to obtain an access token, which is then stored for future API calls.
         /// </remarks>
         /// <param name="code">The authentication code provided by Fitbit.</param>
+        /// <returns>An awaitable task representing the asynchronous operation.</returns>
+        /// <response code="200">Indicates the access token was successfully obtained and stored.</response>
+        /// <response code="400">If the provided code is invalid or the exchange fails.</response>
         /// <exception cref="Exception">Thrown if the Fitbit client secret is not defined.</exception>
         [HttpGet]
         [Route("accesstoken")]
@@ -119,6 +123,8 @@ namespace BBD.BodyMonitor.Controllers
         /// </summary>
         /// <param name="encodedUserId">The encoded ID of the Fitbit user. Use "-" for the currently authenticated user.</param>
         /// <returns>The <see cref="UserProfile"/> object containing the user's profile information.</returns>
+        /// <response code="200">Returns the user's Fitbit profile.</response>
+        /// <response code="401">If the user is not authenticated (Fitbit access token is not available).</response>
         /// <exception cref="Exception">Thrown if the Fitbit access token is not available (i.e., user is not authenticated).</exception>
         [HttpGet]
         [Route("getprofile/{encodedUserId}")]
@@ -142,6 +148,8 @@ namespace BBD.BodyMonitor.Controllers
         /// <param name="encodedUserId">The encoded ID of the Fitbit user. Use "-" for the currently authenticated user.</param>
         /// <param name="date">The date for which to retrieve sleep data.</param>
         /// <returns>An array of <see cref="SleepSegment"/> objects representing the sleep periods for the given date.</returns>
+        /// <response code="200">Returns the sleep data for the specified user and date.</response>
+        /// <response code="401">If the user is not authenticated (Fitbit access token is not available).</response>
         /// <exception cref="Exception">Thrown if the Fitbit access token is not available (i.e., user is not authenticated).</exception>
         [HttpGet]
         [Route("getsleepdata/{encodedUserId}/{date}")]
@@ -191,6 +199,15 @@ namespace BBD.BodyMonitor.Controllers
             return result.ToArray();
         }
 
+        /// <summary>
+        /// Retrieves heart rate data for the specified user and date.
+        /// </summary>
+        /// <param name="encodedUserId">The encoded ID of the Fitbit user. Use "-" for the currently authenticated user.</param>
+        /// <param name="date">The date for which to retrieve heart rate data.</param>
+        /// <returns>An array of <see cref="HeartRateSegment"/> objects representing the heart rate data for the given date.</returns>
+        /// <response code="200">Returns the heart rate data for the specified user and date.</response>
+        /// <response code="401">If the user is not authenticated (Fitbit access token is not available).</response>
+        /// <exception cref="Exception">Thrown if the Fitbit access token is not available (i.e., user is not authenticated).</exception>
         [HttpGet]
         [Route("getheartrate/{encodedUserId}/{date}")]
         [Obsolete("This method for fetching heart rate is obsolete. Consider using newer Fitbit API endpoints or a different approach if available.")]
@@ -233,6 +250,20 @@ namespace BBD.BodyMonitor.Controllers
             return result.ToArray();
         }
 
+        /// <summary>
+        /// Downloads and saves Fitbit data (sleep and heart rate) for a given subject and date range.
+        /// </summary>
+        /// <remarks>
+        /// This method is obsolete and may be removed in future versions.
+        /// It iterates from the specified date (or 30 days ago if null) up to the current day,
+        /// downloading and saving data for each day if it doesn't already exist or if existing data is outdated.
+        /// </remarks>
+        /// <param name="subjectAlias">The alias of the subject for whom to save data.</param>
+        /// <param name="date">Optional. The starting date from which to download data. If null, defaults to 30 days prior to the current UTC date.</param>
+        /// <response code="200">Indicates that the data saving process was initiated (or completed if no new data was needed).</response>
+        /// <response code="400">If the subject is not found or the subject does not have a Fitbit ID defined.</response>
+        /// <response code="401">If the user is not authenticated (Fitbit access token is not available).</response>
+        /// <exception cref="Exception">Thrown if the Fitbit access token is not available, subject is not found, or subject's Fitbit ID is not defined.</exception>
         [HttpGet]
         [Route("savefitbitdata/{subjectAlias}/{date?}")]
         [Obsolete("This method for saving Fitbit data is obsolete and may be removed in future versions. It is recommended to implement a more robust data synchronization strategy.")]

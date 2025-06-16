@@ -36,6 +36,8 @@ namespace BBD.BodyMonitor.API.Controllers
         /// <param name="mlProfileName">The beginning of the machine learning profile name (e.g., "ML14") to be used for processing.</param>
         /// <param name="interval">The interval in seconds for FFT calculations.</param>
         /// <returns>The ID of the background task performing the FFT generation. Returns task ID even if the profile is not found, but logs a warning.</returns>
+        /// <response code="200">Returns the ID of the background task successfully initiated for FFT generation.</response>
+        /// <response code="404">If the specified ML profile is not found (though the current implementation logs a warning and returns a task ID).</response>
         [HttpGet]
         [Route("generatefft/{dataFoldername}/{mlProfileName}/{interval}")]
         public int GenerateFFT(string dataFoldername, string mlProfileName, float interval)
@@ -71,6 +73,8 @@ namespace BBD.BodyMonitor.API.Controllers
         /// <param name="mlProfileName">The beginning of the machine learning profile name (e.g., "ML14") to be used for visualization.</param>
         /// <param name="framerate">The frame rate of the generated video.</param>
         /// <returns>The ID of the background task performing the video generation. Returns task ID even if the profile is not found, but logs an error.</returns>
+        /// <response code="200">Returns the ID of the background task successfully initiated for video generation.</response>
+        /// <response code="404">If the specified ML profile is not found (though the current implementation logs an error and returns a task ID).</response>
         [HttpGet]
         [Route("generatevideo/{dataFoldername}/{mlProfileName}/{framerate}")]
         public int GenerateVideo(string dataFoldername, string mlProfileName, double framerate)
@@ -107,6 +111,7 @@ namespace BBD.BodyMonitor.API.Controllers
         /// <param name="fromDateTime">The start date and time (inclusive) of the data to include in the EDF file.</param>
         /// <param name="toDateTime">The end date and time (inclusive) of the data to include in the EDF file.</param>
         /// <returns>The ID of the background task performing the EDF file generation.</returns>
+        /// <response code="200">Returns the ID of the background task successfully initiated for EDF file generation.</response>
         [HttpGet]
         [Route("generateedf/{dataFoldername}/{fromDateTime}/{toDateTime}")]
         public int GenerateEDF(string dataFoldername, DateTimeOffset fromDateTime, DateTimeOffset toDateTime)

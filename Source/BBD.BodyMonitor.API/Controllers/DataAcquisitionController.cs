@@ -111,7 +111,10 @@ namespace BBD.BodyMonitor.Controllers
         /// The stream closes when the client disconnects or the cancellation token is triggered.
         /// </remarks>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation of streaming indicator data.</returns>
+        /// <response code="101">If the request is upgraded to a WebSocket connection.</response>
         /// <response code="400">If the request is not a WebSocket request.</response>
+        /// <exception cref="OperationCanceledException">Thrown if the operation is cancelled, e.g., client disconnects.</exception>
+        /// <exception cref="Exception">Thrown if an unexpected error occurs during WebSocket communication.</exception>
         [HttpGet]
         [Route("streamindicators")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

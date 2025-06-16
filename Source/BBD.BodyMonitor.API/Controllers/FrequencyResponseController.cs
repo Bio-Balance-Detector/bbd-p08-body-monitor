@@ -5,6 +5,7 @@ namespace BBD.BodyMonitor.Controllers
 {
     /// <summary>
     /// Controller for performing frequency response analysis.
+    /// This involves analyzing how a system or device responds to different input frequencies.
     /// </summary>
     [ApiController]
     [Route("[controller]")]
@@ -33,6 +34,7 @@ namespace BBD.BodyMonitor.Controllers
         /// </remarks>
         /// <param name="deviceSerialNumber">The serial number of the device to analyze.</param>
         /// <returns>The ID of the background task performing the analysis.</returns>
+        /// <response code="200">Returns the ID of the background task successfully initiated for frequency response analysis.</response>
         [HttpGet]
         [Route("frequencyresponseanalysis/{deviceSerialNumber}")]
         public int FrequencyResponseAnalysis(string deviceSerialNumber)

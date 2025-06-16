@@ -54,6 +54,9 @@ namespace BBD.BodyMonitor.Controllers
         /// <param name="channelId">The ID of the ThingSpeak channel from which to retrieve data.</param>
         /// <param name="entryCount">Optional. The number of entries to retrieve. Defaults to 8000 (the maximum allowed by ThingSpeak).</param>
         /// <returns>An array of <see cref="SensorSegment"/> objects representing the fetched data. Returns an empty array if the request fails or no data is available.</returns>
+        /// <response code="200">Returns the sensor data from the ThingSpeak channel.</response>
+        /// <response code="400">If the provided channel ID is invalid or missing.</response>
+        /// <response code="500">If there is an error communicating with the ThingSpeak API.</response>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="channelId"/> is null or whitespace.</exception>
         [HttpGet]
         [Route("getsensordata/{channelId}/{entryCount?}")]
@@ -98,6 +101,9 @@ namespace BBD.BodyMonitor.Controllers
         /// Session files are named using the pattern: "Subjects\{subjectAlias}\{subjectAlias}_{date:yyyyMMdd_HHmmss}__ThingSpeak.json".
         /// </remarks>
         /// <param name="subjectAlias">The alias of the subject for whom to save ThingSpeak data.</param>
+        /// <response code="200">Indicates that ThingSpeak data was successfully fetched and saved.</response>
+        /// <response code="400">If the subject does not have a ThingSpeak channel defined.</response>
+        /// <response code="404">If the subject with the given alias is not found.</response>
         /// <exception cref="Exception">Thrown if the subject is not found or if the subject does not have a ThingSpeak channel defined.</exception>
         [HttpGet]
         [Route("savedata/{subjectAlias}")]

@@ -42,6 +42,8 @@ namespace BBD.BodyMonitor.Controllers
         /// <param name="balanceOnTag">Optional. A tag used to balance the dataset, ensuring an equal number of items with and without this tag (e.g., "Subject_None").</param>
         /// <param name="maxRows">Optional. The maximum number of rows to include in the generated CSV file.</param>
         /// <returns>The ID of the background task performing the data preparation.</returns>
+        /// <response code="200">Returns the ID of the background task successfully initiated for data preparation.</response>
+        /// <response code="404">If the specified ML profile is not found (though the current implementation logs an error and returns a task ID).</response>
         [HttpGet]
         [Route("pretraining/{trainingDataFoldername}/{mlProfileName}/{tagFilterExpression?}/{validLabelExpression?}/{balanceOnTag?}/{maxRows?}")]
         public int PrepareTraining(string trainingDataFoldername, string mlProfileName, string tagFilterExpression, string validLabelExpression, string balanceOnTag, int? maxRows)
@@ -78,7 +80,9 @@ namespace BBD.BodyMonitor.Controllers
         /// <param name="preparedTrainingDataFilename">The filename of the CSV file containing the prepared training data. If not an absolute path, it's assumed to be in the application's data directory.</param>
         /// <param name="mlProfileName">The name of the machine learning profile to use for training (e.g., "MLP05", "MLP14"). This determines the data schema and features.</param>
         /// <param name="trainingTimeInSeconds">The duration, in seconds, for which the training process should run.</param>
-        /// <returns>The ID of the background task performing the model training. Returns 0 if the prepared training data file is not found.</returns>
+        /// <returns>The ID of the background task performing the model training. Returns 0 if the prepared training data file is not found (this should ideally be a 404 response).</returns>
+        /// <response code="200">Returns the ID of the background task successfully initiated for model training.</response>
+        /// <response code="404">If the prepared training data file is not found (current implementation returns 0 instead of a direct HTTP error).</response>
         /// <exception cref="Exception">Thrown if the specified ML Profile is not supported.</exception>
         [HttpGet]
         [Route("train/{preparedTrainingDataFilename}/{mlProfileName}/{trainingTimeInSeconds}")]

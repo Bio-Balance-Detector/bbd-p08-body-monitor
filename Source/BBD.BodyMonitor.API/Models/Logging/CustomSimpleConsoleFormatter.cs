@@ -164,6 +164,12 @@ namespace BBD.BodyMonitor
             return FormatterOptions.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
         }
 
+        /// <summary>
+        /// Gets the short string representation for a given <see cref="LogLevel"/>.
+        /// </summary>
+        /// <param name="logLevel">The log level.</param>
+        /// <returns>A four-character string representing the log level (e.g., "info", "warn").</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if the <paramref name="logLevel"/> is not a recognized value.</exception>
         private static string GetLogLevelString(LogLevel logLevel)
         {
             return logLevel switch
@@ -178,6 +184,12 @@ namespace BBD.BodyMonitor
             };
         }
 
+        /// <summary>
+        /// Gets the console colors (foreground and background) for a given <see cref="LogLevel"/>.
+        /// Color behavior can be influenced by <see cref="FormatterOptions"/> and detected operating system.
+        /// </summary>
+        /// <param name="logLevel">The log level.</param>
+        /// <returns>A <see cref="ConsoleColors"/> struct containing the foreground and background colors.</returns>
         private ConsoleColors GetLogLevelConsoleColors(LogLevel logLevel)
         {
             // We shouldn't be outputting color codes for Android/Apple mobile platforms,
@@ -229,17 +241,30 @@ namespace BBD.BodyMonitor
             }
         }
 
-        // Private struct for storing console color pairs.
+        /// <summary>
+        /// A private struct to store foreground and background console color pairs.
+        /// </summary>
         private readonly struct ConsoleColors
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ConsoleColors"/> struct.
+            /// </summary>
+            /// <param name="foreground">The foreground color. Null for default.</param>
+            /// <param name="background">The background color. Null for default.</param>
             public ConsoleColors(ConsoleColor? foreground, ConsoleColor? background)
             {
                 Foreground = foreground;
                 Background = background;
             }
 
+            /// <summary>
+            /// Gets the foreground console color.
+            /// </summary>
             public ConsoleColor? Foreground { get; }
 
+            /// <summary>
+            /// Gets the background console color.
+            /// </summary>
             public ConsoleColor? Background { get; }
         }
     }

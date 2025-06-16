@@ -1,3 +1,19 @@
+/// <remarks>
+/// Main entry point for the BBD.BodyMonitor.API application.
+/// This file is responsible for:
+/// - Configuring and building the ASP.NET Core web application host.
+/// - Setting up logging providers with custom formatting.
+/// - Processing command-line arguments and user secrets for configuration.
+/// - Binding configuration values to the <see cref="BBD.BodyMonitor.Configuration.BodyMonitorOptions"/> class.
+/// - Registering essential services for data processing (<see cref="BBD.BodyMonitor.Services.IDataProcessorService"/>)
+///   and session management (<see cref="BBD.BodyMonitor.Services.ISessionManagerService"/>) in the dependency injection container.
+/// - Configuring controllers, API explorer, and Swagger/OpenAPI for API documentation and testing.
+/// - Displaying a welcome screen with the application version.
+/// - Implementing a mutex to ensure only one instance of the application runs at a time.
+/// - Setting up the HTTP request pipeline, including Swagger UI for development, HTTPS redirection,
+///   authorization, controller mapping, and WebSocket support.
+/// - Running the web application.
+/// </remarks>
 using BBD.BodyMonitor;
 using BBD.BodyMonitor.Configuration;
 using BBD.BodyMonitor.Services;

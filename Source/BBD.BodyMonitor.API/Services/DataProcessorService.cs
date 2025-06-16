@@ -21,6 +21,12 @@ using Xabe.FFmpeg;
 
 namespace BBD.BodyMonitor.Services
 {
+    /// <summary>
+    /// Provides concrete implementation for processing data, managing data acquisition from devices,
+    /// and generating various outputs like CSV files for machine learning, videos, FFT data, and EDF files.
+    /// This class also handles device calibration, signal generation, and indicator evaluation.
+    /// It is intended for internal use and is registered as a singleton service.
+    /// </summary>
     internal class DataProcessorService : IDataProcessorService
     {
         private readonly ILogger _logger;
@@ -57,7 +63,15 @@ namespace BBD.BodyMonitor.Services
         private readonly Dictionary<string, Queue<string>> _waveFileWriteQueue = new();
         private readonly ConcurrentDictionary<DateTime, IndicatorEvaluationResult[]> _indicatorResultsDictionary = new();
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE constructor. Initializes a new instance of the <see cref="DataProcessorService"/> class.
+        /// Dependencies are typically resolved via dependency injection in newer application patterns.
+        /// </summary>
+        /// <param name="logger">The logger instance for recording messages and errors.</param>
+        /// <param name="configRoot">The root configuration interface, used to initialize BodyMonitorOptions.</param>
+        /// <param name="bodyMonitorOptions">The options monitor for BodyMonitor configuration.</param>
+        /// <param name="sessionManager">The session manager service for handling session data.</param>
+        [Obsolete("This constructor is obsolete. Use dependency injection to provide necessary services and options.")]
         public DataProcessorService(ILogger<DataProcessorService> logger, IConfiguration configRoot, IOptionsMonitor<BodyMonitorOptions> bodyMonitorOptions, ISessionManagerService sessionManager)
         {
             _logger = logger;
@@ -83,8 +97,11 @@ namespace BBD.BodyMonitor.Services
             //ProcessCommandLineArguments(args);
         }
 
-        [Obsolete]
-        public void PreprareMachineLearningModels()
+        /// <summary>
+        /// OBSOLETE. Prepares machine learning models, potentially by evaluating dummy data to initialize prediction engines.
+        /// </summary>
+        [Obsolete("This method is obsolete and its functionality may be integrated elsewhere or re-evaluated.")]
+        public void PrepareMachineLearningModels()
         {
             _logger.LogInformation("Preparing machine learning models, please wait...");
             FftDataV3 dummnyFftData = new()
@@ -97,12 +114,22 @@ namespace BBD.BodyMonitor.Services
             _ = EvaluateIndicators(_logger, 0, dummnyFftData);
         }
 
+        /// <summary>
+        /// Lists all connected and available data acquisition devices.
+        /// </summary>
+        /// <returns>An array of <see cref="ConnectedDevice"/> objects detailing each detected device.</returns>
         public ConnectedDevice[] ListDevices()
         {
             return DataAcquisition.ListDevices();
         }
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Starts a new data acquisition session using the specified device.
+        /// </summary>
+        /// <param name="deviceSerialNumber">The serial number of the device to use. If null or not found, a default device may be used.</param>
+        /// <param name="session">The <see cref="Session"/> object to associate with this acquisition.</param>
+        /// <returns>The serial number of the device used for acquisition, or null if starting failed.</returns>
+        [Obsolete("This method is obsolete. Data acquisition start should be handled by newer mechanisms or specific controller actions.")]
         public string? StartDataAcquisition(string deviceSerialNumber, Session? session)
         {
             StartDiskSpaceChecker(spaceCheckDrive);
@@ -180,11 +207,23 @@ namespace BBD.BodyMonitor.Services
             _checkDiskSpaceTimer.Elapsed += CheckDiskSpaceTimer_Elapsed;
             _checkDiskSpaceTimer.AutoReset = true;
             _checkDiskSpaceTimer.Enabled = true;
-            _logger.LogTrace($"Set up a timer to check disk space on '{spaceCheckDrive.Name}' every {_checkDiskSpaceTimer.Interval / 1000:0} seconds.");
+            _logger.LogTrace($"Set up a timer to check disk space on '{spaceCheckDrive?.Name}' every {_checkDiskSpaceTimer.Interval / 1000:0} seconds.");
         }
 
-        private void StartSignalGeneration(DataAcquisition? _dataAcquisition)
+        /// <summary>
+        /// Initializes and starts the signal generation process based on configured schedules.
+        /// This involves parsing schedules, creating command queues for each signal generator channel,
+        /// and starting a timer to execute these commands at the appropriate times.
+        /// </summary>
+        /// <param name="dataAcquisitionInstance">The active <see cref="DataAcquisition"/> instance to control the signal generator on. This parameter is named `_dataAcquisition` in the original code but renamed here for clarity in documentation.</param>
+        private void StartSignalGeneration(DataAcquisition? dataAcquisitionInstance)
         {
+            if (dataAcquisitionInstance == null)
+            {
+                _logger.LogWarning("Data acquisition instance is null. Cannot start signal generation.");
+                return;
+            }
+
             TimeSpan currentTime = DateTime.UtcNow.TimeOfDay;
             currentTime = new TimeSpan(currentTime.Hours, currentTime.Minutes, currentTime.Seconds);
 
@@ -274,18 +313,17 @@ namespace BBD.BodyMonitor.Services
                 SignalGeneratorCommand? firstCommand = signalGeneratorCommands.FirstOrDefault();
                 if (firstCommand != null)
                 {
-                    while (signalGeneratorCommands[0].Timestamp < currentTime)
+                    while (signalGeneratorCommands.Count > 0 && signalGeneratorCommands[0].Timestamp < currentTime)
                     {
                         signalGeneratorCommands.Add(signalGeneratorCommands[0]);
                         signalGeneratorCommands.RemoveAt(0);
 
-                        if (firstCommand == signalGeneratorCommands.First())
+                        if (firstCommand == signalGeneratorCommands.First()) // Prevent infinite loop if all commands are in the past
                         {
                             break;
                         }
                     }
                 }
-
                 _signalGeneratorCommandQueues.Add(channelId, new Queue<SignalGeneratorCommand>(signalGeneratorCommands));
             }
 
@@ -301,9 +339,15 @@ namespace BBD.BodyMonitor.Services
                 Enabled = true
             };
             _signalGeneratorTimer.Elapsed += _signalGeneratorTimer_Elapsed;
-            _logger.LogTrace($"Set up a timer to generate signals on '{_dataAcquisition.SerialNumber}'.");
+            _logger.LogTrace($"Set up a timer to generate signals on '{dataAcquisitionInstance.SerialNumber}'.");
         }
 
+        /// <summary>
+        /// Event handler for the signal generator timer. Checks the command queue for each channel
+        /// and executes commands whose scheduled time has arrived.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">An <see cref="System.Timers.ElapsedEventArgs"/> that contains the event data.</param>
         private void _signalGeneratorTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
             lock (_signalGeneratorCommandQueues)
@@ -322,22 +366,26 @@ namespace BBD.BodyMonitor.Services
                         if (timeToCheck <= currentTime)
                         {
                             signalGeneratorCommand = signalGeneratorCommands.Dequeue();
-                            if (signalGeneratorCommand == null)
+                            if (signalGeneratorCommand == null) // Should not happen if Peek succeeded and Count > 0
                             {
                                 break;
                             }
-
                             ExecuteSignalGeneratorCommand(channelId, signalGeneratorCommand);
                         }
                     }
                 }
-
                 _signalGeneratorTimerLastCheckedDate = comperasonDate;
             }
         }
 
         private void ExecuteSignalGeneratorCommand(string channelId, SignalGeneratorCommand signalGeneratorCommand)
         {
+            if (_dataAcquisition == null)
+            {
+                _logger.LogWarning($"Data acquisition is not active. Cannot execute signal generator command for channel '{channelId}'.");
+                return;
+            }
+
             _logger.LogTrace($"Executing signal generator command '{signalGeneratorCommand.Command}' on channel '{channelId}' at {DateTime.Now:HH:mm:ss.fff}.");
 
             SignalGeneratorStatus status = _dataAcquisition.GetSignalGeneratorStatus(channelId);
@@ -370,15 +418,20 @@ namespace BBD.BodyMonitor.Services
                     }
 
                     // Pass the command paramters to the device
-                    _dataAcquisition.ChangeSingalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyFrom == sd.FrequencyTo ? null : sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeFrom == sd.AmplitudeTo ? null : sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
+                    _dataAcquisition.ChangeSignalGenerator(channelId, sd.Function, sd.FrequencyFrom, sd.FrequencyFrom == sd.FrequencyTo ? null : sd.FrequencyTo, sd.FrequencyMode == PeriodicyMode.PingPong, sd.AmplitudeFrom, sd.AmplitudeFrom == sd.AmplitudeTo ? null : sd.AmplitudeTo, sd.AmplitudeMode == PeriodicyMode.PingPong, signalGeneratorCommand.Options.SignalLength);
                     break;
                 case SignalGeneratorCommandType.Stop:
                     _logger.LogTrace($"Stopping signal generator on channel '{channelId}'.");
-                    _dataAcquisition.StopSingalGenerator(channelId);
+                    _dataAcquisition.StopSignalGenerator(channelId);
                     break;
             }
         }
 
+        /// <summary>
+        /// Stops an ongoing data acquisition session for the specified device.
+        /// </summary>
+        /// <param name="deviceSerialNumber">The serial number of the device whose acquisition session should be stopped. If null or empty, the default device's session is targeted.</param>
+        /// <returns>True if the acquisition was stopped successfully or if no acquisition was active; false if the specified device was not found or an error occurred.</returns>
         public bool StopDataAcquisition(string deviceSerialNumber)
         {
             if (_dataAcquisition == null)
@@ -406,26 +459,27 @@ namespace BBD.BodyMonitor.Services
 
         private void DataAcquisition_BufferError(object sender, BufferErrorEventArgs e)
         {
-            _ = Task.Run(() =>
+            _ = Task.Run(() => // Consider making this method async Task and awaiting this if it's critical path.
             {
                 //_logger.LogWarning($"Data error! cAvailable: {e.BytesAvailable / (float)e.BytesTotal:P}, cLost: {e.BytesLost / (float)e.BytesTotal:P}, cCorrupted: {e.BytesCorrupted / (float)e.BytesTotal:P}");
 
-                if (_dataAcquisition == null)
+                DataAcquisition? currentDataAcquisition = _dataAcquisition; // Capture to local variable for thread safety
+                if (currentDataAcquisition == null)
                 {
                     return;
                 }
 
-                if (_dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ZeroSamples)
+                if (currentDataAcquisition.ErrorHandling == BufferErrorHandlingMode.ZeroSamples)
                 {
                     // The buffer is filled with zeros at the corrupted positions, so we can continue
                 }
 
-                if (_dataAcquisition.ErrorHandling == BufferErrorHandlingMode.DiscardSamples)
+                if (currentDataAcquisition.ErrorHandling == BufferErrorHandlingMode.DiscardSamples)
                 {
                     // The buffer didn't get the corrupted data, so we can continue
                 }
 
-                if (_dataAcquisition.ErrorHandling == BufferErrorHandlingMode.ClearBuffer)
+                if (currentDataAcquisition.ErrorHandling == BufferErrorHandlingMode.ClearBuffer)
                 {
                     // The buffer is going to be cleared, so we need to write the remaining data to the WAV file and start a new one
 
@@ -443,6 +497,11 @@ namespace BBD.BodyMonitor.Services
             });
         }
 
+        /// <summary>
+        /// Performs a calibration routine for the specified device.
+        /// This involves acquiring data with known signal generator settings to measure errors.
+        /// </summary>
+        /// <param name="deviceSerialNumber">The serial number of the device to calibrate.</param>
         public void CalibrateDevice(string deviceSerialNumber)
         {
             Session session = _sessionManager.StartSession(null, null);
@@ -466,7 +525,7 @@ namespace BBD.BodyMonitor.Services
                 signalAmplitude = selfCalibrationAmplitudes[ai];
 
                 _ = calibration.OpenDevice(deviceIndex, new string[] { "CH1" }, samplerate, 0.1f, 1.0f);
-                calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
+                calibration.ChangeSignalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -493,7 +552,7 @@ namespace BBD.BodyMonitor.Services
                 signalFrequency = selfCalibrationFrequencies[fi];
 
                 _ = calibration.OpenDevice(deviceIndex, new string[] { "CH1" }, samplerate, 0.1f, 1.0f);
-                calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
+                calibration.ChangeSignalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -520,7 +579,7 @@ namespace BBD.BodyMonitor.Services
                 fftSize = selfCalibrationFFTSizes[si];
 
                 _ = calibration.OpenDevice(deviceIndex, new string[] { "CH1" }, samplerate, 0.1f, 1.0f);
-                calibration.ChangeSingalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
+                calibration.ChangeSignalGenerator("W2", SignalFunction.Sine, signalFrequency, null, false, signalAmplitude, null, false, null);
                 calibration.BufferSize = fftSize * 2;
 
                 calibrationFftData = new FftDataV3()
@@ -542,7 +601,13 @@ namespace BBD.BodyMonitor.Services
             _logger.LogInformation($"Errors are ({string.Join(" | ", amplitudeErrors.Select(e => e.ToString("0.0").PadLeft(7)))}) mV and ({string.Join(" | ", frequencyErrors.Select(e => e.ToString("0.0").PadLeft(9)))}) mHz at ({string.Join(" | ", selfCalibrationFFTSizes.Select(a => a.ToString().PadLeft(7)))}) FFT sizes respectively.");
         }
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Performs a frequency response analysis for the specified device.
+        /// This method iterates through frequency ranges, generating signals and analyzing the response.
+        /// </summary>
+        /// <param name="deviceSerialNumber">The serial number of the device to analyze.</param>
+        /// <exception cref="Exception">Thrown if data acquisition is not enabled in the configuration.</exception>
+        [Obsolete("This method is obsolete and its functionality for frequency response analysis may be revised or removed.")]
         public void FrequencyResponseAnalysis(string deviceSerialNumber)
         {
             if (!_config.Acquisition.Enabled)
@@ -594,7 +659,7 @@ namespace BBD.BodyMonitor.Services
 
                 frequencyAnalysisSettings.Samplerate *= 2;
                 _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, _config.Acquisition.Block, _config.Acquisition.Buffer);
-                frequencyAnalysisSettings.Samplerate = frada.Samplerate;
+                frequencyAnalysisSettings.Samplerate = frada.Samplerate; // Update with actual samplerate
                 frada.CloseDevice();
                 frequencyAnalysisSettings.StartFrequency = frequencyAnalysisSettings.EndFrequency;
                 frequencyAnalysisSettings.EndFrequency = (int)frequencyAnalysisSettings.Samplerate / 2;
@@ -625,25 +690,27 @@ namespace BBD.BodyMonitor.Services
             _ = frada.OpenDevice(deviceIndex, _config.Acquisition.Channels, frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.BlockLength, _config.Acquisition.Buffer);
             //frada.SubscribeToBlockReceived(frequencyAnalysisSettings.FftSize / frequencyAnalysisSettings.Samplerate, FrequencyResponseAnalysis_SamplesReceived);
             frada.SubscribeToBlockReceived(0.05f, FrequencyResponseAnalysis_SamplesReceived);
-            fftDataBlockCache = new FftDataBlockCache((int)frequencyAnalysisSettings.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
+            // Re-initialize fftDataBlockCache after OpenDevice, as Samplerate might change
+            fftDataBlockCache = new FftDataBlockCache((int)frada.Samplerate, frequencyAnalysisSettings.FftSize, frequencyAnalysisSettings.BlockLength, frequencyAnalysisSettings.FrequencyStep);
+
 
             frada.Start("CH1");
 
-            frada.ChangeSingalGenerator("W2", SignalFunction.Sine, frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, false, frequencyAnalysisSettings.Amplitude, null, false, TimeSpan.FromSeconds(45.0));
-            //frada.ChangeSingalGeneratorFrequency(frequencyAnalysisSettings.EndFrequency);
+            frada.ChangeSignalGenerator("W2", SignalFunction.Sine, frequencyAnalysisSettings.StartFrequency, frequencyAnalysisSettings.EndFrequency, false, frequencyAnalysisSettings.Amplitude, null, false, TimeSpan.FromSeconds(45.0));
+            //frada.ChangeSignalGeneratorFrequency(frequencyAnalysisSettings.EndFrequency);
 
-            DateTime endTime = DateTime.UtcNow.AddSeconds(15.0);
+            DateTime endTime = DateTime.UtcNow.AddSeconds(15.0); // This duration might be too short for a full sweep.
             lastMaxIndex = 0;
             //for (int i = (int)(frequencyAnalysisSettings.StartFrequency / frequencyAnalysisSettings.FrequencyStep); i < frequencyAnalysisSettings.EndFrequency / frequencyAnalysisSettings.FrequencyStep; i++)
             while (DateTime.UtcNow < endTime)
             {
                 //float frequencyToTest = ((i + 0.5f) * frequencyAnalysisSettings.FrequencyStep);
-                //frada.ChangeSingalGeneratorFrequency(frequencyToTest);
+                //frada.ChangeSignalGeneratorFrequency(frequencyToTest);
                 //frada.ClearBuffer();
                 float valueMultiplier = 1 / frequencyAnalysisSettings.Amplitude / _config.Postprocessing.FFTSize * 200000000;
 
                 frequencyResponseAnalysisFftData = null;
-                while (frequencyResponseAnalysisFftData == null) { }
+                while (frequencyResponseAnalysisFftData == null) { Thread.Sleep(10); /* Wait for data */ }
                 //result[i] = Math.Max(frequencyResponseAnalysisFftData.MagnitudeData[i], Math.Max(frequencyResponseAnalysisFftData.MagnitudeData[i - 1], frequencyResponseAnalysisFftData.MagnitudeData[i + 1])) * valueMultiplier;
 
                 //int maxIndex = Array.IndexOf(frequencyResponseAnalysisFftData.MagnitudeData, frequencyResponseAnalysisFftData.MagnitudeData.Max());
@@ -672,6 +739,12 @@ namespace BBD.BodyMonitor.Services
             frada.CloseDevice();
         }
 
+        /// <summary>
+        /// Event handler for processing data blocks received during frequency response analysis.
+        /// Computes FFT and stores results if conditions are met.
+        /// </summary>
+        /// <param name="sender">The source of the event (typically a <see cref="DataAcquisition"/> instance).</param>
+        /// <param name="e">The <see cref="BlockReceivedEventArgs"/> containing the data block.</param>
         public void FrequencyResponseAnalysis_SamplesReceived(object sender, BlockReceivedEventArgs e)
         {
             if (frequencyResponseAnalysisFftData != null)
@@ -715,10 +788,16 @@ namespace BBD.BodyMonitor.Services
             catch (IndexOutOfRangeException)
             {
                 _logger.LogError($"The FFT size of {_config.Postprocessing.FFTSize:N0} is too high for the sample rate of {_config.Acquisition.Samplerate:N0}. Decrease the FFT size or increase the sampling rate.");
+                // Consider stopping or signaling an error state if this occurs.
                 return;
             }
         }
 
+        /// <summary>
+        /// Event handler for the disk space check timer. Logs an error and potentially stops acquisition if free disk space is below a configured threshold.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">An <see cref="System.Timers.ElapsedEventArgs"/> that contains the event data.</param>
         public void CheckDiskSpaceTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
             if (spaceCheckDrive != null && spaceCheckDrive.AvailableFreeSpace < _config.MinimumAvailableFreeSpace)
@@ -728,6 +807,11 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        /// <summary>
+        /// Event handler for received data blocks, responsible for writing data to WAV files.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="BlockReceivedEventArgs"/> containing the data block.</param>
         public void DataWriter_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
             if (_dataAcquisition == null)
@@ -863,7 +947,12 @@ namespace BBD.BodyMonitor.Services
             );
         }
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Event handler for processing data blocks for post-processing tasks like FFT generation and image/video creation.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="BlockReceivedEventArgs"/> containing the data block.</param>
+        [Obsolete("This event handler is part of an obsolete data processing flow. Consider using targeted methods like GenerateFFT or GenerateVideo directly.")]
         public void Postprocessing_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
             if (_dataAcquisition == null)
@@ -1001,7 +1090,12 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Event handler for processing data blocks to evaluate bio-indicators using machine learning models.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="BlockReceivedEventArgs"/> containing the data block.</param>
+        [Obsolete("This event handler is part of an obsolete data processing flow. Indicator evaluation should be handled by newer mechanisms.")]
         public void Indicators_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
             if (_dataAcquisition == null)
@@ -1056,6 +1150,12 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        /// <summary>
+        /// Event handler for processing data blocks for audio recording.
+        /// Captures audio using FFmpeg based on configuration and detected signal levels.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="BlockReceivedEventArgs"/> containing the data block (not directly used for audio capture time reference in this impl, but indicates a data processing tick).</param>
         public void AudioRecording_BlockReceived(object sender, BlockReceivedEventArgs e)
         {
             DateTime captureTime = DateTime.UtcNow.AddSeconds(-_config.Postprocessing.Interval);
@@ -1123,6 +1223,11 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        /// <summary>
+        /// Enumerates available FFmpeg audio input devices on the system.
+        /// It tries different audio frameworks (dshow, alsa, etc.) to discover devices.
+        /// </summary>
+        /// <returns>A list of strings, where each string represents an audio device in the format "framework/Device Name".</returns>
         public List<string> GetFFMPEGAudioDevices()
         {
             List<string> ffmpegAudioNames = new();
@@ -1180,7 +1285,15 @@ namespace BBD.BodyMonitor.Services
             return ffmpegAudioNames;
         }
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Evaluates a predefined set of bio-indicators based on the input FFT data.
+        /// This method iterates through a hardcoded list of <see cref="IndicatorEvaluationTaskDescriptor"/>s.
+        /// </summary>
+        /// <param name="logger">A logger instance. Can be null, in which case internal logging is used.</param>
+        /// <param name="blockIndex">The index of the data block being evaluated.</param>
+        /// <param name="inputData">The <see cref="FftDataV3"/> to use as input for the models.</param>
+        /// <returns>An array of <see cref="IndicatorEvaluationResult"/> containing the results for each evaluated indicator.</returns>
+        [Obsolete("This method uses a hardcoded set of indicators and models. A more dynamic approach is recommended.")]
         public IndicatorEvaluationResult[] EvaluateIndicators(ILogger? logger, long blockIndex, FftDataV3 inputData)
         {
             List<IndicatorEvaluationResult> result = new();
@@ -1462,6 +1575,19 @@ namespace BBD.BodyMonitor.Services
             return result.OrderBy(r => r.IndicatorIndex).ToArray();
         }
 
+        /// <summary>
+        /// Evaluates a single bio-indicator using a specified machine learning model and input FFT data.
+        /// </summary>
+        /// <param name="blockIndex">The index of the data block.</param>
+        /// <param name="indicatorIndex">An index for the indicator.</param>
+        /// <param name="indicatorName">The name of the indicator.</param>
+        /// <param name="negate">Whether to negate the prediction score.</param>
+        /// <param name="text">Display text for the indicator.</param>
+        /// <param name="description">Description of the indicator.</param>
+        /// <param name="mlModelFilename">Filename of the ML.NET model to use.</param>
+        /// <param name="inputData">The <see cref="FftDataV3"/> processed according to the model's expected profile.</param>
+        /// <returns>An <see cref="IndicatorEvaluationResult"/>, or null if the model file is not found.</returns>
+        /// <exception cref="Exception">Thrown if the input data's ML profile is not set or not supported.</exception>
         public IndicatorEvaluationResult? EvaluateIndicator(long blockIndex, int indicatorIndex, string indicatorName, bool negate, string text, string description, string mlModelFilename, FftDataV3 inputData)
         {
             if (!System.IO.File.Exists(mlModelFilename))
@@ -1532,10 +1658,11 @@ namespace BBD.BodyMonitor.Services
         }
 
         /// <summary>
-        /// Generates the full path to the file where the data will be saved based on the capture time.
+        /// Generates a relative path string for a file based on the capture time, typically in "yyyy-MM-dd/EMR_yyyyMMdd_HHmmss" format.
+        /// Ensures the date-based subdirectory exists.
         /// </summary>
-        /// <param name="captureTime">Timestamp of the file</param>
-        /// <returns></returns>
+        /// <param name="captureTime">The timestamp used to generate the path and filename components.</param>
+        /// <returns>A string representing the relative path for the file.</returns>
         public string GeneratePathToFile(DateTime captureTime)
         {
             if (!Directory.Exists(AppendDataDir(captureTime.ToString("yyyy-MM-dd"))))
@@ -1548,6 +1675,14 @@ namespace BBD.BodyMonitor.Services
             return Path.Combine(foldername, filename);
         }
 
+        /// <summary>
+        /// Generates a filename for a binary FFT data file (.bfft).
+        /// The filename includes the start time, FFT range or ML profile name, and an optional frame counter.
+        /// </summary>
+        /// <param name="fftData">The <see cref="FftDataV3"/> object containing metadata for the filename.</param>
+        /// <param name="frameCounter">Optional. A frame counter to include in the filename.</param>
+        /// <param name="frameCounterFormatterString">The format string for the frame counter (e.g., "D4").</param>
+        /// <returns>A string representing the generated filename for the binary FFT data.</returns>
         public string GenerateBinaryFftFilename(FftDataV3 fftData, int? frameCounter, string frameCounterFormatterString)
         {
             string fftRangeString = $"__{fftData.GetFFTRange()}";
@@ -1557,636 +1692,16 @@ namespace BBD.BodyMonitor.Services
             return $"EMR_{fftData.Start.Value:yyyyMMdd_HHmmss}{profileOrRangeString}{frameCounterString}.bfft";
         }
 
-        [Obsolete]
-        public void GenerateVideo(string foldername, MLProfile mlProfile, double framerate)
-        {
-            int totalFrameCount = EnumerateFFTDataInFolder(foldername).Count();
-            int frameCounter = 0;
-
-            Stopwatch sw = new();
-            sw.Start();
-            foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
-            {
-                try
-                {
-                    frameCounter++;
-                    string filenameComplete = Path.Combine(foldername, $"{fftData.Name}_{SimplifyNumber(mlProfile.MaxFrequency)}Hz_{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Min)}-{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Max)}{_config.Postprocessing.SaveAsPNG.RangeY.Unit}.png");
-
-                    if (File.Exists(AppendDataDir(filenameComplete)))
-                    {
-                        //_logger.LogWarning($"{filenameComplete} already exists.");
-                        continue;
-                    }
-
-                    IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(null, 0, fftData);
-                    string evaluationResultsString = string.Join(System.Environment.NewLine, evaluationResults.Select(er => er.Text + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00")));
-
-                    fftData.ApplyMedianFilter();
-                    fftData.ApplyCompressorFilter(0.25);
-
-                    SaveSignalAsPng(AppendDataDir(filenameComplete), fftData, _config.Postprocessing.SaveAsPNG, mlProfile, evaluationResultsString);
-                    //_logger.LogInformation($"{filenameComplete} was generated successfully.");
-
-                    if (frameCounter % 50 == 0)
-                    {
-                        float percentCompleted = (float)frameCounter / totalFrameCount * 100;
-                        float totalTimeToFinish = sw.ElapsedMilliseconds / (percentCompleted / 100);
-                        _logger.LogInformation($"Generated {percentCompleted:0.00}% of the PNG files, {(totalTimeToFinish - sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes remaining.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning($"There was an error while generating PNG for '{fftData.Name}': {ex.Message}");
-                }
-            }
-            sw.Stop();
-
-            string mp4FilenameBase = foldername.Replace("\\", "_").Replace("#", "_");
-            string mp4Filename = $"BBD_{mp4FilenameBase}_{SimplifyNumber(mlProfile.MaxFrequency)}Hz_{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Min)}-{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Max)}{_config.Postprocessing.SaveAsPNG.RangeY.Unit}.mp4";
-            _logger.LogInformation($"Generating MP4 video file '{mp4Filename}'");
-            try
-            {
-                FFmpeg.Conversions.New()
-                    .SetInputFrameRate(framerate)
-                    .BuildVideoFromImages(Directory.GetFiles(AppendDataDir(foldername), "*.png").OrderBy(fn => fn))
-                    .SetFrameRate(framerate)
-                    .SetPixelFormat(PixelFormat.yuv420p)
-                    .SetOutput(AppendDataDir(mp4Filename))
-                    .Start()
-                    .Wait();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"There was an error while generating MP4 video file '{mp4Filename}': {ex.Message}");
-            }
-        }
-
-        [Obsolete]
-        public void GenerateMLCSV(string foldername, MLProfile mlProfile, bool includeHeaders, string tagFilterExpression, string validLabelExpression, string balanceOnTag, int? maxRows)
-        {
-            HashSet<string> validTags = new();
-            string[] requiredTags = tagFilterExpression.Split("||", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            string[] validLabels = validLabelExpression.Split("+", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            List<FftDataV3> fftFilesToConvert = new();
-            List<FftDataV3> fftFilesTemp;
-
-            if (mlProfile == null)
-            {
-                throw new Exception("ML Profile is not specified.");
-            }
-
-            foldername = AppendDataDir(foldername);
-            if (!foldername.EndsWith(Path.DirectorySeparatorChar))
-            {
-                foldername += Path.DirectorySeparatorChar;
-            }
-
-            if (!Directory.Exists(foldername))
-            {
-                _logger.LogError($"The folder '{foldername}' doesn't exists.");
-                return;
-            }
-
-            // Read all data files from the folder and its subfolders
-            int fftFilesToConvertCount = 0;
-            foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
-            {
-                fftFilesToConvert.Add(fftData);
-                fftFilesToConvertCount++;
-            }
-            fftFilesToConvert = fftFilesToConvert.OrderBy(d => d.Filename).ToList();
-            _logger.LogInformation($"{fftFilesToConvert.Count} valid FFT data files were found in the '{foldername}' folder.");
-
-            // Filter data based on the tag filter
-            fftFilesTemp = new List<FftDataV3>();
-            if (requiredTags.Length > 0)
-            {
-                foreach (FftDataV3 fftData in fftFilesToConvert)
-                {
-                    if (requiredTags.All(rt => fftData.Tags.Any(t => t.Contains(rt))))
-                    {
-                        fftFilesTemp.Add(fftData);
-                    }
-                }
-                fftFilesToConvert = fftFilesTemp;
-                _logger.LogInformation($"The number of FFT data files to convert was reduced to {fftFilesToConvert.Count} by the tag filter expression '{tagFilterExpression}'.");
-            }
-
-            // Balance the data if requested
-            // TODO: data balancing should be done with the final, downsampled FFT file list
-            if (!string.IsNullOrWhiteSpace(balanceOnTag))
-            {
-                int hasBalanceTagCount = fftFilesToConvert.Count(d => d.Tags.Contains(balanceOnTag));
-                int hasNoBalanceTagCount = fftFilesToConvert.Count(d => !d.Tags.Contains(balanceOnTag));
-
-                int smallerCount = Math.Min(hasBalanceTagCount, hasNoBalanceTagCount);
-
-                if (maxRows.HasValue && (maxRows.Value > 0))
-                {
-                    maxRows = (((maxRows.Value - 1) / 2) + 1) * 2;
-                    smallerCount = Math.Min(smallerCount, maxRows.Value / 2);
-                }
-
-                if (smallerCount > 0)
-                {
-                    fftFilesTemp = new List<FftDataV3>();
-
-                    Random rnd = new();
-                    fftFilesToConvert = fftFilesToConvert.OrderBy(a => rnd.Next()).ToList();
-
-                    hasBalanceTagCount = 0;
-                    hasNoBalanceTagCount = 0;
-                    foreach (FftDataV3 fftData in fftFilesToConvert)
-                    {
-                        bool hasBalanceTag = fftData.Tags.Contains(balanceOnTag);
-
-                        if ((hasBalanceTag && (hasBalanceTagCount < smallerCount)) || (!hasBalanceTag && (hasNoBalanceTagCount < smallerCount)))
-                        {
-                            fftFilesTemp.Add(fftData);
-
-                            if (hasBalanceTag)
-                            {
-                                hasBalanceTagCount++;
-                            }
-                            else
-                            {
-                                hasNoBalanceTagCount++;
-                            }
-                        }
-                    }
-                    fftFilesToConvert = fftFilesTemp.OrderBy(d => d.Filename).ToList();
-                    _logger.LogInformation($"The number of valid FFT data files was reduced to {fftFilesToConvert.Count} because of the data balancing.");
-                }
-            }
-
-            List<FftDataV3> convertedFFTDataCache = ConvertFFTFilesToMLProfile(mlProfile, validTags, fftFilesToConvert);
-
-
-            // We have all the FFT data in downsampledFFTDataCache converted to the requested ML profile
-
-            Dictionary<string, List<float>> labelValues = SaveMLCSVFile(foldername, mlProfile, includeHeaders, validTags, ref validLabels, convertedFFTDataCache, out string[] featureColumnNames, out string[] labelColumnNames, out string filenameRoot, out string csvFilename);
-
-            //SaveMBConfigFile(featureColumnNames, labelColumnNames, filenameRoot, csvFilename);
-
-            GenerateLabelDistribution(labelValues);
-        }
-
-        [Obsolete]
-        private List<FftDataV3> ConvertFFTFilesToMLProfile(MLProfile mlProfile, HashSet<string> validTags, List<FftDataV3> fftFilesToConvert)
-        {
-            Stopwatch sw = new();
-            sw.Start();
-
-            List<FftDataV3> downsampledFFTDataCache = new();
-
-            int fftFilesToConvertCount = fftFilesToConvert.Count();
-            int fftDataLoadCompleteCount = 0;
-            long fftDataBytesLoaded = 0;
-
-            _ = Task.Run(() =>
-            {
-                while (fftDataLoadCompleteCount < fftFilesToConvertCount)
-                {
-                    if (fftDataBytesLoaded > 0)
-                    {
-                        _logger.LogInformation($"{(float)fftDataLoadCompleteCount / fftFilesToConvertCount * 100.0f:0.0}% of FFT data was converted with the effective speed of {(float)fftDataBytesLoaded / (1024 * 1024) / ((float)sw.ElapsedMilliseconds / 1000):0.0} MB/s.");
-                    }
-                    Thread.Sleep(1000);
-                }
-            });
-
-            ParallelLoopResult plr = Parallel.ForEach(fftFilesToConvert, new ParallelOptions { MaxDegreeOfParallelism = 3 },
-                fftData =>
-                {
-                    // Load the raw .bfft file into the memory
-                    fftData.Load(mlProfile.Name);
-                    fftDataLoadCompleteCount++;
-                    fftDataBytesLoaded += fftData.FileSize;
-
-                    if (fftData.Tags != null)
-                    {
-                        foreach (string tag in fftData.Tags)
-                        {
-                            lock (validTags)
-                            {
-                                _ = validTags.Add(tag);
-                            }
-                        }
-                    }
-
-                    if (fftData.MLProfileName != mlProfile.Name)
-                    {
-                        try
-                        {
-                            FftDataV3 downsampledFFTData = fftData.ApplyMLProfile(mlProfile);
-
-                            lock (fftFilesToConvert)
-                            {
-                                FftDataV3.SaveAsBinary(downsampledFFTData, downsampledFFTData.Filename, false, mlProfile.Name);
-                            }
-
-                            lock (downsampledFFTDataCache)
-                            {
-                                downsampledFFTDataCache.Add(downsampledFFTData);
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.LogError(e, $"Couldn't apply ML Profile to the file {fftData.Filename}.");
-                        }
-
-                        // Release the loaded data
-                        fftData.ClearData();
-                    }
-                    else
-                    {
-                        lock (downsampledFFTDataCache)
-                        {
-                            downsampledFFTDataCache.Add(fftData);
-                        }
-                    }
-                });
-
-            while (!plr.IsCompleted)
-            {
-                Thread.Sleep(100);
-            }
-            fftFilesToConvert.Clear();
-
-            fftDataLoadCompleteCount = fftFilesToConvertCount;
-
-            sw.Stop();
-            _logger.LogInformation($"100.0% of FFT data was loaded in {sw.ElapsedMilliseconds:N0} ms with the effective speed of {(float)fftDataBytesLoaded / (1024 * 1024) / ((float)sw.ElapsedMilliseconds / 1000):0.0} MB/s.");
-
-            return downsampledFFTDataCache;
-        }
-
-        private Dictionary<string, List<float>> SaveMLCSVFile(string foldername, MLProfile mlProfile, bool includeHeaders, HashSet<string> validTags, ref string[] validLabels, List<FftDataV3> fftDataCache, out string[] featureColumnNames, out string[] labelColumnNames, out string filenameRoot, out string csvFilename)
-        {
-            StringBuilder sb = new();
-            int featureColumnIndexStart = 0;
-            int featureColumnIndexEnd = 0;
-            DateTimeOffset nextConsoleFeedback = DateTime.UtcNow;
-            int fftDataCount = fftDataCache.Count();
-            int dataRowsWritten = 0;
-
-            if (fftDataCount == 0)
-            {
-                throw new Exception($"There are no valid FFT files in the '{foldername}' folder.");
-            }
-
-            Dictionary<string, List<float>> labelValues = new();
-
-            FftDataV3? templateFftData = fftDataCache[0];
-            featureColumnIndexStart = 0;
-            featureColumnIndexEnd = fftDataCache[0].MagnitudeData.Length;
-
-            if (validLabels.Length == 0)
-            {
-                validLabels = validTags.ToArray();
-            }
-
-            featureColumnNames = Enumerable.Range(featureColumnIndexStart, featureColumnIndexEnd - featureColumnIndexStart).Select(i => "Freq_" + templateFftData.GetBinFromIndex(i).ToString("0.00").Replace(".", "p") + "_Hz").ToArray();
-            labelColumnNames = validLabels.Select(l => (validTags.Contains(l) ? "Is" + l : l).Replace(".", "_")).ToArray();
-            if (includeHeaders)
-            {
-                string header = string.Join(",", featureColumnNames);
-                header += "," + string.Join(",", labelColumnNames);
-
-                _ = sb.AppendLine(header);
-            }
-
-            filenameRoot = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value):yyyyMMdd}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{fftDataCount}rows";
-            csvFilename = filenameRoot + ".csv";
-            _logger.LogInformation($"Generating machine learning CSV file '{csvFilename}' with {featureColumnIndexEnd - featureColumnIndexStart + validLabels.Length} columns and {fftDataCount + 1} rows.");
-            try
-            {
-                File.WriteAllText(AppendDataDir(csvFilename), sb.ToString());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"There was an error while generating headers for CSV file '{csvFilename}': {ex.Message}");
-            }
-            _ = sb.Clear();
-
-            int i = 0;
-            int missingLabelValue = 0;
-            foreach (FftDataV3? fftData in fftDataCache.OrderBy(d => d.Start))
-            {
-                if (fftData == null)
-                {
-                    continue;
-                }
-
-                // load a new location if needed
-                string? locationAlias = null;
-                string? locationTag = fftData.Tags?.FirstOrDefault(t => t.StartsWith("Location_"));
-                if (locationTag != null)
-                {
-                    locationAlias = locationTag["Location_".Length..];
-                }
-
-                // load a new subject if needed
-                string? subjectAlias = null;
-                string? subjectTag = fftData.Tags?.FirstOrDefault(t => t.StartsWith("Subject_"));
-                if (subjectTag != null)
-                {
-                    subjectAlias = subjectTag["Subject_".Length..];
-                }
-
-                Sessions.Session session = _sessionManager.StartSession(locationAlias, subjectAlias);
-
-
-                if (nextConsoleFeedback < DateTime.UtcNow)
-                {
-                    _logger.LogInformation($"Adding '{fftData.Name}' to the machine learning CSV file. {(float)i / fftDataCount * 100.0f:0.0}% done.");
-                    nextConsoleFeedback = DateTime.UtcNow.AddSeconds(3);
-
-                    try
-                    {
-                        File.AppendAllText(AppendDataDir(csvFilename), sb.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"There was an error while appending to CSV file '{csvFilename}': {ex.Message}");
-                    }
-                    _ = sb.Clear();
-                }
-
-                bool skipDataset = false;
-                string datasetString = string.Join(",", fftData.MagnitudeData[featureColumnIndexStart..featureColumnIndexEnd].Select(md => md.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture.NumberFormat)));
-                foreach (string validLabel in validLabels)
-                {
-                    // there are two separate cases here based on where we need to get the value of the label from                        
-                    float labelValue = 0;
-                    if (validTags.Contains(validLabel))
-                    {
-                        // A, if the validLabel is a tag then we simply need to set it to 0 or 1
-                        labelValue = fftData.Tags.Contains(validLabel) ? 1.00f : 0.00f;
-                    }
-                    else
-                    {
-                        // B, the validLabel isn't a known tag so we suppose that it is a property in metadata
-                        if (fftData.Start.HasValue && fftData.End.HasValue)
-                        {
-                            //DateTimeOffset timeUtc = new DateTimeOffset((fftData.Start.Value.Ticks + fftData.End.Value.Ticks) / 2, TimeSpan.Zero);
-
-                            if (!session.TryToGetValue(validLabel, fftData.Start.Value.ToUniversalTime(), fftData.End.Value.ToUniversalTime(), out labelValue))
-                            {
-                                // we don't have a valid metadata value so we should skip this entry
-                                skipDataset = true;
-                                break;
-                            }
-                            else
-                            {
-                                missingLabelValue++;
-                                //_logger.LogInformation($"The value of '{validLabel}' at '{timeUtc}' (UTC) is '{labelValue}'.");
-                            }
-                        }
-                    }
-
-                    if (!labelValues.ContainsKey(validLabel))
-                    {
-                        labelValues.Add(validLabel, new List<float>());
-                    }
-
-                    labelValues[validLabel].Add(labelValue);
-
-                    datasetString += "," + labelValue.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
-                }
-
-                if (!skipDataset)
-                {
-                    _ = sb.AppendLine(datasetString);
-                    dataRowsWritten++;
-                }
-                i++;
-            }
-
-            if (missingLabelValue > 0)
-            {
-                _logger.LogWarning($"There were {missingLabelValue} data entries that didn't have label values. Those were not included in the CSV file.");
-            }
-
-            try
-            {
-                File.AppendAllText(AppendDataDir(csvFilename), sb.ToString());
-
-                string newCsvFilename = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value):yyyyMMdd}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{dataRowsWritten}rows.csv";
-                File.Move(AppendDataDir(csvFilename), AppendDataDir(newCsvFilename));
-                csvFilename = newCsvFilename;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"There was an error while appending to CSV file '{csvFilename}': {ex.Message}");
-            }
-            _ = sb.Clear();
-
-            return labelValues;
-        }
-
-        private void SaveMBConfigFile(string[] featureColumnNames, string[] labelColumnNames, string filenameRoot, string csvFilename)
-        {
-            string mbconfigFilename = filenameRoot + ".mbconfig";
-            _logger.LogInformation($"Generating mbconfig file '{mbconfigFilename}'.");
-            try
-            {
-                MBConfig mbConfig = new(AppendDataDir(csvFilename), featureColumnNames, labelColumnNames);
-                string mbConfigJson = JsonSerializer.Serialize(mbConfig, new JsonSerializerOptions() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } });
-                File.WriteAllText(AppendDataDir(mbconfigFilename), mbConfigJson);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"There was an error while generating mbconfig file '{mbconfigFilename}': {ex.Message}");
-            }
-        }
-
-        private void GenerateLabelDistribution(Dictionary<string, List<float>> labelValues)
-        {
-            if (labelValues.Count > 0)
-            {
-                foreach (string labelName in labelValues.Keys)
-                {
-                    _logger.LogInformation($"Label statistics for {labelName}");
-
-                    int distinctValueCount = labelValues[labelName].Distinct().Count();
-                    int bucketCount = 10;
-                    float bucketWidth = (labelValues[labelName].Max() - labelValues[labelName].Min()) / bucketCount;
-
-                    _logger.LogInformation($" min = {labelValues[labelName].Min():0.0000} | avg = {labelValues[labelName].Average():0.0000} | max = {labelValues[labelName].Max():0.0000} | count = {labelValues[labelName].Count()} | non-zero = {labelValues[labelName].Count(v => v > 0)} | distinct = {distinctValueCount}");
-                    _logger.LogInformation($" Distribution");
-
-                    for (int j = 0; j < bucketCount; j++)
-                    {
-                        float bucketMin = labelValues[labelName].Min() + (j * bucketWidth);
-                        float bucketMax = bucketMin + bucketWidth;
-                        int bucketItemCount = labelValues[labelName].Count(v => (v > bucketMin) && (v <= bucketMax));
-                        if (j == 0)
-                        {
-                            bucketItemCount += labelValues[labelName].Count(v => v == bucketMin);
-                        }
-                        _logger.LogInformation($"  {bucketMin:0.0000} - {bucketMax:0.0000}: {bucketItemCount,7}");
-                    }
-                }
-            }
-        }
-
-        [Obsolete]
-        public void TestAllModels(string foldername, float percentageToTest)
-        {
-            _logger.LogInformation($"Evaluating models based on {percentageToTest}% of the data in the '{foldername}' folder.");
-
-            Random rnd = new();
-            Dictionary<string, int[]> confusionMatrix = new();
-            foldername = AppendDataDir(foldername);
-
-            if (Directory.Exists(foldername))
-            {
-                int i = 0;
-                foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
-                {
-                    if (rnd.NextDouble() > percentageToTest / 100.0)
-                    {
-                        continue;
-                    }
-
-                    _logger.LogInformation($"Evaluating {fftData.Name}.");
-                    IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(_logger, i++, fftData);
-
-                    foreach (IndicatorEvaluationResult er in evaluationResults)
-                    {
-                        if (!confusionMatrix.ContainsKey(er.IndicatorName))
-                        {
-                            confusionMatrix.Add(er.IndicatorName, new int[4]);
-                        }
-
-                        if (er.IsTruePositive)
-                        {
-                            confusionMatrix[er.IndicatorName][0]++;
-                        }
-
-                        if (er.IsFalseNegative)
-                        {
-                            confusionMatrix[er.IndicatorName][1]++;
-                        }
-
-                        if (er.IsFalsePositive)
-                        {
-                            confusionMatrix[er.IndicatorName][2]++;
-                        }
-
-                        if (er.IsTrueNegative)
-                        {
-                            confusionMatrix[er.IndicatorName][3]++;
-                        }
-                    }
-                }
-            }
-
-            _logger.LogInformation($"");
-            foreach (KeyValuePair<string, int[]> cm in confusionMatrix)
-            {
-                _logger.LogInformation($"Confusion matrix for the '{cm.Key}' indicator:");
-                _logger.LogInformation($"    +--------------------------------+");
-                _logger.LogInformation($"    |     Prediction condition       |");
-                _logger.LogInformation($"    |----------+----------+----------|");
-                _logger.LogInformation($"    |  Total   |          |          |");
-                _logger.LogInformation($"    | {string.Format("{0,7}", cm.Value[0] + cm.Value[1] + cm.Value[2] + cm.Value[3])}  | positive | negative |");
-                _logger.LogInformation($"+---|----------|----------|----------|");
-                _logger.LogInformation($"| a | positive |TP:{string.Format("{0,7}", cm.Value[0])}|FN:{string.Format("{0,7}", cm.Value[1])}|");
-                _logger.LogInformation($"| c |----------|----------|----------|");
-                _logger.LogInformation($"| t | negative |FP:{string.Format("{0,7}", cm.Value[2])}|TN:{string.Format("{0,7}", cm.Value[3])}|");
-                _logger.LogInformation($"+---+----------+----------+----------+");
-                _logger.LogInformation($"Accuracy: {(cm.Value[0] + cm.Value[3]) / (double)(cm.Value[0] + cm.Value[1] + cm.Value[2] + cm.Value[3]) * 100:##0.00}%");
-                _logger.LogInformation($"");
-            }
-
-        }
-
-        public IEnumerable<FftDataV3> EnumerateFFTDataInFolder(string foldername, string[]? applyTags = null)
-        {
-            applyTags ??= Array.Empty<string>();
-
-            if (Path.GetFileName(foldername).StartsWith("."))
-            {
-                yield break;
-            }
-
-            if (Directory.Exists(AppendDataDir(foldername)))
-            {
-                foreach (string filename in Directory.GetFiles(AppendDataDir(foldername)).OrderBy(n => n))
-                {
-                    string pathToFile = Path.GetFullPath(filename);
-
-                    if (Path.GetExtension(filename) is not ".bfft" and not ".fft" and not ".zip")
-                    {
-                        continue;
-                    }
-
-                    FftDataV3? fftData = null;
-                    try
-                    {
-                        FileInfo fi = new(pathToFile);
-
-                        fftData = new FftDataV3
-                        {
-                            Filename = pathToFile,
-                            FileSize = fi.Length,
-                            FileModificationTimeUtc = fi.LastWriteTimeUtc
-                        };
-
-                        if (string.IsNullOrEmpty(fftData.Name))
-                        {
-                            fftData.Name = Path.GetFileNameWithoutExtension(pathToFile);
-                        }
-
-                        if (applyTags != null)
-                        {
-                            List<string> allTags = new(fftData.Tags);
-                            allTags.AddRange(applyTags);
-                            fftData.Tags = allTags.ToArray();
-                        }
-                        else
-                        {
-                            fftData.Tags ??= new string[0];
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        throw;
-                    }
-
-                    if (fftData != null)
-                    {
-                        yield return fftData;
-                    }
-                }
-
-                foreach (string directoryName in Directory.GetDirectories(AppendDataDir(foldername)).OrderBy(n => n))
-                {
-                    List<string> tags = new(applyTags);
-                    string newTag = Path.GetFileName(directoryName);
-                    if (newTag.StartsWith("#"))
-                    {
-                        tags.Add(newTag[1..]);
-                    }
-
-                    foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(directoryName, tags.ToArray()))
-                    {
-                        yield return fftData;
-                    }
-                }
-            }
-        }
-
-        public string AppendDataDir(string filename)
-        {
-            return !string.IsNullOrWhiteSpace(_config.DataDirectory)
-                ? Path.Combine(_config.DataDirectory, filename)
-                : Path.Combine(Directory.GetCurrentDirectory(), filename);
-        }
-
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Saves an FFT data signal as a PNG image with specified formatting and annotations.
+        /// </summary>
+        /// <param name="filename">The full path and filename for the output PNG image.</param>
+        /// <param name="fftData">The <see cref="FftDataV3"/> object to render.</param>
+        /// <param name="config">Configuration options for saving the PNG, such as target dimensions and value ranges.</param>
+        /// <param name="mlProfile">The <see cref="MLProfile"/> used to process/filter the FFT data before rendering.</param>
+        /// <param name="notes">Optional. Additional notes or text to render onto the image.</param>
+        /// <exception cref="Exception">Thrown if the calculated image dimensions are too large.</exception>
+        [Obsolete("This method is obsolete. Image generation should be handled by a more flexible and robust visualization component if needed.")]
         public void SaveSignalAsPng(string filename, FftDataV3 fftData, SaveAsPngOptions config, MLProfile mlProfile, string? notes = null)
         {
             Size targetResolution = new(config.TargetWidth, config.TargetHeight);
@@ -2323,6 +1838,12 @@ namespace BBD.BodyMonitor.Services
             pngFile.Close();
         }
 
+        /// <summary>
+        /// Simplifies a numeric value by appending a metric prefix (e.g., k, M) or scaling to milli (m), micro (u), etc.
+        /// </summary>
+        /// <param name="n">The number to simplify.</param>
+        /// <param name="format">The number format string to apply after scaling.</param>
+        /// <returns>A string representation of the simplified number with its metric prefix.</returns>
         public string SimplifyNumber(double n, string format = "0.###")
         {
             string[] postfixes = { "p", "n", "u", "m", "", "k", "M", "T", "P" };
@@ -2350,6 +1871,10 @@ namespace BBD.BodyMonitor.Services
             return absValue.ToString(format) + postfixes[postfixIndex];
         }
 
+        /// <summary>
+        /// Displays a welcome screen to the console with application version and command-line help.
+        /// </summary>
+        /// <param name="versionString">The version string of the application to display.</param>
         internal static void ShowWelcomeScreen(string versionString)
         {
             Console.WriteLine($"Bio Balance Detector Body Monitor v{versionString}");
@@ -2374,7 +1899,11 @@ namespace BBD.BodyMonitor.Services
             Console.WriteLine();
         }
 
-        [Obsolete]
+        /// <summary>
+        /// OBSOLETE. Processes command line arguments to invoke specific functionalities like video generation, model testing, or calibration.
+        /// </summary>
+        /// <param name="args">The command line arguments passed to the application.</param>
+        [Obsolete("This method for argument parsing is obsolete. Use a dedicated command-line parsing library or ASP.NET Core's configuration system.")]
         internal void ProcessCommandLineArguments(string[] args)
         {
             if (args.Length > 0)
@@ -2419,7 +1948,7 @@ namespace BBD.BodyMonitor.Services
 
                     float percentageToTest = float.Parse(args[2][..^1]);
 
-                    PreprareMachineLearningModels();
+                    PrepareMachineLearningModels();
                     TestAllModels(args[1], percentageToTest);
                     return;
                 }
@@ -2446,7 +1975,7 @@ namespace BBD.BodyMonitor.Services
 
                     if (_config.Indicators.Enabled)
                     {
-                        PreprareMachineLearningModels();
+                        PrepareMachineLearningModels();
                     }
 
                     _ = StartDataAcquisition(deviceSerialNumber, null);
@@ -2454,21 +1983,43 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        /// <summary>
+        /// Gets the full path for a machine learning model file, assuming it's located in an "MLModels" subdirectory relative to the application.
+        /// </summary>
+        /// <param name="filename">The name of the model file.</param>
+        /// <returns>The full absolute path to the model file.</returns>
         internal static string GetFullMLPath(string filename)
         {
             return Path.GetFullPath(@"MLModels\" + filename);
         }
 
+        /// <summary>
+        /// Retrieves the current application configuration.
+        /// </summary>
+        /// <returns>The current <see cref="BodyMonitorOptions"/>.</returns>
         public BodyMonitorOptions GetConfig()
         {
             return _config;
         }
 
+        /// <summary>
+        /// Sets the application configuration.
+        /// </summary>
+        /// <param name="config">The <see cref="BodyMonitorOptions"/> to apply.</param>
         public void SetConfig(BodyMonitorOptions config)
         {
             _config = config;
         }
 
+        /// <summary>
+        /// Generates Fast Fourier Transform (FFT) data from WAV files in a specified folder.
+        /// It processes each WAV file, segmenting it based on <paramref name="interval"/> and <paramref name="dataBlockLength"/> (from config),
+        /// applies the given <paramref name="mlProfile"/>, and saves the resulting FFT data as binary (.bfft) files.
+        /// </summary>
+        /// <param name="foldername">The root folder containing WAV files to process. Subdirectories are also searched.</param>
+        /// <param name="mlProfile">The <see cref="MLProfile"/> to apply to the FFT data.</param>
+        /// <param name="interval">The interval in seconds at which to create FFT data blocks from the WAV files.</param>
+        /// <exception cref="Exception">Thrown if there is an error during file processing or FFT generation.</exception>
         public void GenerateFFT(string foldername, MLProfile mlProfile, float interval)
         {
             float dataBlockLength = _config.Postprocessing.DataBlock;
@@ -2522,7 +2073,7 @@ namespace BBD.BodyMonitor.Services
                         FftDataBlockCache fftDataBlockCacheTemp = new((int)waveHeader.SampleRate, _config.Postprocessing.FFTSize, dataBlockLength, _config.Postprocessing.ResampleFFTResolutionToHz);
 
                         // calculate the estimated start time of the file
-                        float waveFileTotalLength = (float)waveHeader.DataChuckSize / (waveHeader.SampleRate * waveHeader.BytesPerSample);
+                        float waveFileTotalLength = (float)waveHeader.DataChunkSize / (waveHeader.SampleRate * waveHeader.BytesPerSample);
                         DateTime lastWriteTime = File.GetLastWriteTimeUtc(wavFilename);
                         DateTime estimatedStartTime = lastWriteTime.AddSeconds(-waveFileTotalLength);
 
@@ -2542,7 +2093,7 @@ namespace BBD.BodyMonitor.Services
                             try
                             {
                                 // read the data block from the WAV file
-                                DiscreteSignal ds = WaveFileExtensions.ReadAsDiscreateSignal(waveFileStream, position, dataBlockLength);
+                                DiscreteSignal ds = WaveFileExtensions.ReadAsDiscreteSignal(waveFileStream, position, dataBlockLength);
 
                                 // generate the FFT data
                                 FftDataV3 fftData = fftDataBlockCacheTemp.CreateFftData(ds, currentTime, (int)(waveHeader.SampleRate * dataBlockLength));
@@ -2740,6 +2291,11 @@ namespace BBD.BodyMonitor.Services
             }
         }
 
+        /// <summary>
+        /// Gets the device index for a given device serial number by querying available devices.
+        /// </summary>
+        /// <param name="deviceSerialNumber">The serial number of the device.</param>
+        /// <returns>The zero-based index of the device if found; otherwise, -1.</returns>
         private int GetDeviceIndexFromSerialNumber(string deviceSerialNumber)
         {
             ConnectedDevice? device = ListDevices().FirstOrDefault(d => d.SerialNumber.ToLowerInvariant() == deviceSerialNumber?.ToLowerInvariant());
@@ -2747,6 +2303,10 @@ namespace BBD.BodyMonitor.Services
             return device != null ? device.Index : -1;
         }
 
+        /// <summary>
+        /// Retrieves the most recently computed indicator evaluation results.
+        /// </summary>
+        /// <returns>An array of <see cref="IndicatorEvaluationResult"/> from the latest evaluation, or null if no results are available.</returns>
         public IndicatorEvaluationResult[]? GetLatestIndicatorResults()
         {
             DateTime lastKey = _indicatorResultsDictionary.OrderBy(ir => ir.Key).LastOrDefault().Key;
