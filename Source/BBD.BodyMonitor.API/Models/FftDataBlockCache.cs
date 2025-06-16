@@ -1,5 +1,4 @@
 ﻿using BBD.BodyMonitor.Buffering;
-using BBD.BodyMonitor.Filters;
 using NWaves.Signals;
 using NWaves.Transforms;
 
@@ -201,11 +200,11 @@ namespace BBD.BodyMonitor.Models
 
             //MagnitudeStats magnitudeStatsAfterDownsample = resampledFFTData.GetMagnitudeStats();
 
-            resampledFFTData = resampledFFTData.RemoveNoiseFromTheMains();
+            //resampledFFTData = resampledFFTData.RemoveNoiseFromTheMains();
 
             //MagnitudeStats magnitudeStatsAfterNoiseRemoval = resampledFFTData.GetMagnitudeStats();
 
-            resampledFFTData = resampledFFTData.MakeItRelative();
+            //resampledFFTData = resampledFFTData.MakeItRelative();
 
             //MagnitudeStats magnitudeStatsAfterRelative1 = resampledFFTData.GetMagnitudeStats();
 
