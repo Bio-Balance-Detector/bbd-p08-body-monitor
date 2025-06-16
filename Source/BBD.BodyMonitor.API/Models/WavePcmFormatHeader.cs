@@ -14,38 +14,38 @@ namespace BBD.BodyMonitor.Models
         /// Contains the letters "RIFF" in ASCII form (0x52494646). This indicates a RIFF container.
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        protected readonly char[] chunkID = new char[] { 'R', 'I', 'F', 'F' };
+        public char[] ChunkID = new char[] { 'R', 'I', 'F', 'F' };
 
         /// <summary>
         /// Represents the size of the rest of the chunk following this field. This is (file size - 8 bytes).
         /// Calculated as 36 + SubChunk2Size.
         /// </summary>
         [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        protected uint chunkSize = 0;
+        public uint ChunkSize = 0;
 
         /// <summary>
         /// Contains the letters "WAVE" in ASCII form (0x57415645). This identifies the WAV format.
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        protected readonly char[] format = new char[] { 'W', 'A', 'V', 'E' };
+        public char[] Format = new char[] { 'W', 'A', 'V', 'E' };
 
         /// <summary>
         /// Contains the letters "fmt " (includes a trailing space) in ASCII form (0x666d7420). This indicates the start of the format sub-chunk.
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        protected readonly char[] subchunk1ID = new char[] { 'f', 'm', 't', ' ' };
+        public char[] Subchunk1ID = new char[] { 'f', 'm', 't', ' ' };
 
         /// <summary>
         /// Represents the size of the rest of the 'fmt ' sub-chunk following this field. For PCM, this is 16.
         /// </summary>
         [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        protected readonly uint subchunk1Size = 16;
+        public uint Subchunk1Size = 16;
 
         /// <summary>
         /// Audio format. For PCM (Linear Quantization), this value is 1. Other values indicate some form of compression.
         /// </summary>
         [MarshalAs(UnmanagedType.U2, SizeConst = 2)]
-        protected readonly ushort audioFormat = 1;
+        public ushort audioFormat = 1;
 
         /// <summary>
         /// Backing field for the number of audio channels.
@@ -71,14 +71,14 @@ namespace BBD.BodyMonitor.Models
         /// Byte rate of the audio data. Calculated as SampleRate * NumChannels * BitsPerSample / 8.
         /// </summary>
         [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        protected uint byteRate = 0;
+        public uint byteRate = 0;
 
         /// <summary>
         /// Block alignment in bytes. Calculated as NumChannels * BitsPerSample / 8.
         /// This is the number of bytes for one sample including all channels.
         /// </summary>
         [MarshalAs(UnmanagedType.U2, SizeConst = 2)]
-        protected ushort blockAlign = 0;
+        public ushort BlockAlign = 0;
 
         /// <summary>
         /// Backing field for bits per sample.
@@ -94,19 +94,19 @@ namespace BBD.BodyMonitor.Models
         /// Contains the letters "data" in ASCII form (0x64617461). This indicates the start of the data sub-chunk.
         /// </summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        protected readonly char[] subchunk2ID = new char[] { 'd', 'a', 't', 'a' };
+        public char[] Subchunk2ID = new char[] { 'd', 'a', 't', 'a' };
 
         /// <summary>
         /// Size of the data sub-chunk (the actual sound data). Calculated as NumSamples * NumChannels * BitsPerSample / 8.
         /// </summary>
         [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
-        protected uint subchunk2Size = 0;
+        public uint Subchunk2Size = 0;
 
         /// <summary>
         /// Gets the size of the data chunk (Subchunk2Size) in bytes.
         /// This represents the total number of bytes of actual audio sample data.
         /// </summary>
-        public uint DataChunkSize => subchunk2Size; // Corrected typo: DataChuckSize -> DataChunkSize
+        public uint DataChunkSize => Subchunk2Size; // Corrected typo: DataChuckSize -> DataChunkSize
 
         /// <summary>
         /// Gets the starting position (offset) of the data chunk within the WAV file, in bytes.
@@ -199,13 +199,13 @@ namespace BBD.BodyMonitor.Models
             }
 
             // Basic validation of WAV file structure
-            if (waveHeader.chunkID[0] != 'R' || waveHeader.chunkID[1] != 'I' || waveHeader.chunkID[2] != 'F' || waveHeader.chunkID[3] != 'F')
+            if (waveHeader.ChunkID[0] != 'R' || waveHeader.ChunkID[1] != 'I' || waveHeader.ChunkID[2] != 'F' || waveHeader.ChunkID[3] != 'F')
                 throw new System.Exception("Invalid WAV file: 'RIFF' chunk ID not found.");
-            if (waveHeader.format[0] != 'W' || waveHeader.format[1] != 'A' || waveHeader.format[2] != 'V' || waveHeader.format[3] != 'E')
+            if (waveHeader.Format[0] != 'W' || waveHeader.Format[1] != 'A' || waveHeader.Format[2] != 'V' || waveHeader.Format[3] != 'E')
                 throw new System.Exception("Only 'WAVE' format is supported.");
-            if (waveHeader.subchunk1ID[0] != 'f' || waveHeader.subchunk1ID[1] != 'm' || waveHeader.subchunk1ID[2] != 't' || waveHeader.subchunk1ID[3] != ' ')
+            if (waveHeader.Subchunk1ID[0] != 'f' || waveHeader.Subchunk1ID[1] != 'm' || waveHeader.Subchunk1ID[2] != 't' || waveHeader.Subchunk1ID[3] != ' ')
                 throw new System.Exception("The first sub-chunk ('fmt ') not found or invalid.");
-            if (waveHeader.subchunk2ID[0] != 'd' || waveHeader.subchunk2ID[1] != 'a' || waveHeader.subchunk2ID[2] != 't' || waveHeader.subchunk2ID[3] != 'a')
+            if (waveHeader.Subchunk2ID[0] != 'd' || waveHeader.Subchunk2ID[1] != 'a' || waveHeader.Subchunk2ID[2] != 't' || waveHeader.Subchunk2ID[3] != 'a')
                 // This check might be too strict if other chunks (like 'fact') can precede 'data'.
                 // For a simple PCM WAV, 'data' is expected here.
                 System.Diagnostics.Debug.WriteLine("Warning: Second sub-chunk ID is not 'data'. File may contain additional chunks or not be a simple PCM WAV.");

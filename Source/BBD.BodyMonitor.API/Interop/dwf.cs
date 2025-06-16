@@ -2781,7 +2781,7 @@ public class dwf
     /// <param name="rgData">Buffer to receive 16-bit samples.</param>
     /// <param name="countOfSamples">Number of 16-bit samples to retrieve (equivalent to countOfDataBytes / 2).</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusData")] // Explicit EntryPoint to distinguish overload
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)] // Explicit EntryPoint to distinguish overload
     public static extern int FDwfDigitalInStatusDataUShort(int hdwf, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgData, int countOfSamples);
 
     /// <summary>
@@ -2792,7 +2792,7 @@ public class dwf
     /// <param name="idxSample">Offset in samples from the beginning of valid data.</param>
     /// <param name="countOfSamples">Number of 16-bit samples to retrieve.</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusData2")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusData2UShort(int hdwf, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgData, int idxSample, int countOfSamples);
 
     /// <summary>
@@ -2802,7 +2802,7 @@ public class dwf
     /// <param name="rgData">Buffer to receive 16-bit noise/sample data.</param>
     /// <param name="countOfSamples">Number of 16-bit samples to retrieve.</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusNoise")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusNoiseUShort(int hdwf, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgData, int countOfSamples);
 
     /// <summary>
@@ -2813,7 +2813,7 @@ public class dwf
     /// <param name="idxSample">Offset in samples from the beginning of valid data.</param>
     /// <param name="countOfSamples">Number of 16-bit samples to retrieve.</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusNoise2")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusNoise2UShort(int hdwf, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgData, int idxSample, int countOfSamples);
 
     /// <summary>
@@ -2824,7 +2824,7 @@ public class dwf
     /// <param name="rgData">Buffer to receive 32-bit samples.</param>
     /// <param name="countOfSamples">Number of 32-bit samples to retrieve (equivalent to countOfDataBytes / 4).</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusData")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusDataUInt(int hdwf, [MarshalAs(UnmanagedType.LPArray)] uint[] rgData, int countOfSamples);
 
     /// <summary>
@@ -2835,7 +2835,7 @@ public class dwf
     /// <param name="idxSample">Offset in samples from the beginning of valid data.</param>
     /// <param name="countOfSamples">Number of 32-bit samples to retrieve.</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusData2")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusData2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusData2UInt(int hdwf, [MarshalAs(UnmanagedType.LPArray)] uint[] rgData, int idxSample, int countOfSamples);
 
     /// <summary>
@@ -2845,7 +2845,7 @@ public class dwf
     /// <param name="rgData">Buffer to receive 32-bit noise/sample data.</param>
     /// <param name="countOfSamples">Number of 32-bit samples to retrieve.</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusNoise")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusNoiseUInt(int hdwf, [MarshalAs(UnmanagedType.LPArray)] uint[] rgData, int countOfSamples);
 
     /// <summary>
@@ -2856,7 +2856,7 @@ public class dwf
     /// <param name="idxSample">Offset in samples from the beginning of valid data.</param>
     /// <param name="countOfSamples">Number of 32-bit samples to retrieve.</param>
     /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
-    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "FDwfDigitalInStatusNoise2")]
+    [DllImport("dwf", EntryPoint = "FDwfDigitalInStatusNoise2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInStatusNoise2UInt(int hdwf, [MarshalAs(UnmanagedType.LPArray)] uint[] rgData, int idxSample, int countOfSamples);
 
     /// <summary>

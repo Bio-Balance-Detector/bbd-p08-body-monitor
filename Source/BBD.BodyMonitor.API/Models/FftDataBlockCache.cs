@@ -122,7 +122,7 @@ namespace BBD.BodyMonitor.Models
                     // Ensure the signal has at least FftSize samples before creating DiscreteSignal for FFT
                     // This might involve padding if sampleCount was originally < FftSize and a fill method was used.
                     // If sampleCount >= FftSize, it takes the first FftSize samples.
-                    DiscreteSignal signal = new(Samplerate, samplesToAdd.Take(FftSize), true);
+                    DiscreteSignal signal = new(Samplerate, samplesToAdd.Take(FftSize).ToArray(), true);
 
                     //signal.Amplify(short.MaxValue / 1.0f);
 
@@ -170,7 +170,7 @@ namespace BBD.BodyMonitor.Models
             // The Get() method already ensures the signal passed here has FftSize samples by padding or taking a subset.
             if (signal.Length < FftSize)
             {
-                 // This case should ideally not be reached if Get() prepares the signal correctly.
+                // This case should ideally not be reached if Get() prepares the signal correctly.
                 throw new ArgumentException($"Signal length ({signal.Length}) must be at least FFT size ({FftSize}).", nameof(signal));
             }
 

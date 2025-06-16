@@ -2315,5 +2315,634 @@ namespace BBD.BodyMonitor.Services
 
             return result;
         }
+
+        [Obsolete]
+        public void GenerateVideo(string foldername, MLProfile mlProfile, double framerate)
+        {
+            int totalFrameCount = EnumerateFFTDataInFolder(foldername).Count();
+            int frameCounter = 0;
+
+            Stopwatch sw = new();
+            sw.Start();
+            foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
+            {
+                try
+                {
+                    frameCounter++;
+                    string filenameComplete = Path.Combine(foldername, $"{fftData.Name}_{SimplifyNumber(mlProfile.MaxFrequency)}Hz_{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Min)}-{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Max)}{_config.Postprocessing.SaveAsPNG.RangeY.Unit}.png");
+
+                    if (File.Exists(AppendDataDir(filenameComplete)))
+                    {
+                        //_logger.LogWarning($"{filenameComplete} already exists.");
+                        continue;
+                    }
+
+                    IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(null, 0, fftData);
+                    string evaluationResultsString = string.Join(System.Environment.NewLine, evaluationResults.Select(er => er.Text + " " + er.PredictionScore.ToString("+0.00;-0.00; 0.00")));
+
+                    fftData.ApplyMedianFilter();
+                    fftData.ApplyCompressorFilter(0.25);
+
+                    SaveSignalAsPng(AppendDataDir(filenameComplete), fftData, _config.Postprocessing.SaveAsPNG, mlProfile, evaluationResultsString);
+                    //_logger.LogInformation($"{filenameComplete} was generated successfully.");
+
+                    if (frameCounter % 50 == 0)
+                    {
+                        float percentCompleted = (float)frameCounter / totalFrameCount * 100;
+                        float totalTimeToFinish = sw.ElapsedMilliseconds / (percentCompleted / 100);
+                        _logger.LogInformation($"Generated {percentCompleted:0.00}% of the PNG files, {(totalTimeToFinish - sw.ElapsedMilliseconds) / 1000 / 60:0.0} minutes remaining.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"There was an error while generating PNG for '{fftData.Name}': {ex.Message}");
+                }
+            }
+            sw.Stop();
+
+            string mp4FilenameBase = foldername.Replace("\\", "_").Replace("#", "_");
+            string mp4Filename = $"BBD_{mp4FilenameBase}_{SimplifyNumber(mlProfile.MaxFrequency)}Hz_{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Min)}-{SimplifyNumber(_config.Postprocessing.SaveAsPNG.RangeY.Max)}{_config.Postprocessing.SaveAsPNG.RangeY.Unit}.mp4";
+            _logger.LogInformation($"Generating MP4 video file '{mp4Filename}'");
+            try
+            {
+                FFmpeg.Conversions.New()
+                    .SetInputFrameRate(framerate)
+                    .BuildVideoFromImages(Directory.GetFiles(AppendDataDir(foldername), "*.png").OrderBy(fn => fn))
+                    .SetFrameRate(framerate)
+                    .SetPixelFormat(PixelFormat.yuv420p)
+                    .SetOutput(AppendDataDir(mp4Filename))
+                    .Start()
+                    .Wait();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"There was an error while generating MP4 video file '{mp4Filename}': {ex.Message}");
+            }
+        }
+
+        [Obsolete]
+        public void GenerateMLCSV(string foldername, MLProfile mlProfile, bool includeHeaders, string tagFilterExpression, string validLabelExpression, string balanceOnTag, int? maxRows)
+        {
+            HashSet<string> validTags = new();
+            string[] requiredTags = tagFilterExpression.Split("||", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            string[] validLabels = validLabelExpression.Split("+", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            List<FftDataV3> fftFilesToConvert = new();
+            List<FftDataV3> fftFilesTemp;
+
+            if (mlProfile == null)
+            {
+                throw new Exception("ML Profile is not specified.");
+            }
+
+            foldername = AppendDataDir(foldername);
+            if (!foldername.EndsWith(Path.DirectorySeparatorChar))
+            {
+                foldername += Path.DirectorySeparatorChar;
+            }
+
+            if (!Directory.Exists(foldername))
+            {
+                _logger.LogError($"The folder '{foldername}' doesn't exists.");
+                return;
+            }
+
+            // Read all data files from the folder and its subfolders
+            int fftFilesToConvertCount = 0;
+            foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
+            {
+                fftFilesToConvert.Add(fftData);
+                fftFilesToConvertCount++;
+            }
+            fftFilesToConvert = fftFilesToConvert.OrderBy(d => d.Filename).ToList();
+            _logger.LogInformation($"{fftFilesToConvert.Count} valid FFT data files were found in the '{foldername}' folder.");
+
+            // Filter data based on the tag filter
+            fftFilesTemp = new List<FftDataV3>();
+            if (requiredTags.Length > 0)
+            {
+                foreach (FftDataV3 fftData in fftFilesToConvert)
+                {
+                    if (requiredTags.All(rt => fftData.Tags.Any(t => t.Contains(rt))))
+                    {
+                        fftFilesTemp.Add(fftData);
+                    }
+                }
+                fftFilesToConvert = fftFilesTemp;
+                _logger.LogInformation($"The number of FFT data files to convert was reduced to {fftFilesToConvert.Count} by the tag filter expression '{tagFilterExpression}'.");
+            }
+
+            // Balance the data if requested
+            // TODO: data balancing should be done with the final, downsampled FFT file list
+            if (!string.IsNullOrWhiteSpace(balanceOnTag))
+            {
+                int hasBalanceTagCount = fftFilesToConvert.Count(d => d.Tags.Contains(balanceOnTag));
+                int hasNoBalanceTagCount = fftFilesToConvert.Count(d => !d.Tags.Contains(balanceOnTag));
+
+                int smallerCount = Math.Min(hasBalanceTagCount, hasNoBalanceTagCount);
+
+                if (maxRows.HasValue && (maxRows.Value > 0))
+                {
+                    maxRows = (((maxRows.Value - 1) / 2) + 1) * 2;
+                    smallerCount = Math.Min(smallerCount, maxRows.Value / 2);
+                }
+
+                if (smallerCount > 0)
+                {
+                    fftFilesTemp = new List<FftDataV3>();
+
+                    Random rnd = new();
+                    fftFilesToConvert = fftFilesToConvert.OrderBy(a => rnd.Next()).ToList();
+
+                    hasBalanceTagCount = 0;
+                    hasNoBalanceTagCount = 0;
+                    foreach (FftDataV3 fftData in fftFilesToConvert)
+                    {
+                        bool hasBalanceTag = fftData.Tags.Contains(balanceOnTag);
+
+                        if ((hasBalanceTag && (hasBalanceTagCount < smallerCount)) || (!hasBalanceTag && (hasNoBalanceTagCount < smallerCount)))
+                        {
+                            fftFilesTemp.Add(fftData);
+
+                            if (hasBalanceTag)
+                            {
+                                hasBalanceTagCount++;
+                            }
+                            else
+                            {
+                                hasNoBalanceTagCount++;
+                            }
+                        }
+                    }
+                    fftFilesToConvert = fftFilesTemp.OrderBy(d => d.Filename).ToList();
+                    _logger.LogInformation($"The number of valid FFT data files was reduced to {fftFilesToConvert.Count} because of the data balancing.");
+                }
+            }
+
+            List<FftDataV3> convertedFFTDataCache = ConvertFFTFilesToMLProfile(mlProfile, validTags, fftFilesToConvert);
+
+
+            // We have all the FFT data in downsampledFFTDataCache converted to the requested ML profile
+
+            Dictionary<string, List<float>> labelValues = SaveMLCSVFile(foldername, mlProfile, includeHeaders, validTags, ref validLabels, convertedFFTDataCache, out string[] featureColumnNames, out string[] labelColumnNames, out string filenameRoot, out string csvFilename);
+
+            //SaveMBConfigFile(featureColumnNames, labelColumnNames, filenameRoot, csvFilename);
+
+            GenerateLabelDistribution(labelValues);
+        }
+
+        [Obsolete]
+        private List<FftDataV3> ConvertFFTFilesToMLProfile(MLProfile mlProfile, HashSet<string> validTags, List<FftDataV3> fftFilesToConvert)
+        {
+            Stopwatch sw = new();
+            sw.Start();
+
+            List<FftDataV3> downsampledFFTDataCache = new();
+
+            int fftFilesToConvertCount = fftFilesToConvert.Count();
+            int fftDataLoadCompleteCount = 0;
+            long fftDataBytesLoaded = 0;
+
+            _ = Task.Run(() =>
+            {
+                while (fftDataLoadCompleteCount < fftFilesToConvertCount)
+                {
+                    if (fftDataBytesLoaded > 0)
+                    {
+                        _logger.LogInformation($"{(float)fftDataLoadCompleteCount / fftFilesToConvertCount * 100.0f:0.0}% of FFT data was converted with the effective speed of {(float)fftDataBytesLoaded / (1024 * 1024) / ((float)sw.ElapsedMilliseconds / 1000):0.0} MB/s.");
+                    }
+                    Thread.Sleep(1000);
+                }
+            });
+
+            ParallelLoopResult plr = Parallel.ForEach(fftFilesToConvert, new ParallelOptions { MaxDegreeOfParallelism = 3 },
+                fftData =>
+                {
+                    // Load the raw .bfft file into the memory
+                    fftData.Load(mlProfile.Name);
+                    fftDataLoadCompleteCount++;
+                    fftDataBytesLoaded += fftData.FileSize;
+
+                    if (fftData.Tags != null)
+                    {
+                        foreach (string tag in fftData.Tags)
+                        {
+                            lock (validTags)
+                            {
+                                _ = validTags.Add(tag);
+                            }
+                        }
+                    }
+
+                    if (fftData.MLProfileName != mlProfile.Name)
+                    {
+                        try
+                        {
+                            FftDataV3 downsampledFFTData = fftData.ApplyMLProfile(mlProfile);
+
+                            lock (fftFilesToConvert)
+                            {
+                                FftDataV3.SaveAsBinary(downsampledFFTData, downsampledFFTData.Filename, false, mlProfile.Name);
+                            }
+
+                            lock (downsampledFFTDataCache)
+                            {
+                                downsampledFFTDataCache.Add(downsampledFFTData);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError(e, $"Couldn't apply ML Profile to the file {fftData.Filename}.");
+                        }
+
+                        // Release the loaded data
+                        fftData.ClearData();
+                    }
+                    else
+                    {
+                        lock (downsampledFFTDataCache)
+                        {
+                            downsampledFFTDataCache.Add(fftData);
+                        }
+                    }
+                });
+
+            while (!plr.IsCompleted)
+            {
+                Thread.Sleep(100);
+            }
+            fftFilesToConvert.Clear();
+
+            fftDataLoadCompleteCount = fftFilesToConvertCount;
+
+            sw.Stop();
+            _logger.LogInformation($"100.0% of FFT data was loaded in {sw.ElapsedMilliseconds:N0} ms with the effective speed of {(float)fftDataBytesLoaded / (1024 * 1024) / ((float)sw.ElapsedMilliseconds / 1000):0.0} MB/s.");
+
+            return downsampledFFTDataCache;
+        }
+
+        private Dictionary<string, List<float>> SaveMLCSVFile(string foldername, MLProfile mlProfile, bool includeHeaders, HashSet<string> validTags, ref string[] validLabels, List<FftDataV3> fftDataCache, out string[] featureColumnNames, out string[] labelColumnNames, out string filenameRoot, out string csvFilename)
+        {
+            StringBuilder sb = new();
+            int featureColumnIndexStart = 0;
+            int featureColumnIndexEnd = 0;
+            DateTimeOffset nextConsoleFeedback = DateTime.UtcNow;
+            int fftDataCount = fftDataCache.Count();
+            int dataRowsWritten = 0;
+
+            if (fftDataCount == 0)
+            {
+                throw new Exception($"There are no valid FFT files in the '{foldername}' folder.");
+            }
+
+            Dictionary<string, List<float>> labelValues = new();
+
+            FftDataV3? templateFftData = fftDataCache[0];
+            featureColumnIndexStart = 0;
+            featureColumnIndexEnd = fftDataCache[0].MagnitudeData.Length;
+
+            if (validLabels.Length == 0)
+            {
+                validLabels = validTags.ToArray();
+            }
+
+            featureColumnNames = Enumerable.Range(featureColumnIndexStart, featureColumnIndexEnd - featureColumnIndexStart).Select(i => "Freq_" + templateFftData.GetBinFromIndex(i).ToString("0.00").Replace(".", "p") + "_Hz").ToArray();
+            labelColumnNames = validLabels.Select(l => (validTags.Contains(l) ? "Is" + l : l).Replace(".", "_")).ToArray();
+            if (includeHeaders)
+            {
+                string header = string.Join(",", featureColumnNames);
+                header += "," + string.Join(",", labelColumnNames);
+
+                _ = sb.AppendLine(header);
+            }
+
+            filenameRoot = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value):yyyyMMdd}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{fftDataCount}rows";
+            csvFilename = filenameRoot + ".csv";
+            _logger.LogInformation($"Generating machine learning CSV file '{csvFilename}' with {featureColumnIndexEnd - featureColumnIndexStart + validLabels.Length} columns and {fftDataCount + 1} rows.");
+            try
+            {
+                File.WriteAllText(AppendDataDir(csvFilename), sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"There was an error while generating headers for CSV file '{csvFilename}': {ex.Message}");
+            }
+            _ = sb.Clear();
+
+            int i = 0;
+            int missingLabelValue = 0;
+            foreach (FftDataV3? fftData in fftDataCache.OrderBy(d => d.Start))
+            {
+                if (fftData == null)
+                {
+                    continue;
+                }
+
+                // load a new location if needed
+                string? locationAlias = null;
+                string? locationTag = fftData.Tags?.FirstOrDefault(t => t.StartsWith("Location_"));
+                if (locationTag != null)
+                {
+                    locationAlias = locationTag["Location_".Length..];
+                }
+
+                // load a new subject if needed
+                string? subjectAlias = null;
+                string? subjectTag = fftData.Tags?.FirstOrDefault(t => t.StartsWith("Subject_"));
+                if (subjectTag != null)
+                {
+                    subjectAlias = subjectTag["Subject_".Length..];
+                }
+
+                Sessions.Session session = _sessionManager.StartSession(locationAlias, subjectAlias);
+
+
+                if (nextConsoleFeedback < DateTime.UtcNow)
+                {
+                    _logger.LogInformation($"Adding '{fftData.Name}' to the machine learning CSV file. {(float)i / fftDataCount * 100.0f:0.0}% done.");
+                    nextConsoleFeedback = DateTime.UtcNow.AddSeconds(3);
+
+                    try
+                    {
+                        File.AppendAllText(AppendDataDir(csvFilename), sb.ToString());
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"There was an error while appending to CSV file '{csvFilename}': {ex.Message}");
+                    }
+                    _ = sb.Clear();
+                }
+
+                bool skipDataset = false;
+                string datasetString = string.Join(",", fftData.MagnitudeData[featureColumnIndexStart..featureColumnIndexEnd].Select(md => md.ToString("0.0000000000", System.Globalization.CultureInfo.InvariantCulture.NumberFormat)));
+                foreach (string validLabel in validLabels)
+                {
+                    // there are two separate cases here based on where we need to get the value of the label from                        
+                    float labelValue = 0;
+                    if (validTags.Contains(validLabel))
+                    {
+                        // A, if the validLabel is a tag then we simply need to set it to 0 or 1
+                        labelValue = fftData.Tags.Contains(validLabel) ? 1.00f : 0.00f;
+                    }
+                    else
+                    {
+                        // B, the validLabel isn't a known tag so we suppose that it is a property in metadata
+                        if (fftData.Start.HasValue && fftData.End.HasValue)
+                        {
+                            //DateTimeOffset timeUtc = new DateTimeOffset((fftData.Start.Value.Ticks + fftData.End.Value.Ticks) / 2, TimeSpan.Zero);
+
+                            if (!session.TryToGetValue(validLabel, fftData.Start.Value.ToUniversalTime(), fftData.End.Value.ToUniversalTime(), out labelValue))
+                            {
+                                // we don't have a valid metadata value so we should skip this entry
+                                skipDataset = true;
+                                break;
+                            }
+                            else
+                            {
+                                missingLabelValue++;
+                                //_logger.LogInformation($"The value of '{validLabel}' at '{timeUtc}' (UTC) is '{labelValue}'.");
+                            }
+                        }
+                    }
+
+                    if (!labelValues.ContainsKey(validLabel))
+                    {
+                        labelValues.Add(validLabel, new List<float>());
+                    }
+
+                    labelValues[validLabel].Add(labelValue);
+
+                    datasetString += "," + labelValue.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+                }
+
+                if (!skipDataset)
+                {
+                    _ = sb.AppendLine(datasetString);
+                    dataRowsWritten++;
+                }
+                i++;
+            }
+
+            if (missingLabelValue > 0)
+            {
+                _logger.LogWarning($"There were {missingLabelValue} data entries that didn't have label values. Those were not included in the CSV file.");
+            }
+
+            try
+            {
+                File.AppendAllText(AppendDataDir(csvFilename), sb.ToString());
+
+                string newCsvFilename = $"BBD_{fftDataCache.Max(d => d.FileModificationTimeUtc.Value):yyyyMMdd}__{Path.GetFileName(Path.GetDirectoryName(foldername))}__{mlProfile.Name}" + (labelColumnNames.Length == 1 ? $"__{labelColumnNames[0]}" : "") + $"__{dataRowsWritten}rows.csv";
+                File.Move(AppendDataDir(csvFilename), AppendDataDir(newCsvFilename));
+                csvFilename = newCsvFilename;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"There was an error while appending to CSV file '{csvFilename}': {ex.Message}");
+            }
+            _ = sb.Clear();
+
+            return labelValues;
+        }
+
+        private void SaveMBConfigFile(string[] featureColumnNames, string[] labelColumnNames, string filenameRoot, string csvFilename)
+        {
+            string mbconfigFilename = filenameRoot + ".mbconfig";
+            _logger.LogInformation($"Generating mbconfig file '{mbconfigFilename}'.");
+            try
+            {
+                MBConfig mbConfig = new(AppendDataDir(csvFilename), featureColumnNames, labelColumnNames);
+                string mbConfigJson = JsonSerializer.Serialize(mbConfig, new JsonSerializerOptions() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } });
+                File.WriteAllText(AppendDataDir(mbconfigFilename), mbConfigJson);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"There was an error while generating mbconfig file '{mbconfigFilename}': {ex.Message}");
+            }
+        }
+
+        private void GenerateLabelDistribution(Dictionary<string, List<float>> labelValues)
+        {
+            if (labelValues.Count > 0)
+            {
+                foreach (string labelName in labelValues.Keys)
+                {
+                    _logger.LogInformation($"Label statistics for {labelName}");
+
+                    int distinctValueCount = labelValues[labelName].Distinct().Count();
+                    int bucketCount = 10;
+                    float bucketWidth = (labelValues[labelName].Max() - labelValues[labelName].Min()) / bucketCount;
+
+                    _logger.LogInformation($" min = {labelValues[labelName].Min():0.0000} | avg = {labelValues[labelName].Average():0.0000} | max = {labelValues[labelName].Max():0.0000} | count = {labelValues[labelName].Count()} | non-zero = {labelValues[labelName].Count(v => v > 0)} | distinct = {distinctValueCount}");
+                    _logger.LogInformation($" Distribution");
+
+                    for (int j = 0; j < bucketCount; j++)
+                    {
+                        float bucketMin = labelValues[labelName].Min() + (j * bucketWidth);
+                        float bucketMax = bucketMin + bucketWidth;
+                        int bucketItemCount = labelValues[labelName].Count(v => (v > bucketMin) && (v <= bucketMax));
+                        if (j == 0)
+                        {
+                            bucketItemCount += labelValues[labelName].Count(v => v == bucketMin);
+                        }
+                        _logger.LogInformation($"  {bucketMin:0.0000} - {bucketMax:0.0000}: {bucketItemCount,7}");
+                    }
+                }
+            }
+        }
+
+        [Obsolete]
+        public void TestAllModels(string foldername, float percentageToTest)
+        {
+            _logger.LogInformation($"Evaluating models based on {percentageToTest}% of the data in the '{foldername}' folder.");
+
+            Random rnd = new();
+            Dictionary<string, int[]> confusionMatrix = new();
+            foldername = AppendDataDir(foldername);
+
+            if (Directory.Exists(foldername))
+            {
+                int i = 0;
+                foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(foldername))
+                {
+                    if (rnd.NextDouble() > percentageToTest / 100.0)
+                    {
+                        continue;
+                    }
+
+                    _logger.LogInformation($"Evaluating {fftData.Name}.");
+                    IndicatorEvaluationResult[] evaluationResults = EvaluateIndicators(_logger, i++, fftData);
+
+                    foreach (IndicatorEvaluationResult er in evaluationResults)
+                    {
+                        if (!confusionMatrix.ContainsKey(er.IndicatorName))
+                        {
+                            confusionMatrix.Add(er.IndicatorName, new int[4]);
+                        }
+
+                        if (er.IsTruePositive)
+                        {
+                            confusionMatrix[er.IndicatorName][0]++;
+                        }
+
+                        if (er.IsFalseNegative)
+                        {
+                            confusionMatrix[er.IndicatorName][1]++;
+                        }
+
+                        if (er.IsFalsePositive)
+                        {
+                            confusionMatrix[er.IndicatorName][2]++;
+                        }
+
+                        if (er.IsTrueNegative)
+                        {
+                            confusionMatrix[er.IndicatorName][3]++;
+                        }
+                    }
+                }
+            }
+
+            _logger.LogInformation($"");
+            foreach (KeyValuePair<string, int[]> cm in confusionMatrix)
+            {
+                _logger.LogInformation($"Confusion matrix for the '{cm.Key}' indicator:");
+                _logger.LogInformation($"    +--------------------------------+");
+                _logger.LogInformation($"    |     Prediction condition       |");
+                _logger.LogInformation($"    |----------+----------+----------|");
+                _logger.LogInformation($"    |  Total   |          |          |");
+                _logger.LogInformation($"    | {string.Format("{0,7}", cm.Value[0] + cm.Value[1] + cm.Value[2] + cm.Value[3])}  | positive | negative |");
+                _logger.LogInformation($"+---|----------|----------|----------|");
+                _logger.LogInformation($"| a | positive |TP:{string.Format("{0,7}", cm.Value[0])}|FN:{string.Format("{0,7}", cm.Value[1])}|");
+                _logger.LogInformation($"| c |----------|----------|----------|");
+                _logger.LogInformation($"| t | negative |FP:{string.Format("{0,7}", cm.Value[2])}|TN:{string.Format("{0,7}", cm.Value[3])}|");
+                _logger.LogInformation($"+---+----------+----------+----------+");
+                _logger.LogInformation($"Accuracy: {(cm.Value[0] + cm.Value[3]) / (double)(cm.Value[0] + cm.Value[1] + cm.Value[2] + cm.Value[3]) * 100:##0.00}%");
+                _logger.LogInformation($"");
+            }
+
+        }
+
+        public IEnumerable<FftDataV3> EnumerateFFTDataInFolder(string foldername, string[]? applyTags = null)
+        {
+            applyTags ??= Array.Empty<string>();
+
+            if (Path.GetFileName(foldername).StartsWith("."))
+            {
+                yield break;
+            }
+
+            if (Directory.Exists(AppendDataDir(foldername)))
+            {
+                foreach (string filename in Directory.GetFiles(AppendDataDir(foldername)).OrderBy(n => n))
+                {
+                    string pathToFile = Path.GetFullPath(filename);
+
+                    if (Path.GetExtension(filename) is not ".bfft" and not ".fft" and not ".zip")
+                    {
+                        continue;
+                    }
+
+                    FftDataV3? fftData = null;
+                    try
+                    {
+                        FileInfo fi = new(pathToFile);
+
+                        fftData = new FftDataV3
+                        {
+                            Filename = pathToFile,
+                            FileSize = fi.Length,
+                            FileModificationTimeUtc = fi.LastWriteTimeUtc
+                        };
+
+                        if (string.IsNullOrEmpty(fftData.Name))
+                        {
+                            fftData.Name = Path.GetFileNameWithoutExtension(pathToFile);
+                        }
+
+                        if (applyTags != null)
+                        {
+                            List<string> allTags = new(fftData.Tags);
+                            allTags.AddRange(applyTags);
+                            fftData.Tags = allTags.ToArray();
+                        }
+                        else
+                        {
+                            fftData.Tags ??= new string[0];
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        throw;
+                    }
+
+                    if (fftData != null)
+                    {
+                        yield return fftData;
+                    }
+                }
+
+                foreach (string directoryName in Directory.GetDirectories(AppendDataDir(foldername)).OrderBy(n => n))
+                {
+                    List<string> tags = new(applyTags);
+                    string newTag = Path.GetFileName(directoryName);
+                    if (newTag.StartsWith("#"))
+                    {
+                        tags.Add(newTag[1..]);
+                    }
+
+                    foreach (FftDataV3 fftData in EnumerateFFTDataInFolder(directoryName, tags.ToArray()))
+                    {
+                        yield return fftData;
+                    }
+                }
+            }
+        }
+
+        public string AppendDataDir(string filename)
+        {
+            return !string.IsNullOrWhiteSpace(_config.DataDirectory)
+                ? Path.Combine(_config.DataDirectory, filename)
+                : Path.Combine(Directory.GetCurrentDirectory(), filename);
+        }
     }
 }

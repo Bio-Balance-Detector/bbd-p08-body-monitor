@@ -87,7 +87,7 @@
                 }
             }
 
-            result.appliedFilters.Add("RemoveNoiseFromTheMains");
+            result.AddAppliedFilter("RemoveNoiseFromTheMains");
 
             return result;
         }
@@ -116,7 +116,7 @@
                 result.MagnitudeData[i] /= fftTotal;
             }
 
-            result.appliedFilters.Add("MakeItRelative");
+            result.AddAppliedFilter("MakeItRelative");
 
             return result;
         }

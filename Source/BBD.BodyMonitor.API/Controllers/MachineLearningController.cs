@@ -158,7 +158,7 @@ namespace BBD.BodyMonitor.Controllers
 
                 SweepablePipeline pipeline =
                     mlContext.Auto().Featurizer(trainTestData.TrainSet, numericColumns: new[] { "Features" })
-                        .Append(mlContext.Auto().Regression(useFastTree: false, useFastForest: true, useLbfgs: false, useSdca: false, useLgbm: false));
+                        .Append(mlContext.Auto().Regression(useFastTree: false, useFastForest: true, useLbfgsPoissonRegression: false, useSdca: false, useLgbm: false));
                 //.Append(mlContext.Auto().Regression(useFastTree: true, useFastForest: true, useLbfgs: true, useSdca: true, useLgbm: false));
                 //.Append(mlContext.Auto().Regression(useFastTree: false, useFastForest: false, useLbfgs: false, useSdca: false, useLgbm: true, lgbmSearchSpace: lgbmSearchSpace));
 

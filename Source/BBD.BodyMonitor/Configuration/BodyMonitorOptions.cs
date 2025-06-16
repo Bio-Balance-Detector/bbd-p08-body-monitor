@@ -40,7 +40,7 @@ namespace BBD.BodyMonitor.Configuration
         /// <summary>
         /// Gets or sets the signal generator options.
         /// </summary>
-        public SignalGeneratorOptions SignalGenerator { get; set; } = new();
+        public SignalGeneratorOptions SignalGenerator { get; set; }
         /// <summary>
         /// Gets or sets the data writer options.
         /// </summary>
@@ -64,7 +64,7 @@ namespace BBD.BodyMonitor.Configuration
         /// <summary>
         /// Gets or sets the Fitbit integration options.
         /// </summary>
-        public FitbitOptions Fitbit { get; set; } = new();
+        public FitbitOptions Fitbit { get; set; }
         /// <summary>
         /// Gets or sets the ThingSpeak integration options.
         /// </summary>

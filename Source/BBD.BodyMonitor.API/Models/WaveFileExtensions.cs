@@ -63,12 +63,12 @@ namespace BBD.BodyMonitor.Models
 
                 // The current size of the data chunk, before appending.
                 // This assumes the 'data' chunk is the last chunk and its size is at offset 40.
-                uint dataChunkSize = (uint)(waveFileStream.Length - waveHeader.DataChuckPosition); // Correctly calculate current data chunk size based on header info if available, otherwise from total length.
-                                                                                              // For a simple WAV file, data starts at byte 44. If DataChuckPosition is reliable, use it.
-                                                                                              // Assuming DataChuckPosition is 44 for standard files.
-                if(waveHeader.DataChuckPosition == 0) // Fallback if DataChuckPosition wasn't parsed properly or is 0
+                uint dataChunkSize = (uint)(waveFileStream.Length - waveHeader.DataChunkPosition); // Correctly calculate current data chunk size based on header info if available, otherwise from total length.
+                                                                                                   // For a simple WAV file, data starts at byte 44. If DataChuckPosition is reliable, use it.
+                                                                                                   // Assuming DataChuckPosition is 44 for standard files.
+                if (waveHeader.DataChunkPosition == 0) // Fallback if DataChuckPosition wasn't parsed properly or is 0
                 {
-                     dataChunkSize = (uint)(waveFileStream.Length - 44);
+                    dataChunkSize = (uint)(waveFileStream.Length - 44);
                 }
 
 
@@ -86,7 +86,7 @@ namespace BBD.BodyMonitor.Models
 
                 // update data chunk size in 'data' sub-chunk header
                 uint newDataChunkSize = dataChunkSize + (uint)dataToAppend.Length;
-                _ = waveFileStream.Seek((int)waveHeader.DataChuckPosition - 4, SeekOrigin.Begin); // Position to 'data' chunk size field (assuming 'data' marker is 4 bytes before size)
+                _ = waveFileStream.Seek((int)waveHeader.DataChunkPosition - 4, SeekOrigin.Begin); // Position to 'data' chunk size field (assuming 'data' marker is 4 bytes before size)
                                                                                                   // This assumes DataChuckPosition points to the start of sample data, so size is 4 bytes before.
                                                                                                   // Standard WAV: 'data' at 36, size at 40. So if DataChuckPosition = 44, this is correct.
                 waveFileStream.Write(BitConverter.GetBytes(newDataChunkSize), 0, 4);
@@ -156,8 +156,8 @@ namespace BBD.BodyMonitor.Models
                 readPositionDataStartBytes -= (readPositionDataStartBytes % waveHeader.BlockAlign);
             }
 
-            // Actual seek position in stream: header size (DataChuckPosition) + offset in data
-            long actualStreamSeekPosition = waveHeader.DataChuckPosition + readPositionDataStartBytes;
+            // Actual seek position in stream: header size (DataChunkPosition) + offset in data
+            long actualStreamSeekPosition = waveHeader.DataChunkPosition + readPositionDataStartBytes;
 
             int numberOfSamplesToRead = (int)(interval * waveHeader.SampleRate);
             int bytesToRead = numberOfSamplesToRead * (waveHeader.BitsPerSample / 8);
@@ -177,9 +177,9 @@ namespace BBD.BodyMonitor.Models
             numberOfSamplesToRead = bytesActuallyRead / (waveHeader.BitsPerSample / 8);
             if (numberOfSamplesToRead == 0 && bytesActuallyRead > 0 && (waveHeader.BitsPerSample / 8) > bytesActuallyRead)
             {
-                 // Partial sample read, not enough for a full sample based on BitsPerSample.
-                 // This indicates an issue or truncated file. For simplicity, return empty or handle as error.
-                 return new DiscreteSignal((int)waveHeader.SampleRate, Array.Empty<float>());
+                // Partial sample read, not enough for a full sample based on BitsPerSample.
+                // This indicates an issue or truncated file. For simplicity, return empty or handle as error.
+                return new DiscreteSignal((int)waveHeader.SampleRate, Array.Empty<float>());
             }
 
 

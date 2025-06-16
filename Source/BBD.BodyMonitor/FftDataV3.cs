@@ -307,9 +307,8 @@ namespace BBD.BodyMonitor
             fftData.Name = Path.GetFileName(pathToFile);
 
             MemoryStream writeStream = new();
-
-            BinaryFormatter formatter = new();
 #pragma warning disable SYSLIB0011
+            BinaryFormatter formatter = new();
             formatter.Serialize(writeStream, fftData);
 #pragma warning restore SYSLIB0011
             byte[] fftDataBinary = writeStream.ToArray();
@@ -622,6 +621,11 @@ namespace BBD.BodyMonitor
             }
 
             appliedFilters.Add($"BBD.Compressor({power})");
+        }
+
+        internal void AddAppliedFilter(string filterName)
+        {
+            appliedFilters.Add(filterName);
         }
     }
 }

@@ -40,15 +40,15 @@ namespace BBD.BodyMonitor.Models
         {
             // These calculations assume standard PCM format where BlockAlign and ByteRate can be derived.
             // BitsPerSample must be a multiple of 8 for this calculation of BlockAlign to be straightforward.
-            blockAlign = (ushort)(NumChannels * (BitsPerSample / 8));
-            byteRate = SampleRate * blockAlign;
-            subchunk2Size = (uint)Data.Length;
-            chunkSize = 36 + subchunk2Size; // 36 represents the size of the header before the data chunk (44 total - 8 for "RIFF" and chunksize itself)
+            BlockAlign = (ushort)(NumChannels * (BitsPerSample / 8));
+            byteRate = SampleRate * BlockAlign;
+            Subchunk2Size = (uint)Data.Length;
+            ChunkSize = 36 + Subchunk2Size; // 36 represents the size of the header before the data chunk (44 total - 8 for "RIFF" and chunksize itself)
         }
 
         /// <summary>
         /// Converts the <see cref="WavePcmFormat"/> object, including its header and data, into a byte array representing a complete WAV file.
-        /// Header fields related to size (e.g., <see cref="WavePcmFormatHeader.chunkSize"/>, <see cref="WavePcmFormatHeader.subchunk2Size"/>) are recalculated based on the current data.
+        /// Header fields related to size (e.g., <see cref="WavePcmFormatHeader.ChunkSize"/>, <see cref="WavePcmFormatHeader.Subchunk2Size"/>) are recalculated based on the current data.
         /// </summary>
         /// <returns>A byte array containing the WAV file data.</returns>
         public override byte[] ToByteArray()
@@ -58,19 +58,19 @@ namespace BBD.BodyMonitor.Models
             // Create a temporary header structure for marshaling, as 'this' includes 'Data' field which is not part of the 44-byte header.
             WavePcmFormatHeader headerStruct = new WavePcmFormatHeader
             {
-                chunkID = this.chunkID,
-                chunkSize = this.chunkSize,
-                format = this.format,
-                subchunk1ID = this.subchunk1ID,
-                subchunk1Size = this.subchunk1Size,
+                ChunkID = this.ChunkID,
+                ChunkSize = this.ChunkSize,
+                Format = this.Format,
+                Subchunk1ID = this.Subchunk1ID,
+                Subchunk1Size = this.Subchunk1Size,
                 audioFormat = this.audioFormat,
                 NumChannels = this.NumChannels,
                 SampleRate = this.SampleRate,
                 byteRate = this.byteRate,
-                blockAlign = this.blockAlign,
+                BlockAlign = this.BlockAlign,
                 BitsPerSample = this.BitsPerSample,
-                subchunk2ID = this.subchunk2ID,
-                subchunk2Size = this.subchunk2Size,
+                Subchunk2ID = this.Subchunk2ID,
+                Subchunk2Size = this.Subchunk2Size,
                 // DataChuckPosition is not part of the marshaled header struct directly, it's an offset.
             };
 
@@ -127,17 +127,17 @@ namespace BBD.BodyMonitor.Models
             }
 
             // Validate standard WAV chunks
-            if (waveFile.chunkID[0] != 'R' || waveFile.chunkID[1] != 'I' || waveFile.chunkID[2] != 'F' || waveFile.chunkID[3] != 'F')
+            if (waveFile.ChunkID[0] != 'R' || waveFile.ChunkID[1] != 'I' || waveFile.ChunkID[2] != 'F' || waveFile.ChunkID[3] != 'F')
             {
                 throw new System.Exception("Invalid WAV file: 'RIFF' chunk ID not found.");
             }
 
-            if (waveFile.format[0] != 'W' || waveFile.format[1] != 'A' || waveFile.format[2] != 'V' || waveFile.format[3] != 'E')
+            if (waveFile.Format[0] != 'W' || waveFile.Format[1] != 'A' || waveFile.Format[2] != 'V' || waveFile.Format[3] != 'E')
             {
                 throw new System.Exception("Only 'WAVE' format is supported.");
             }
 
-            if (waveFile.subchunk1ID[0] != 'f' || waveFile.subchunk1ID[1] != 'm' || waveFile.subchunk1ID[2] != 't' || waveFile.subchunk1ID[3] != ' ')
+            if (waveFile.Subchunk1ID[0] != 'f' || waveFile.Subchunk1ID[1] != 'm' || waveFile.Subchunk1ID[2] != 't' || waveFile.Subchunk1ID[3] != ' ')
             {
                 throw new System.Exception("The first sub-chunk in the WAV file must be 'fmt '.");
             }
@@ -146,7 +146,7 @@ namespace BBD.BodyMonitor.Models
             // This simple parser assumes 'data' is next or seeks for it. For robustness, a real parser would search for the 'data' chunk.
             // For now, we assume the provided headerBytes *is* the start of the file and contains these in order.
             // If subchunk2ID is part of the first 44 bytes and not 'data', it's an issue for this simplified parser.
-            if (waveFile.subchunk2ID[0] != 'd' || waveFile.subchunk2ID[1] != 'a' || waveFile.subchunk2ID[2] != 't' || waveFile.subchunk2ID[3] != 'a')
+            if (waveFile.Subchunk2ID[0] != 'd' || waveFile.Subchunk2ID[1] != 'a' || waveFile.Subchunk2ID[2] != 't' || waveFile.Subchunk2ID[3] != 'a')
             {
                 // This might be too strict if other chunks can appear before 'data'.
                 // However, for a simple PCM WAV, 'data' is expected.
@@ -158,7 +158,7 @@ namespace BBD.BodyMonitor.Models
             // This method is primarily for parsing the header structure.
             // The CalculateSizes method is called to ensure internal consistency if Data were populated separately.
             // waveFile.CalculateSizes(); // This would set subchunk2Size to 0 if Data is empty.
-                                     // If headerBytes actually contains data size, subchunk2Size from Marshal would be correct.
+            // If headerBytes actually contains data size, subchunk2Size from Marshal would be correct.
 
             return waveFile;
         }
