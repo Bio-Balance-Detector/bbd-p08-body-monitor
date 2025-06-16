@@ -1,7 +1,5 @@
 ﻿namespace BBD.BodyMonitor.Buffering
 {
-﻿namespace BBD.BodyMonitor.Buffering
-{
     /// <summary>
     /// Defines how the buffer handles errors.
     /// </summary>
@@ -78,6 +76,9 @@
         /// A repository of the data blocks, indexed by their block index.
         /// </summary>
         private readonly Dictionary<long, DataBlock> blockRepo = new();
+        /// <summary>
+        /// Holds the last error encountered during buffer operations, if any.
+        /// </summary>
         private BlockError? _lastError;
 
         /// <summary>
@@ -223,7 +224,8 @@
 
                     endTime = startTime; // The end time for the next older block is the start time of this one.
 
-                    BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock, null, _lastError)); // TODO: Session is null
+                    // Session context is not directly available here; the caller (e.g., DataProcessorService) is responsible for associating the block with a session if needed.
+                    BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock, null, _lastError));
                     _lastError = null; // Reset error after a successful block processing.
                 }
 

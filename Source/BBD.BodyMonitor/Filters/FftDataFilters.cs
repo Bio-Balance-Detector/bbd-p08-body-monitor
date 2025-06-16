@@ -1,7 +1,7 @@
 ﻿namespace BBD.BodyMonitor.Filters
 {
     /// <summary>
-    /// Collection of filters that can be applied to FFT data
+    /// Provides extension methods for applying various filters to FftDataV3 objects.
     /// </summary>
     public static class FftDataFilters
     {
@@ -87,7 +87,7 @@
                 }
             }
 
-            _ = result.AppliedFilters.Append("RemoveNoiseFromTheMains");
+            result.appliedFilters.Add("RemoveNoiseFromTheMains");
 
             return result;
         }
@@ -114,34 +114,9 @@
             for (int i = 0; i < result.MagnitudeData.Length; i++)
             {
                 result.MagnitudeData[i] /= fftTotal;
-                    }
-                }
             }
 
-            _ = result.AppliedFilters.Append("RemoveNoiseFromTheMains");
-
-            return result;
-        }
-
-        /// <summary>
-        /// Transforms the FFT data to a relative scale (sum of all bins is 1)
-        /// </summary>
-        /// <param name="fftData"></param>
-        /// <returns></returns>
-        public static FftDataV3 MakeItRelative(this FftDataV3 fftData)
-        {
-            FftDataV3 result = new(fftData)
-            {
-                MagnitudeData = fftData.MagnitudeData.ToArray()
-            };
-
-            float fftTotal = result.MagnitudeData.Sum();
-            for (int i = 0; i < result.MagnitudeData.Length; i++)
-            {
-                result.MagnitudeData[i] /= fftTotal;
-            }
-
-            _ = result.AppliedFilters.Append("MakeItRelative");
+            result.appliedFilters.Add("MakeItRelative");
 
             return result;
         }

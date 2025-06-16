@@ -6,22 +6,58 @@ using System.Text.Json.Serialization;
 
 namespace BBD.BodyMonitor
 {
+    /// <summary>
+    /// Represents Fast Fourier Transform (FFT) data, version 3. Includes metadata about the capture, frequency characteristics, and the magnitude data itself. Provides methods for data manipulation, loading, and saving.
+    /// </summary>
     [Serializable]
     public class FftDataV3
     {
+        /// <summary>
+        /// Gets the version of this FftData structure.
+        /// </summary>
         public string Version { get; } = "3.0";
+        /// <summary>
+        /// Gets or sets the start date and time of the data capture.
+        /// </summary>
         public DateTimeOffset? Start { get; set; }
+        /// <summary>
+        /// Gets or sets the end date and time of the data capture.
+        /// </summary>
         public DateTimeOffset? End { get; set; }
+        /// <summary>
+        /// Gets the duration of the data capture in seconds. Calculated from Start and End times.
+        /// </summary>
         public double? Duration => Start.HasValue && End.HasValue ? (End.Value - Start.Value).TotalSeconds : null;
+        /// <summary>
+        /// Gets or sets the number of original samples this FFT data is based on.
+        /// </summary>
         public int BasedOnSamplesCount { get; set; }
+        /// <summary>
+        /// Gets or sets the first frequency (e.g., DC offset or starting frequency) in Hz.
+        /// </summary>
         public float FirstFrequency { get; set; }
+        /// <summary>
+        /// Gets or sets the last frequency represented in the FFT data in Hz.
+        /// </summary>
         public float LastFrequency { get; set; }
+        /// <summary>
+        /// Gets or sets the frequency step or resolution in Hz between FFT bins.
+        /// </summary>
         public float FrequencyStep { get; set; }
+        /// <summary>
+        /// Gets or sets the size of the FFT (number of bins).
+        /// </summary>
         public int FftSize { get; set; }
+        /// <summary>
+        /// Internal storage for the FFT magnitude data. Null if not loaded.
+        /// </summary>
         private float[]? _magnitudeData { get; set; } = null;
+        /// <summary>
+        /// Internal list of filters applied to this instance.
+        /// </summary>
         private List<string> appliedFilters = new();
         /// <summary>
-        /// Contains the FFT magnitude data without the DC component
+        /// Gets or sets the array of FFT magnitude values. The data is lazy-loaded from 'Filename' if not already in memory. The setter throws if data has already been set.
         /// </summary>
         public float[] MagnitudeData
         {
@@ -44,19 +80,46 @@ namespace BBD.BodyMonitor
                 _magnitudeData = value;
             }
         }
+        /// <summary>
+        /// Gets or sets the original filename from which this FFT data was loaded. Used for lazy loading. Marked with [JsonIgnore].
+        /// </summary>
         [JsonIgnore]
         public string Filename { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets a descriptive name for this FFT data instance, often derived from the filename.
+        /// </summary>
         public string Name { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets an array of tags associated with this FFT data for categorization or filtering.
+        /// </summary>
         public string[] Tags { get; set; } = new string[0];
+        /// <summary>
+        /// Gets or sets the size of the source file in bytes. Marked with [JsonIgnore].
+        /// </summary>
         [JsonIgnore]
         public long FileSize { get; set; }
+        /// <summary>
+        /// Gets or sets the last modification UTC timestamp of the source file. Marked with [JsonIgnore].
+        /// </summary>
         [JsonIgnore]
         public DateTime? FileModificationTimeUtc { get; set; }
+        /// <summary>
+        /// Gets the name of the Machine Learning Profile that was applied to this FFT data, if any.
+        /// </summary>
         public string MLProfileName { get; private set; } = string.Empty;
+        /// <summary>
+        /// Gets an array of strings describing the filters that have been applied to this FFT data instance.
+        /// </summary>
         public string[] AppliedFilters => appliedFilters.ToArray();
 
+        /// <summary>
+        /// Initializes a new instance of the FftDataV3 class.
+        /// </summary>
         public FftDataV3() { }
 
+        /// <summary>
+        /// Initializes a new instance of the FftDataV3 class from an obsolete FftDataV2 object. This constructor is obsolete.
+        /// </summary>
         [Obsolete]
         public FftDataV3(FftDataV2 fftDataV2)
         {
@@ -75,6 +138,9 @@ namespace BBD.BodyMonitor
             MLProfileName = fftDataV2.MLProfileName;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the FftDataV3 class as a copy of another FftDataV3 instance.
+        /// </summary>
         public FftDataV3(FftDataV3 fftData)
         {
             Start = fftData.Start;
@@ -93,6 +159,12 @@ namespace BBD.BodyMonitor
             appliedFilters = new List<string>(fftData.AppliedFilters);
         }
 
+        /// <summary>
+        /// Downsamples the FFT data to a new frequency step. The first frequency must be 0.
+        /// </summary>
+        /// <param name="frequencyStep">The target frequency step in Hz. Must be larger than the current FrequencyStep.</param>
+        /// <returns>A new FftDataV3 instance with the downsampled data.</returns>
+        /// <exception cref="System.Exception">Thrown if FirstFrequency is not 0 or if the target frequencyStep is smaller than the current.</exception>
         public FftDataV3 Downsample(float frequencyStep)
         {
             if (FirstFrequency > 0)
@@ -146,6 +218,12 @@ namespace BBD.BodyMonitor
             return result;
         }
 
+        /// <summary>
+        /// Gets an FftBin object describing the bin at the specified index.
+        /// </summary>
+        /// <param name="index">The index of the bin.</param>
+        /// <param name="frequencyStep">Optional. The frequency step to use for calculation. Defaults to the instance's FrequencyStep.</param>
+        /// <returns>An FftBin object.</returns>
         public FftBin GetBinFromIndex(int index, float? frequencyStep = null)
         {
             frequencyStep ??= FrequencyStep;
@@ -160,6 +238,10 @@ namespace BBD.BodyMonitor
             };
         }
 
+        /// <summary>
+        /// Calculates and returns statistics (min, max, average, median) for the MagnitudeData.
+        /// </summary>
+        /// <returns>A MagnitudeStats object.</returns>
         public MagnitudeStats GetMagnitudeStats()
         {
             float minValue = MagnitudeData.Min();
@@ -180,6 +262,12 @@ namespace BBD.BodyMonitor
             return result;
         }
 
+        /// <summary>
+        /// Saves the FftDataV3 object to a JSON file, optionally compressing it into a ZIP archive.
+        /// </summary>
+        /// <param name="fftData">The FftDataV3 object to save.</param>
+        /// <param name="pathToFile">The base path for the output file (extension will be .fft or .zip).</param>
+        /// <param name="compress">True to compress the output into a .zip file; false for an uncompressed .fft file.</param>
         public static void SaveAsJson(FftDataV3 fftData, string pathToFile, bool compress)
         {
             pathToFile = pathToFile[..^Path.GetExtension(pathToFile).Length];
@@ -201,6 +289,13 @@ namespace BBD.BodyMonitor
             }
         }
 
+        /// <summary>
+        /// Saves the FftDataV3 object to a binary file using BinaryFormatter, optionally compressing it and applying an ML profile name to the filename.
+        /// </summary>
+        /// <param name="fftData">The FftDataV3 object to save.</param>
+        /// <param name="pathToFile">The base path for the output file.</param>
+        /// <param name="compress">True to compress the output into a .zip file; false for an uncompressed .bfft file.</param>
+        /// <param name="mlProfileName">Optional ML profile name to incorporate into the filename.</param>
         public static void SaveAsBinary(FftDataV3 fftData, string pathToFile, bool compress, string mlProfileName = "")
         {
             if (fftData == null)
@@ -244,6 +339,12 @@ namespace BBD.BodyMonitor
             }
         }
 
+        /// <summary>
+        /// Loads FftDataV3 from a file. It attempts to load .bfft (binary) first, then .fft (JSON), then .zip (compressed JSON). Handles automatic upgrade from older FftDataV1/V2 binary formats. This method is obsolete; consider specific load methods if format is known.
+        /// </summary>
+        /// <param name="pathToFile">The path to the file (extension will be auto-detected).</param>
+        /// <returns>An FftDataV3 object.</returns>
+        /// <exception cref="System.Exception">Thrown if the file cannot be opened or parsed.</exception>
         [Obsolete]
         public static FftDataV3 LoadFrom(string pathToFile)
         {
@@ -336,6 +437,12 @@ namespace BBD.BodyMonitor
             return fftData == null ? throw new Exception($"Could not open the .dfft, .fft or .zip file for '{pathToFile}'.*.", ex) : fftData;
         }
 
+        /// <summary>
+        /// Generates a filename without extension, incorporating an ML profile name.
+        /// </summary>
+        /// <param name="originalFilename">The original filename.</param>
+        /// <param name="mlProfileName">The name of the ML profile.</param>
+        /// <returns>The modified filename string.</returns>
         public static string GetMLProfiledFilenameWithoutExtension(string originalFilename, string mlProfileName)
         {
             string mlProfiledFilename = originalFilename;
@@ -351,6 +458,10 @@ namespace BBD.BodyMonitor
             return mlProfiledFilename;
         }
 
+        /// <summary>
+        /// Loads magnitude data from the 'Filename', optionally trying a filename variant with the desired ML profile name. This method is obsolete due to its complex behavior and reliance on global state (Filename property).
+        /// </summary>
+        /// <param name="desiredMLProfileName">Optional ML profile name to try for filename variant.</param>
         [Obsolete]
         public void Load(string desiredMLProfileName = "")
         {
@@ -381,6 +492,12 @@ namespace BBD.BodyMonitor
             }
         }
 
+        /// <summary>
+        /// Applies a machine learning profile to the FFT data. This involves downsampling and frequency range selection.
+        /// </summary>
+        /// <param name="mlProfile">The MLProfile to apply.</param>
+        /// <returns>A new FftDataV3 instance with the profile applied.</returns>
+        /// <exception cref="System.Exception">Thrown if the data's frequency range is incompatible with the profile.</exception>
         public FftDataV3 ApplyMLProfile(MLProfile mlProfile)
         {
             FftDataV3 result = Downsample(mlProfile.FrequencyStep);
@@ -435,6 +552,9 @@ namespace BBD.BodyMonitor
             return result;
         }
 
+        /// <summary>
+        /// Clears the internally stored magnitude data, effectively resetting it to an empty array.
+        /// </summary>
         public void ClearData()
         {
             _magnitudeData = new float[0];
@@ -446,6 +566,10 @@ namespace BBD.BodyMonitor
         //    info.AddValue("CaptureTime", this.CaptureTime);
         //}
 
+        /// <summary>
+        /// Gets a string representation of the effective FFT frequency range (excluding DC).
+        /// </summary>
+        /// <returns>A string like 'startHz-endHz' with 'p' replacing '.' (e.g., '0p5Hz-100Hz').</returns>
         public string GetFFTRange()
         {
             string startFrequency = (1 * FrequencyStep).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
@@ -456,11 +580,18 @@ namespace BBD.BodyMonitor
 
         }
 
+        /// <summary>
+        /// Returns a string representation of the FftDataV3 object.
+        /// </summary>
+        /// <returns>A string in the format 'FFT Data 'Name' FftSize x FrequencyStep Hz'.</returns>
         public override string ToString()
         {
             return $"FFT Data '{Name}' {FftSize}x{FrequencyStep:0.00} Hz";
         }
 
+        /// <summary>
+        /// Normalizes the MagnitudeData by dividing each value by the median of all magnitudes. Adds 'BBD.Median()' to AppliedFilters.
+        /// </summary>
         public void ApplyMedianFilter()
         {
             MagnitudeStats stats = GetMagnitudeStats();
@@ -474,9 +605,10 @@ namespace BBD.BodyMonitor
         }
 
         /// <summary>
-        /// Compress or expand the values of the FFT data by calculating the given power of their values.
+        /// Applies a compressor effect to MagnitudeData by raising each value to the specified power. Adds 'BBD.Compressor(power)' to AppliedFilters.
         /// </summary>
-        /// <param name="power">The power to raise the FFT values to. Use <1.0 numbers for compression and >1.0 numbers for expansion.</param>
+        /// <param name="power">The power to raise magnitudes to. Values < 1 compress, > 1 expand. Must be > 0.</param>
+        /// <exception cref="System.Exception">Thrown if power is not greater than 0.</exception>
         public void ApplyCompressorFilter(double power = 0.5)
         {
             if (power <= 0)
