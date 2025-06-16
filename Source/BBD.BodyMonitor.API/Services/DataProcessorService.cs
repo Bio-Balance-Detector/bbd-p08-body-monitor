@@ -1307,7 +1307,7 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 0,
                     IndicatorName = "IsSubject_None",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows__#004_0,9630.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows__#005_0,9901.zip",
                     Negate = true,
                     Text = "Attached?",
                     Description = "Is the device attached to a subject?"
@@ -1340,10 +1340,10 @@ namespace BBD.BodyMonitor.Services
                     IndicatorIndex = 3,
                     IndicatorName = "IsAdditive_HimalayanSalt",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
-                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsAdditive_HimalayanSalt__3500rows__#007_0,9495.zip",
+                    MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsSubject_None__2540rows__#000_0,9800.zip",
                     Negate = false,
-                    Text = "Salty?",
-                    Description = "Is it water, containing Himalayan salt?"
+                    Text = "High LDL Cholesterol?",
+                    Description = "Do they have high LDL cholesterol levels?"
                 },
                 new IndicatorEvaluationTaskDescriptor()
                 {
@@ -1352,9 +1352,9 @@ namespace BBD.BodyMonitor.Services
                     IndicatorName = "IsAdditive_20pcVinegar",
                     MLProfile = _config.MachineLearning.Profiles.First(p => p.Name.StartsWith("MLP14")),
                     MLModelFilename = "BBD_20230907__TrainingData__MLP14_0p25Hz-6250Hz__IsAdditive_20pcVinegar__3500rows__#007_0,9721.zip",
-                    Negate = false,
-                    Text = "Vinegar?",
-                    Description = "Is it water, containing vinegar?"
+                    Negate = true,
+                    Text = "E. coli?",
+                    Description = "Do they have Escherichia coli bacteria?"
                 },
                 //new IndicatorEvaluationTaskDescriptor()
                 //{
