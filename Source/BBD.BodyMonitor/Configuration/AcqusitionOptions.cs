@@ -2,25 +2,31 @@
 
 namespace BBD.BodyMonitor.Configuration
 {
+    /// <summary>
+    /// Configuration options for data acquisition.
+    /// </summary>
     public class AcqusitionOptions
     {
+        /// <summary>
+        /// Gets or sets a value indicating whether data acquisition is enabled.
+        /// </summary>
         public bool Enabled { get; set; } = false;
         /// <summary>
-        /// Channels to acquire data from
+        /// Gets or sets the channels to acquire data from.
         /// </summary>
         public string[] Channels { get; set; } = new string[0];
         /// <summary>
-        /// The length of the buffer in seconds
+        /// Gets or sets the length of the acquisition buffer in seconds.
         /// </summary>
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public float Buffer { get; set; } = 10.0f;
         /// <summary>
-        /// The length of a block in seconds
+        /// Gets or sets the length of a data block in seconds.
         /// </summary>
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public float Block { get; set; } = 0.1f;
         /// <summary>
-        /// Number of samples per second
+        /// Gets or sets the number of samples per second (sample rate).
         /// </summary>
         [TypeConverter(typeof(StringWithUnitToNumberConverter))]
         public int Samplerate { get; set; } = 0;

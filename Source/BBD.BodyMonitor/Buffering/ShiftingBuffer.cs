@@ -1,107 +1,117 @@
 ﻿namespace BBD.BodyMonitor.Buffering
 {
+﻿namespace BBD.BodyMonitor.Buffering
+{
     /// <summary>
-    /// Enum that defines how the buffer handles errors
+    /// Defines how the buffer handles errors.
     /// </summary>
     public enum BufferErrorHandlingMode
     {
         /// <summary>
-        /// Clears the buffer
+        /// Clears the entire buffer when an error occurs.
         /// </summary>
         ClearBuffer,
         /// <summary>
-        /// Discards the samples that are corrupted
+        /// Discards only the corrupted samples.
         /// </summary>
         DiscardSamples,
         /// <summary>
-        /// Replaces the samples that are corrupted with 0
+        /// Replaces corrupted samples with zero values.
         /// </summary>
         ZeroSamples
     }
 
     /// <summary>
-    /// Shifting buffer that can be used to store data in a circular buffer.
+    /// Represents a shifting circular buffer for storing and processing data blocks.
     /// </summary>
     public class ShiftingBuffer
     {
         /// <summary>
-        /// Total number of (float) samples writen to the buffer
+        /// Gets the total number of float samples written to the buffer.
         /// </summary>
         public long TotalWrites { get; private set; }
         /// <summary>
-        /// Current position in the buffer
+        /// Gets the current write position in the buffer.
         /// </summary>
         public long Position { get; private set; }
         /// <summary>
-        /// Number of (float) samples in one block
+        /// Gets the number of float samples in one data block.
         /// </summary>
         public long BlockSize { get; private set; }
+        /// <summary>
+        /// Gets or sets the error handling mode for the buffer.
+        /// </summary>
         public BufferErrorHandlingMode ErrorHandlingMode { get; set; } = BufferErrorHandlingMode.ClearBuffer;
 
         /// <summary>
-        /// Delegate for the event that is fired when a block is received
+        /// Represents the method that will handle the <see cref="BlockReceived"/> event.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">A <see cref="BlockReceivedEventArgs"/> that contains the event data.</param>
         public delegate void BlockReceivedEventHandler(object sender, BlockReceivedEventArgs e);
 
         /// <summary>
-        /// Delegate for the event that is fired when a buffer error occurs
+        /// Represents the method that will handle a buffer error event.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">A <see cref="BufferErrorEventArgs"/> that contains the event data.</param>
         public delegate void BufferErrorEventHandler(object sender, BufferErrorEventArgs e);
 
         /// <summary>
-        /// Event that is fired when a block is received
+        /// Occurs when a new data block is received and processed.
         /// </summary>
         public event BlockReceivedEventHandler? BlockReceived;
         /// <summary>
-        /// Event that is fired when a buffer error occurs
+        /// Occurs when an error is encountered in the buffer.
         /// </summary>
         public event BufferErrorEventHandler? BufferError;
 
         /// <summary>
-        /// Buffer that stores the data
+        /// The internal buffer that stores the data.
         /// </summary>
         private readonly float[] buffer;
         /// <summary>
-        /// Samplerate of the data
+        /// The sample rate of the data in Hz.
         /// </summary>
         private readonly double samplerate;
         /// <summary>
-        /// Repository of the data blocks
+        /// A repository of the data blocks, indexed by their block index.
         /// </summary>
         private readonly Dictionary<long, DataBlock> blockRepo = new();
         private BlockError? _lastError;
 
         /// <summary>
-        /// Creates a new shifting buffer
+        /// Initializes a new instance of the <see cref="ShiftingBuffer"/> class.
         /// </summary>
-        /// <param name="bufferSize">Number of (float) samples in the buffer</param>
-        /// <param name="blockSize">Number of (float) samples in a block</param>
-        /// <param name="samplerate">Sampling rate</param>
-        /// <exception cref="System.ArgumentException"></exception>
+        /// <param name="bufferSize">The total number of float samples the buffer can hold. Must be a multiple of <paramref name="blockSize"/>.</param>
+        /// <param name="blockSize">The number of float samples in each data block. Must be greater than zero.</param>
+        /// <param name="samplerate">The sampling rate of the data in Hz. Must be greater than zero.</param>
+        /// <exception cref="System.ArgumentException">
+        /// Thrown if <paramref name="bufferSize"/> is less than <paramref name="blockSize"/>,
+        /// or if <paramref name="blockSize"/> is not greater than zero,
+        /// or if <paramref name="bufferSize"/> is not a multiple of <paramref name="blockSize"/>,
+        /// or if <paramref name="samplerate"/> is not greater than zero.
+        /// </exception>
         public ShiftingBuffer(long bufferSize, long blockSize, double samplerate)
         {
             if (bufferSize < blockSize)
             {
-                throw new System.ArgumentException("Buffer size must be greater than block size.", "bufferSize");
+                throw new System.ArgumentException("Buffer size must be greater than block size.", nameof(bufferSize));
             }
 
             if (blockSize <= 0)
             {
-                throw new System.ArgumentException("Blocksize must be bigger than zero.", "blockSize");
+                throw new System.ArgumentException("Blocksize must be bigger than zero.", nameof(blockSize));
             }
 
             if (bufferSize % blockSize != 0)
             {
-                throw new System.ArgumentException("Block size must be a multiple of buffer size.", "blockSize");
+                throw new System.ArgumentException("Block size must be a multiple of buffer size.", nameof(blockSize));
             }
 
             if (samplerate <= 0)
             {
-                throw new System.ArgumentException("Samplerate must be bigger than zero.", "samplerate");
+                throw new System.ArgumentException("Samplerate must be bigger than zero.", nameof(samplerate));
             }
 
             buffer = new float[bufferSize];
@@ -110,7 +120,7 @@
         }
 
         /// <summary>
-        /// Creates a new shifting buffer
+        /// Clears the buffer, resetting its position and total writes.
         /// </summary>
         public void Clear()
         {
@@ -119,16 +129,17 @@
                 blockRepo.Clear();
                 Position = 0;
                 TotalWrites = 0;
+                _lastError = null;
             }
         }
 
         /// <summary>
-        /// Error handling for the buffer
+        /// Handles errors encountered in the buffer based on the <see cref="ErrorHandlingMode"/>.
         /// </summary>
-        /// <param name="bytesAvailable">Available bytes in the previous data pull</param>
-        /// <param name="bytesLost">Lost bytes in the previous data pull</param>
-        /// <param name="bytesCorrupted">Corrupted bytes in the previous data pull</param>
-        /// <param name="bytesTotal">Total bytes in the previous data pull</param>
+        /// <param name="bytesAvailable">The number of bytes available in the previous data pull.</param>
+        /// <param name="bytesLost">The number of bytes lost in the previous data pull.</param>
+        /// <param name="bytesCorrupted">The number of bytes corrupted in the previous data pull.</param>
+        /// <param name="bytesTotal">The total number of bytes in the previous data pull.</param>
         public void Error(int bytesAvailable, int bytesLost, int bytesCorrupted, int bytesTotal)
         {
             if (_lastError != null)
@@ -145,12 +156,14 @@
             // We discard the samples
             if (ErrorHandlingMode == BufferErrorHandlingMode.DiscardSamples)
             {
-
+                // Currently, no specific action is taken here as samples are processed upon writing.
+                // This mode implies that errors are noted, and subsequent writes might fill in gaps or corrupted data is ignored.
             }
 
             // We replace the samples with 0
             if (ErrorHandlingMode == BufferErrorHandlingMode.ZeroSamples)
             {
+                // Writes an array of zeros corresponding to the total bytes of the problematic data segment.
                 _ = Write(new float[bytesTotal]);
             }
 
@@ -164,10 +177,10 @@
         }
 
         /// <summary>
-        /// Writes the given samples to the buffer
+        /// Writes the given samples to the buffer.
         /// </summary>
-        /// <param name="samplesToWrite">Samples to write to the buffer</param>
-        /// <returns>Current position in the buffer</returns>
+        /// <param name="samplesToWrite">The array of float samples to write to the buffer.</param>
+        /// <returns>The current position in the buffer after the write operation.</returns>
         public long Write(float[] samplesToWrite)
         {
             lock (buffer)
@@ -177,7 +190,7 @@
 
                 if (Position + samplesToWriteLength > bufferLength)
                 {
-                    // we are going to have an overflow
+                    // Handle buffer overflow by wrapping around.
                     long samplesToWriteFirst = bufferLength - Position;
                     Array.Copy(samplesToWrite, 0, buffer, Position, samplesToWriteFirst);
 
@@ -187,7 +200,7 @@
                 }
                 else
                 {
-                    // we don't have an overflow, so it's fairly straigthforward
+                    // No overflow, copy directly.
                     Array.Copy(samplesToWrite, 0, buffer, Position, samplesToWriteLength);
                     Position += samplesToWriteLength;
                 }
@@ -195,21 +208,23 @@
                 long previousBlockIndex = TotalWrites / BlockSize;
                 long currentBlockIndex = (TotalWrites + samplesToWriteLength) / BlockSize;
 
-                double blockTime = BlockSize * (1000 / samplerate);
+                double blockTime = BlockSize * (1000 / samplerate); // Duration of a block in milliseconds.
                 DateTimeOffset endTime = DateTimeOffset.Now;
                 for (long blockIndex = currentBlockIndex; blockIndex > previousBlockIndex; blockIndex--)
                 {
-                    // we have at least one new block                    
-                    long blockPosition = blockIndex * BlockSize % buffer.Length;
+                    // A new block has been completely written.
+                    long blockBufferPosition = blockIndex * BlockSize % buffer.Length; // Position of the start of this block in the circular buffer.
                     DateTimeOffset startTime = endTime.AddMilliseconds(-blockTime);
 
-                    DataBlock newBlock = new(BlockSize, blockPosition, blockIndex, blockIndex, Get(BlockSize, blockPosition), startTime, endTime);
-                    blockRepo.Add(blockIndex, newBlock);
+                    // Extract the data for the new block.
+                    float[] blockData = Get(BlockSize, (blockBufferPosition + BlockSize) % bufferLength); // Get data ending at the current block's end position
+                    DataBlock newBlock = new(BlockSize, blockBufferPosition, blockIndex, blockIndex, blockData, startTime, endTime);
+                    blockRepo[blockIndex] = newBlock; // Add or update the block in the repository.
 
-                    endTime = startTime;
+                    endTime = startTime; // The end time for the next older block is the start time of this one.
 
-                    BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock, null, _lastError));
-                    _lastError = null;
+                    BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock, null, _lastError)); // TODO: Session is null
+                    _lastError = null; // Reset error after a successful block processing.
                 }
 
                 TotalWrites += samplesToWriteLength;
@@ -219,30 +234,36 @@
         }
 
         /// <summary>
-        /// Gets the given duration of blocks from the buffer
+        /// Retrieves a <see cref="DataBlock"/> containing data for a specified duration, ending at a specific block index.
         /// </summary>
-        /// <param name="duration">Duration in seconds to get</param>
-        /// <param name="endBlockIndex">The last block we want to get</param>
-        /// <returns></returns>
+        /// <param name="duration">The duration in seconds of data to retrieve.</param>
+        /// <param name="endBlockIndex">Optional. The index of the last block to include. If null, the latest available block is used.</param>
+        /// <returns>A <see cref="DataBlock"/> containing the requested data.</returns>
         public DataBlock GetBlocks(float duration, long? endBlockIndex = null)
         {
+            // Calculate the number of blocks based on duration and sample rate.
             int blockCount = (int)(duration * samplerate / BlockSize) + 1;
 
             return GetBlocks(blockCount, endBlockIndex);
         }
 
         /// <summary>
-        /// Gets the given number of blocks from the buffer
+        /// Retrieves a <see cref="DataBlock"/> containing a specified number of blocks, ending at a specific block index.
         /// </summary>
-        /// <param name="blockCount">Number of blocks to get</param>
-        /// <param name="endBlockIndex">The last block we want to get</param>
-        /// <returns></returns>
+        /// <param name="blockCount">The number of blocks to retrieve.</param>
+        /// <param name="endBlockIndex">Optional. The index of the last block to include. If null, the latest available block is used.</param>
+        /// <returns>A <see cref="DataBlock"/> containing the requested data, or an empty DataBlock if data is not available.</returns>
         public DataBlock GetBlocks(int blockCount, long? endBlockIndex = null)
         {
             DataBlock result;
 
             lock (buffer)
             {
+                if (blockRepo.Count == 0)
+                {
+                    return new DataBlock(BlockSize, -1, 0, 0, Array.Empty<float>(), DateTimeOffset.MinValue, DateTimeOffset.MinValue);
+                }
+
                 endBlockIndex ??= blockRepo.Keys.Last();
                 long startBlockIndex = endBlockIndex.Value - blockCount + 1;
 
@@ -267,6 +288,11 @@
                         data.AddRange(db.Data);
                     }
                 }
+                // If no data was found (e.g. requested blocks are not in repo), return an empty DataBlock with sensible defaults.
+                if (data.Count == 0)
+                {
+                    return new DataBlock(BlockSize, -1, startBlockIndex, endBlockIndex.Value, Array.Empty<float>(), DateTimeOffset.MinValue, DateTimeOffset.MinValue);
+                }
 
                 result = new DataBlock(BlockSize, -1, startBlockIndex, endBlockIndex.Value, data.ToArray(), startTime, endTime);
             }
@@ -275,29 +301,31 @@
         }
 
         /// <summary>
-        /// Gets the given number of (float) samples from the buffer
+        /// Gets the specified number of float samples from the buffer.
         /// </summary>
-        /// <param name="samplesToRead">Number of (float) samples to read</param>
-        /// <param name="bufferPosition">The starting position of the read. If null, the current position is used.</param>
-        /// <returns>Array of (float) samples that were requested</returns>
-        /// <exception cref="ArgumentException"></exception>
+        /// <param name="samplesToRead">Number of float samples to read. Must not exceed buffer length.</param>
+        /// <param name="bufferPosition">The ending position in the buffer from which to read backwards. If null, the current <see cref="Position"/> is used.</param>
+        /// <returns>An array of float samples that were requested.</returns>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="samplesToRead"/> is greater than the buffer length.</exception>
         private float[] Get(long samplesToRead, long? bufferPosition = null)
         {
             if (samplesToRead > buffer.Length)
             {
-                throw new ArgumentException($"The maximum number of samples available to read is {buffer.Length}, but you are trying to read {samplesToRead}. Lower the requested number of samples, or increase the buffer size.", "samplesToRead");
+                throw new ArgumentException($"The maximum number of samples available to read is {buffer.Length}, but you are trying to read {samplesToRead}. Lower the requested number of samples, or increase the buffer size.", nameof(samplesToRead));
             }
 
             int bufferLength = buffer.Length;
             float[] result = new float[samplesToRead];
-            bufferPosition ??= Position;
-            long readStartPosition = (bufferPosition.Value - samplesToRead + bufferLength) % bufferLength;
+            // If bufferPosition is null, use current Position. This means we read the last 'samplesToRead' samples written.
+            long endReadPosition = bufferPosition ?? Position;
+            // Calculate the effective start position in the circular buffer.
+            long readStartPosition = (endReadPosition - samplesToRead + bufferLength) % bufferLength;
 
             lock (buffer)
             {
                 if (readStartPosition + samplesToRead > bufferLength)
                 {
-                    // we are going to have an overflow
+                    // Read wraps around the end of the buffer.
                     long samplesToReadFirst = bufferLength - readStartPosition;
                     Array.Copy(buffer, readStartPosition, result, 0, samplesToReadFirst);
 
@@ -306,7 +334,7 @@
                 }
                 else
                 {
-                    // we don't have an overflow, so it's fairly straigthforward
+                    // Read is contiguous within the buffer.
                     Array.Copy(buffer, readStartPosition, result, 0, samplesToRead);
                 }
             }

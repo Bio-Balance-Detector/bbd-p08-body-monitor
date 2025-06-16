@@ -40,18 +40,41 @@ namespace BBD.BodyMonitor.Configuration
         /// </summary>
         public required string Amplitude { get; set; }
 
+        /// <summary>
+        /// Gets the starting frequency in Hz. This value is parsed from the <see cref="Frequency"/> string.
+        /// </summary>
         public float FrequencyFrom { get; private set; }
 
+        /// <summary>
+        /// Gets the ending frequency in Hz (for sweep or ping-pong modes). This value is parsed from the <see cref="Frequency"/> string.
+        /// For single value mode, this will be the same as <see cref="FrequencyFrom"/>.
+        /// </summary>
         public float FrequencyTo { get; private set; }
 
+        /// <summary>
+        /// Gets the starting amplitude in Volts. This value is parsed from the <see cref="Amplitude"/> string.
+        /// </summary>
         public float AmplitudeFrom { get; private set; }
 
+        /// <summary>
+        /// Gets the ending amplitude in Volts (for sweep or ping-pong modes). This value is parsed from the <see cref="Amplitude"/> string.
+        /// For single value mode, this will be the same as <see cref="AmplitudeFrom"/>.
+        /// </summary>
         public float AmplitudeTo { get; private set; }
 
+        /// <summary>
+        /// Gets the periodicity mode for the frequency (SingleValue, Sweep, or PingPong). This value is determined during parsing of the <see cref="Frequency"/> string.
+        /// </summary>
         public PeriodicyMode FrequencyMode { get; private set; }
 
+        /// <summary>
+        /// Gets the periodicity mode for the amplitude (SingleValue, Sweep, or PingPong). This value is determined during parsing of the <see cref="Amplitude"/> string.
+        /// </summary>
         public PeriodicyMode AmplitudeMode { get; private set; }
 
+        /// <summary>
+        /// Parses the <see cref="Frequency"/> string to populate <see cref="FrequencyFrom"/>, <see cref="FrequencyTo"/>, and <see cref="FrequencyMode"/>.
+        /// </summary>
         public void ParseFrequency()
         {
             StringWithUnitToNumberConverter stringWithUnitToNumberConverter = new();
@@ -70,6 +93,9 @@ namespace BBD.BodyMonitor.Configuration
             }
         }
 
+        /// <summary>
+        /// Parses the <see cref="Amplitude"/> string to populate <see cref="AmplitudeFrom"/>, <see cref="AmplitudeTo"/>, and <see cref="AmplitudeMode"/>.
+        /// </summary>
         public void ParseAmplitude()
         {
             StringWithUnitToNumberConverter stringWithUnitToNumberConverter = new();
@@ -88,6 +114,10 @@ namespace BBD.BodyMonitor.Configuration
             }
         }
 
+        /// <summary>
+        /// Returns a string representation of the signal definition in the format "Name=Function,FrequencyString,AmplitudeString".
+        /// </summary>
+        /// <returns>A string representation of the signal definition.</returns>
         public override string ToString()
         {
             NumberFormatInfo numberFormat = CultureInfo.InvariantCulture.NumberFormat;

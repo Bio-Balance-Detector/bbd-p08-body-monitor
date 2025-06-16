@@ -1,39 +1,49 @@
 ﻿namespace BBD.BodyMonitor.Buffering
 {
     /// <summary>
-    /// Data block that is received from the device
+    /// Represents a block of data received from a device.
     /// </summary>
     public class DataBlock
     {
         /// <summary>
-        /// Number of samples in one block
+        /// Gets the number of samples in one block.
         /// </summary>
         public long BlockSize { get; }
         /// <summary>
-        /// The position of the block in the buffer
+        /// Gets the position of the block in the buffer.
         /// </summary>
         public long BufferPosition { get; }
         /// <summary>
-        /// The first block that this data block includes
+        /// Gets the start index of the data block.
         /// </summary>
         public long StartIndex { get; }
         /// <summary>
-        /// The last block that this data block includes
+        /// Gets the end index of the data block.
         /// </summary>
         public long EndIndex { get; }
         /// <summary>
-        /// Merged data array of the blocks from StartIndex to EndIndex
+        /// Gets the merged data array from <see cref="StartIndex"/> to <see cref="EndIndex"/>.
         /// </summary>
         public float[] Data { get; }
         /// <summary>
-        /// The time when the first block started
+        /// Gets the timestamp of when the first block started.
         /// </summary>
         public DateTimeOffset StartTime { get; }
         /// <summary>
-        /// The time when the last block ended
+        /// Gets the timestamp of when the last block ended.
         /// </summary>
         public DateTimeOffset EndTime { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DataBlock"/> class.
+        /// </summary>
+        /// <param name="blockSize">The number of samples in one block.</param>
+        /// <param name="bufferPosition">The position of the block in the buffer.</param>
+        /// <param name="startIndex">The start index of the data block.</param>
+        /// <param name="endIndex">The end index of the data block.</param>
+        /// <param name="data">The merged data array.</param>
+        /// <param name="startTime">The timestamp of when the first block started.</param>
+        /// <param name="endTime">The timestamp of when the last block ended.</param>
         public DataBlock(long blockSize, long bufferPosition, long startIndex, long endIndex, float[] data, DateTimeOffset startTime, DateTimeOffset endTime)
         {
             BlockSize = blockSize;
@@ -45,6 +55,10 @@
             EndTime = endTime;
         }
 
+        /// <summary>
+        /// Calculates a hash code for the current <see cref="DataBlock"/> instance.
+        /// </summary>
+        /// <returns>A hash code for the current <see cref="DataBlock"/> instance.</returns>
         public long GetHash()
         {
             return BlockSize ^ BufferPosition ^ StartIndex ^ EndIndex ^ StartTime.ToUnixTimeMilliseconds() ^ EndTime.ToUnixTimeMilliseconds();
