@@ -10,6 +10,9 @@ using Microsoft.ML.SearchSpace.Option;
 
 namespace BBD.BodyMonitor.Controllers
 {
+    /// <summary>
+    /// Controller for managing machine learning processes, including data preparation and model training.
+    /// </summary>
     [ApiController]
     [Route("[controller]")]
     public class MachineLearningController : ControllerBase
@@ -17,6 +20,11 @@ namespace BBD.BodyMonitor.Controllers
         private readonly ILogger<MachineLearningController> _logger;
         private readonly IDataProcessorService _dataProcessor;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MachineLearningController"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance for logging messages.</param>
+        /// <param name="dataProcessor">The data processor service for handling data operations.</param>
         public MachineLearningController(ILogger<MachineLearningController> logger, IDataProcessorService dataProcessor)
         {
             _logger = logger;
@@ -24,15 +32,16 @@ namespace BBD.BodyMonitor.Controllers
         }
 
         /// <summary>
-        /// Prepare the data for the machine learning model training and save it as a .csv file.
+        /// Prepares training data for machine learning models and saves it as a CSV file.
+        /// This process involves selecting data based on specified filters and balancing the dataset if required.
         /// </summary>
-        /// <param name="trainingDataFoldername">The folder where the training data is located</param>
-        /// <param name="mlProfileName">Begining of the ML profile name (eg. "ML14")</param>
-        /// <param name="tagFilterExpression">Tag filtering expression to select a subset of the data (eg. "Subject_" or "AttachedTo_LeftForearm || AttachedTo_RightForearm")</param>
-        /// <param name="validLabelExpression">List of labels to add to the CSV file (eg. "Session.SegmentedData.Sleep.Level" or "Subject_0xBAC08836" or "Session.SegmentedData.Sleep.Level+Session.SegmentedData.HeartRate.BeatsPerMinute")</param>
-        /// <param name="balanceOnTag">Make sure that the number of items in the CSV file that has this value and the ones that don't have are balanced (eg. "Subject_None")</param>
-        /// <param name="maxRows">The maximum number of row in the CSV file</param>
-        /// <returns>The identifier of the task.</returns>
+        /// <param name="trainingDataFoldername">The name of the folder containing the training data. This folder is typically located within the configured data directory.</param>
+        /// <param name="mlProfileName">The beginning of the machine learning profile name (e.g., "ML14"). This profile defines data processing and feature engineering steps.</param>
+        /// <param name="tagFilterExpression">Optional. A tag filtering expression to select a subset of the data (e.g., "Subject_" or "AttachedTo_LeftForearm || AttachedTo_RightForearm").</param>
+        /// <param name="validLabelExpression">Optional. An expression defining the labels to be included in the CSV file (e.g., "Session.SegmentedData.Sleep.Level" or "Subject_0xBAC08836" or "Session.SegmentedData.Sleep.Level+Session.SegmentedData.HeartRate.BeatsPerMinute").</param>
+        /// <param name="balanceOnTag">Optional. A tag used to balance the dataset, ensuring an equal number of items with and without this tag (e.g., "Subject_None").</param>
+        /// <param name="maxRows">Optional. The maximum number of rows to include in the generated CSV file.</param>
+        /// <returns>The ID of the background task performing the data preparation.</returns>
         [HttpGet]
         [Route("pretraining/{trainingDataFoldername}/{mlProfileName}/{tagFilterExpression?}/{validLabelExpression?}/{balanceOnTag?}/{maxRows?}")]
         public int PrepareTraining(string trainingDataFoldername, string mlProfileName, string tagFilterExpression, string validLabelExpression, string balanceOnTag, int? maxRows)
@@ -58,6 +67,19 @@ namespace BBD.BodyMonitor.Controllers
             return taskId;
         }
 
+        /// <summary>
+        /// Starts the training process for a machine learning model using prepared data.
+        /// </summary>
+        /// <remarks>
+        /// This method initiates an AutoML experiment to train a regression model.
+        /// It uses the specified CSV file as input and trains for a defined duration.
+        /// The resulting model is saved as a .zip file.
+        /// </remarks>
+        /// <param name="preparedTrainingDataFilename">The filename of the CSV file containing the prepared training data. If not an absolute path, it's assumed to be in the application's data directory.</param>
+        /// <param name="mlProfileName">The name of the machine learning profile to use for training (e.g., "MLP05", "MLP14"). This determines the data schema and features.</param>
+        /// <param name="trainingTimeInSeconds">The duration, in seconds, for which the training process should run.</param>
+        /// <returns>The ID of the background task performing the model training. Returns 0 if the prepared training data file is not found.</returns>
+        /// <exception cref="Exception">Thrown if the specified ML Profile is not supported.</exception>
         [HttpGet]
         [Route("train/{preparedTrainingDataFilename}/{mlProfileName}/{trainingTimeInSeconds}")]
         public int StartTraining(string preparedTrainingDataFilename, string mlProfileName, uint trainingTimeInSeconds)
