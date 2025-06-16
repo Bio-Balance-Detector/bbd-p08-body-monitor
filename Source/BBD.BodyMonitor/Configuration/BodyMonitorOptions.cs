@@ -8,6 +8,9 @@ namespace BBD.BodyMonitor.Configuration
     /// </summary>
     public class BodyMonitorOptions
     {
+        /// <summary>
+        /// Reference to the IConfigurationSection used by the obsolete constructor.
+        /// </summary>
         private readonly IConfigurationSection? _configRoot;
         /// <summary>
         /// Gets or sets the directory where data will be stored.

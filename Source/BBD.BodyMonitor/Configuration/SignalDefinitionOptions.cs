@@ -2,18 +2,45 @@
 
 namespace BBD.BodyMonitor.Configuration
 {
+    /// <summary>
+    /// Defines the waveform shape of a generated signal.
+    /// </summary>
     public enum SignalFunction
     {
+        /// <summary>
+        /// Sine wave.
+        /// </summary>
         Sine,
+        /// <summary>
+        /// Square wave.
+        /// </summary>
         Square,
+        /// <summary>
+        /// Triangle wave.
+        /// </summary>
         Triangle,
+        /// <summary>
+        /// Sawtooth wave.
+        /// </summary>
         Sawtooth
     }
 
+    /// <summary>
+    /// Defines how a signal parameter (like frequency or amplitude) changes over time.
+    /// </summary>
     public enum PeriodicyMode
     {
+        /// <summary>
+        /// The parameter remains constant at a single value.
+        /// </summary>
         SingleValue,
+        /// <summary>
+        /// The parameter sweeps linearly from a start value to an end value.
+        /// </summary>
         Sweep,
+        /// <summary>
+        /// The parameter sweeps from a start value to an end value, then back to the start value, and repeats.
+        /// </summary>
         PingPong
     }
 
