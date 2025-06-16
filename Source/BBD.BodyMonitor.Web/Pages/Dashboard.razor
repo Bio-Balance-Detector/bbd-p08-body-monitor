@@ -106,7 +106,7 @@ else
         <a @onclick="Start" class="flex-fill p-2 btn btn-s btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-green-dark">Start</a>
 
         @*add a button to stop the data aquistion*@
-        <a @onclick="Stop" class="flex-fill p-2 btn btn-s btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-gray-dark no-click">Stop</a>
+        <a @onclick="Stop" class="flex-fill p-2 btn btn-s btn-full mb-3 rounded-xs text-uppercase font-900 shadow-s bg-red-dark">Stop</a>
 
         <div class="list-group list-custom-small list-icon-0">
             <a data-bs-toggle="collapse" href="#collapse-sessions" class="collapsed" aria-expanded="false">
@@ -123,7 +123,7 @@ else
     {
         BBDService.StreamSystemInformationAsync(new CancellationToken());
 
-        BBDService.SystemInformationUpdated += (sender, args) => StateHasChanged();
+        BBDService.SystemInformationUpdated += (sender, args) => InvokeAsync(StateHasChanged);
     }
 
     protected void Start() => BBDService.Start();
