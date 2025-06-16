@@ -137,9 +137,21 @@ namespace BBD.BodyMonitor
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsDigit(char c) => (uint)(c - '0') <= ('9' - '0');
 
-        internal const string DefaultForegroundColor = "\x1B[39m\x1B[22m"; // reset to default foreground color
-        internal const string DefaultBackgroundColor = "\x1B[49m"; // reset to the background color
+        /// <summary>
+        /// Gets the ANSI escape code sequence to reset to the default foreground color and normal intensity.
+        /// </summary>
+        internal const string DefaultForegroundColor = "\x1B[39m\x1B[22m";
+        /// <summary>
+        /// Gets the ANSI escape code sequence to reset to the default background color.
+        /// </summary>
+        internal const string DefaultBackgroundColor = "\x1B[49m";
 
+        /// <summary>
+        /// Gets the ANSI escape code sequence for the specified foreground color.
+        /// Handles bright colors by prepending the "bright/bold" SGR code if necessary.
+        /// </summary>
+        /// <param name="color">The console color to get the escape code for.</param>
+        /// <returns>The ANSI escape code string for the specified color.</returns>
         internal static string GetForegroundColorEscapeCode(ConsoleColor color)
         {
             return color switch
@@ -163,6 +175,12 @@ namespace BBD.BodyMonitor
             };
         }
 
+        /// <summary>
+        /// Gets the ANSI escape code sequence for the specified background color.
+        /// Note: Standard SGR codes 40-47 do not have distinct "bright" versions.
+        /// </summary>
+        /// <param name="color">The console color to get the escape code for.</param>
+        /// <returns>The ANSI escape code string for the specified background color.</returns>
         internal static string GetBackgroundColorEscapeCode(ConsoleColor color)
         {
             // For background colors, "bright" versions are not standard via SGR codes 40-47.

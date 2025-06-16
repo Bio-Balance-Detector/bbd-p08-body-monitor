@@ -35,6 +35,7 @@ namespace BBD.BodyMonitor.API.Controllers
         /// </remarks>
         /// <param name="date">The date for which to retrieve sleep stage data.</param>
         /// <returns>An array of <see cref="LevelsData"/> objects representing sleep stages. Currently throws <see cref="NotImplementedException"/>.</returns>
+        /// <response code="501">Indicates that the method is not implemented.</response>
         /// <exception cref="NotImplementedException">This method is not yet implemented.</exception>
         [HttpGet]
         [Route("getsleepstages/{date}")]
@@ -52,6 +53,7 @@ namespace BBD.BodyMonitor.API.Controllers
         /// </remarks>
         /// <param name="date">The date for which to retrieve heart rate data.</param>
         /// <returns>An array of <see cref="DatasetInterval"/> objects representing heart rate measurements. Currently throws <see cref="NotImplementedException"/>.</returns>
+        /// <response code="501">Indicates that the method is not implemented.</response>
         /// <exception cref="NotImplementedException">This method is not yet implemented.</exception>
         [HttpGet]
         [Route("getheartrate/{date}")]

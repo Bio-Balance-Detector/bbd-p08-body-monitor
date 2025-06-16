@@ -41,6 +41,7 @@ namespace BBD.BodyMonitor.Controllers
         /// Retrieves the current application configuration.
         /// </summary>
         /// <returns>The current <see cref="BodyMonitorOptions"/>.</returns>
+        /// <response code="200">Returns the current application configuration.</response>
         [HttpGet]
         [Route("getconfig")]
         public BodyMonitorOptions GetConfig()
@@ -53,6 +54,8 @@ namespace BBD.BodyMonitor.Controllers
         /// </summary>
         /// <param name="config">The <see cref="BodyMonitorOptions"/> to set.</param>
         /// <returns>The updated <see cref="BodyMonitorOptions"/> after applying the changes.</returns>
+        /// <response code="200">Returns the updated application configuration.</response>
+        /// <response code="400">If the provided configuration is invalid.</response>
         [HttpPost]
         [Route("setconfig")]
         public BodyMonitorOptions SetConfig(BodyMonitorOptions config)
@@ -69,6 +72,7 @@ namespace BBD.BodyMonitor.Controllers
         /// </remarks>
         /// <param name="taskId">The ID of the task for which to retrieve logs.</param>
         /// <returns>An array of strings representing the task logs. Currently returns an empty array.</returns>
+        /// <response code="200">Returns an array of task logs (currently always empty).</response>
         [HttpGet]
         [Route("gettasklogs")]
         public string[] GetTaskLogs(int taskId)
@@ -80,6 +84,7 @@ namespace BBD.BodyMonitor.Controllers
         /// Lists all available locations.
         /// </summary>
         /// <returns>An array of <see cref="Location"/> objects, or an empty array if none are found.</returns>
+        /// <response code="200">Returns an array of available locations.</response>
         [HttpGet]
         [Route("listlocations")]
         public Location[] ListLocations()
@@ -91,6 +96,7 @@ namespace BBD.BodyMonitor.Controllers
         /// Lists all available subjects.
         /// </summary>
         /// <returns>An array of <see cref="Subject"/> objects, or an empty array if none are found.</returns>
+        /// <response code="200">Returns an array of available subjects.</response>
         [HttpGet]
         [Route("listsubjects")]
         public Subject[] ListSubjects()
@@ -102,6 +108,7 @@ namespace BBD.BodyMonitor.Controllers
         /// Lists all available sessions.
         /// </summary>
         /// <returns>An array of <see cref="Session"/> objects, or an empty array if none are found.</returns>
+        /// <response code="200">Returns an array of available sessions.</response>
         [HttpGet]
         [Route("listsessions")]
         public Session[] ListSessions()
@@ -114,6 +121,8 @@ namespace BBD.BodyMonitor.Controllers
         /// This includes IP addresses, connected devices, current configuration, locations, subjects, and sessions.
         /// </summary>
         /// <returns>A <see cref="SystemInformation"/> object containing various system details.</returns>
+        /// <response code="200">Returns a comprehensive overview of the system's status and configuration.</response>
+        /// <exception cref="Exception">Thrown if there is an issue retrieving system information components like IP addresses or device lists.</exception>
         [HttpGet]
         [Route("getsysteminformation")]
         public SystemInformation GetSystemInformation()
@@ -219,6 +228,10 @@ namespace BBD.BodyMonitor.Controllers
         /// The stream closes when the client disconnects or the cancellation token is triggered.
         /// </remarks>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation of streaming system information.</returns>
+        /// <response code="101">If the request is upgraded to a WebSocket connection.</response>
+        /// <response code="400">If the request is not a WebSocket request.</response>
+        /// <exception cref="OperationCanceledException">Thrown if the operation is cancelled, e.g., client disconnects.</exception>
+        /// <exception cref="Exception">Thrown if an unexpected error occurs during WebSocket communication.</exception>
         [HttpGet]
         [Route("streamsysteminformation")]
         public async Task StreamSystemInformation()

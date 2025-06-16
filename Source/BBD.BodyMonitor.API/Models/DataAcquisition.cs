@@ -171,6 +171,7 @@ namespace BBD.BodyMonitor.Models
         /// <param name="blockLength">The desired length of each data block in seconds.</param>
         /// <param name="bufferLength">The desired total length of the acquisition buffer in seconds. Must be a multiple of <paramref name="blockLength"/>.</param>
         /// <returns>The serial number of the opened device if successful; otherwise, null.</returns>
+        /// <remarks>This method includes a retry mechanism if opening the device fails initially.</remarks>
         /// <exception cref="Exception">Thrown if <paramref name="bufferLength"/> is not a multiple of <paramref name="blockLength"/>.</exception>
         public string? OpenDevice(int deviceIndex, string[] acquisitionChannels, float acquisitionSamplerate, float blockLength, float bufferLength)
         {
@@ -290,6 +291,11 @@ namespace BBD.BodyMonitor.Models
         /// Starts the data acquisition loop on a separate thread.
         /// </summary>
         /// <param name="channelId">The primary channel identifier (e.g., "CH1") from which to acquire data. This determines the channel index used in <c>FDwfAnalogInStatusData</c>.</param>
+        /// <remarks>
+        /// The acquisition loop runs on a dedicated high-priority thread.
+        /// It periodically logs error summaries if data loss or corruption occurs.
+        /// If no data is available from the device, it will attempt to reset the device.
+        /// </remarks>
         public void Start(string channelId = "CH1")
         {
             int channelIndex = GetDataAcquisitionChannelIndex(channelId);
@@ -432,6 +438,12 @@ namespace BBD.BodyMonitor.Models
         /// </summary>
         /// <param name="interval">The desired interval in seconds for receiving data blocks. This will be rounded to the nearest multiple of the acquisition block length.</param>
         /// <param name="action">The action to execute when a data block is received. The action takes the sender and <see cref="BlockReceivedEventArgs"/> as parameters.</param>
+        /// <remarks>
+        /// If the provided <paramref name="interval"/> is not a multiple of the underlying acquisition block length,
+        /// it will be adjusted to the closest valid multiple. If the interval is less than one block length,
+        /// it will be rounded up to one block length.
+        /// Subscribed actions are executed asynchronously on a background thread.
+        /// </remarks>
         /// <exception cref="ArgumentException">Thrown if the specified interval is too low for the current block length or results in a zero calling frequency.</exception>
         public void SubscribeToBlockReceived(float interval, Action<object, BlockReceivedEventArgs> action)
         {
@@ -498,7 +510,7 @@ namespace BBD.BodyMonitor.Models
         /// <param name="isAmplitudePingPong">If true and sweeping, the amplitude will sweep back and forth. If false, it will ramp.</param>
         /// <param name="duration">Optional. The duration of one sweep cycle. If null, the signal generator runs continuously with the initial parameters or until stopped.</param>
         /// <exception cref="ArgumentException">Thrown if an invalid <paramref name="channelId"/> or <paramref name="function"/> is provided.</exception>
-        public void ChangeSingalGenerator(string channelId, SignalFunction function, float startFrequency, float? endFrequency, bool isFrequencyPingPong, float startAmplitude, float? endAmplitude, bool isAmplitudePingPong, TimeSpan? duration)
+        public void ChangeSignalGenerator(string channelId, SignalFunction function, float startFrequency, float? endFrequency, bool isFrequencyPingPong, float startAmplitude, float? endAmplitude, bool isAmplitudePingPong, TimeSpan? duration)
         {
             // get the signal generator channel index
             byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);
@@ -581,7 +593,7 @@ namespace BBD.BodyMonitor.Models
         /// Stops the signal generator on the specified channel.
         /// </summary>
         /// <param name="channelId">The identifier of the signal generator channel to stop (e.g., "W1", "W2").</param>
-        public void StopSingalGenerator(string channelId)
+        public void StopSignalGenerator(string channelId)
         {
             // get the signal generator channel index
             byte signalGeneratorChannelIndex = GetSignalGeneratorChannelIndex(channelId);

@@ -3610,178 +3610,583 @@ public class dwf
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiFrequencySet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiFrequencySet(int hdwf, double hz);
 
+    /// <summary>
+    /// Sets the digital I/O pin to be used for the SPI Clock (CLK) signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin to use for CLK.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiClockSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiClockSet(int hdwf, int idxChannel);
 
+    /// <summary>
+    /// Sets the digital I/O pin for a specific SPI data line (DQ0/MOSI, DQ1/MISO, DQ2, DQ3).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxDQ">The SPI data line to configure: 0 for DQ0 (MOSI/SISO), 1 for DQ1 (MISO), 2 for DQ2, 3 for DQ3.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin to use for this data line.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiDataSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiDataSet(int hdwf, int idxDQ, int idxChannel);
-    // 0 DQ0_MOSI_SISO, 1 DQ1_MISO, 2 DQ2, 3 DQ3
+
+    /// <summary>
+    /// Sets the SPI mode (clock polarity CPOL and clock phase CPHA).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="iMode">SPI mode: 0 (CPOL=0, CPHA=0), 1 (CPOL=0, CPHA=1), 2 (CPOL=1, CPHA=0), 3 (CPOL=1, CPHA=1).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiModeSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiModeSet(int hdwf, int iMode);
-    // bit1 CPOL, bit0 CPHA
+
+    /// <summary>
+    /// Sets the bit order for SPI data words (Most Significant Bit first or Least Significant Bit first).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="fMSBLSB">Bit order: 0 for MSB first, 1 for LSB first.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiOrderSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiOrderSet(int hdwf, int fMSBLSB);
-    // bit order: 0 MSB first, 1 LSB first
 
+    /// <summary>
+    /// Controls the state of the SPI Chip Select (CS) line.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin used for CS.</param>
+    /// <param name="level">Desired CS level: 0 for low (active), 1 for high (inactive), -1 for high-impedance (Z).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiSelect", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiSelect(int hdwf, int idxChannel, int level);
-    // 0 low, 1 high, -1 Z
-    // cDQ 0 SISO, 1 MOSI/MISO, 2 dual, 4 quad, // 1-32 bits / word
+
+    /// <summary>
+    /// Performs a simultaneous write and read SPI transaction.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used: 0 for SISO (DQ0 for TX, DQ1 for RX if different pins), 1 for MOSI/MISO on same pin (DQ0), 2 for dual, 4 for quad SPI.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word (typically 8).</param>
+    /// <param name="rgTX">Array of bytes to transmit.</param>
+    /// <param name="cTX">Number of bytes in the <paramref name="rgTX"/> array.</param>
+    /// <param name="rgRX">Array to store received bytes.</param>
+    /// <param name="cRX">Number of bytes to read into the <paramref name="rgRX"/> array.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWriteRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWriteRead(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] byte[] rgTX, int cTX, [MarshalAs(UnmanagedType.LPArray)] byte[] rgRX, int cRX);
 
+    /// <summary>
+    /// Performs a simultaneous write and read SPI transaction using 16-bit words.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgTX">Array of 16-bit words to transmit.</param>
+    /// <param name="cTX">Number of 16-bit words in <paramref name="rgTX"/>.</param>
+    /// <param name="rgRX">Array to store received 16-bit words.</param>
+    /// <param name="cRX">Number of 16-bit words to read into <paramref name="rgRX"/>.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWriteRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWriteRead16(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgTX, int cTX, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgRX, int cRX);
 
+    /// <summary>
+    /// Performs a simultaneous write and read SPI transaction using 32-bit words.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgTX">Array of 32-bit words to transmit.</param>
+    /// <param name="cTX">Number of 32-bit words in <paramref name="rgTX"/>.</param>
+    /// <param name="rgRX">Array to store received 32-bit words.</param>
+    /// <param name="cRX">Number of 32-bit words to read into <paramref name="rgRX"/>.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWriteRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWriteRead32(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] int[] rgTX, int cTX, [MarshalAs(UnmanagedType.LPArray)] int[] rgRX, int cRX);
 
+    /// <summary>
+    /// Performs an SPI read transaction.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgRX">Array to store received bytes.</param>
+    /// <param name="cRX">Number of bytes to read.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiRead(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] byte[] rgRX, int cRX);
 
+    /// <summary>
+    /// Reads a single SPI data word (up to 32 bits).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits in the SPI word to read (1-32).</param>
+    /// <param name="pRX">Receives the read data word.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiReadOne", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiReadOne(int hdwf, int cDQ, int cBitPerWord, out int pRX);
 
+    /// <summary>
+    /// Performs an SPI read transaction into a 16-bit word array.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgRX">Array to store received 16-bit words.</param>
+    /// <param name="cRX">Number of 16-bit words to read.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiRead16(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgRX, int cRX);
 
+    /// <summary>
+    /// Performs an SPI read transaction into a 32-bit word array.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgRX">Array to store received 32-bit words.</param>
+    /// <param name="cRX">Number of 32-bit words to read.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiRead32(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] int[] rgRX, int cRX);
 
+    /// <summary>
+    /// Performs an SPI write transaction.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgTX">Array of bytes to transmit.</param>
+    /// <param name="cTX">Number of bytes to transmit from <paramref name="rgTX"/>.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWrite", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWrite(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] byte[] rgTX, int cTX);
 
+    /// <summary>
+    /// Writes a single SPI data word (up to 32 bits).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBits">Number of bits in the SPI word to write (1-32).</param>
+    /// <param name="vTX">The data word to transmit.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWriteOne", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWriteOne(int hdwf, int cDQ, int cBits, uint vTX);
 
+    /// <summary>
+    /// Performs an SPI write transaction from a 16-bit word array.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgTX">Array of 16-bit words to transmit.</param>
+    /// <param name="cTX">Number of 16-bit words to transmit from <paramref name="rgTX"/>.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWrite", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWrite16(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] ushort[] rgTX, int cTX);
 
+    /// <summary>
+    /// Performs an SPI write transaction from a 32-bit word array.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cDQ">Number of data lines used.</param>
+    /// <param name="cBitPerWord">Number of bits per SPI word.</param>
+    /// <param name="rgTX">Array of 32-bit words to transmit.</param>
+    /// <param name="cTX">Number of 32-bit words to transmit from <paramref name="rgTX"/>.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalSpiWrite", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalSpiWrite32(int hdwf, int cDQ, int cBitPerWord, [MarshalAs(UnmanagedType.LPArray)] int[] rgTX, int cTX);
 
-
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Resets the I2C instrument to its default state.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cReset", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cReset(int hdwf);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Clears the I2C bus and checks if it's free (no devices holding SCL or SDA low).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pfFree">When this method returns, contains 1 (TRUE) if the bus is free, 0 (FALSE) otherwise.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cClear", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cClear(int hdwf, out int pfFree);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Enables or disables I2C clock stretching.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="fEnable">1 (TRUE) to enable clock stretching, 0 (FALSE) to disable.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cStretchSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cStretchSet(int hdwf, int fEnable);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Sets the I2C communication rate (bus speed).
+    /// Common values are 100000 (100kHz standard mode) or 400000 (400kHz fast mode).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="hz">Desired I2C clock rate in Hz.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cRateSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cRateSet(int hdwf, double hz);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Configures whether the master should send a NACK after the last byte of a read operation.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="fNakLastReadByte">1 (TRUE) to send NACK after the last read byte (standard behavior for ending a read), 0 (FALSE) to send ACK.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cReadNakSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cReadNakSet(int hdwf, int fNakLastReadByte);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Sets the digital I/O pin to be used for the I2C Clock (SCL) signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin for SCL.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cSclSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cSclSet(int hdwf, int idxChannel);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Sets the digital I/O pin to be used for the I2C Data (SDA) signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin for SDA.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cSdaSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cSdaSet(int hdwf, int idxChannel);
 
-
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Performs an I2C write operation followed by a read operation (combined format).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="adr8bits">The 7-bit I2C slave address shifted left by one bit, with the R/W bit (0 for write, 1 for read) ORed in. For a write-then-read, this is typically the address with the write bit (LSB=0).</param>
+    /// <param name="rgbTx">Array of bytes to transmit during the write phase.</param>
+    /// <param name="cTx">Number of bytes to transmit from <paramref name="rgbTx"/>.</param>
+    /// <param name="rgRx">Array to store received bytes during the read phase.</param>
+    /// <param name="cRx">Number of bytes to read into <paramref name="rgRx"/>.</param>
+    /// <param name="pNak">When this method returns, contains 0 if all bytes were ACKed, or the 1-based index of the byte that was NACKed (or other error indicator).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cWriteRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cWriteRead(int hdwf, byte adr8bits, [MarshalAs(UnmanagedType.LPArray)] byte[] rgbTx, int cTx, [MarshalAs(UnmanagedType.LPArray)] byte[] rgRx, int cRx, out int pNak);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Performs an I2C read operation from a slave device.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="adr8bits">The 7-bit I2C slave address shifted left by one bit, with the read bit (LSB=1) ORed in.</param>
+    /// <param name="rgbRx">Array to store the received bytes.</param>
+    /// <param name="cRx">Number of bytes to read.</param>
+    /// <param name="pNak">When this method returns, contains 0 if all bytes were ACKed by the master (or NACKed correctly for the last byte if configured by <see cref="FDwfDigitalI2cReadNakSet"/>), or an error indicator if the slave NACKed prematurely.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cRead", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cRead(int hdwf, byte adr8bits, [MarshalAs(UnmanagedType.LPArray)] byte[] rgbRx, int cRx, out int pNak);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Performs an I2C write operation to a slave device.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="adr8bits">The 7-bit I2C slave address shifted left by one bit, with the write bit (LSB=0) ORed in.</param>
+    /// <param name="rgbTx">Array of bytes to transmit.</param>
+    /// <param name="cTx">Number of bytes to transmit from <paramref name="rgbTx"/>.</param>
+    /// <param name="pNak">When this method returns, contains 0 if all bytes were ACKed by the slave, or the 1-based index of the byte that was NACKed by the slave (or other error indicator).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cWrite", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cWrite(int hdwf, byte adr8bits, [MarshalAs(UnmanagedType.LPArray)] byte[] rgbTx, int cTx, out int pNak);
 
-    [DllImport("dwf", EntryPoint = "FDwfDigitalI", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    /// <summary>
+    /// Writes a single byte to an I2C slave device.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="adr8bits">The 7-bit I2C slave address shifted left by one bit, with the write bit (LSB=0) ORed in.</param>
+    /// <param name="bTx">The byte to transmit.</param>
+    /// <param name="pNak">When this method returns, 0 if ACKed, 1 if NACKed (or other error indicator).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
+    [DllImport("dwf", EntryPoint = "FDwfDigitalI2cWriteOne", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalI2cWriteOne(int hdwf, byte adr8bits, byte bTx, out int pNak);
 
-
+    /// <summary>
+    /// Resets the CAN instrument to its default state.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanReset", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanReset(int hdwf);
 
+    /// <summary>
+    /// Sets the CAN communication bit rate.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="hz">Desired bit rate in Hz (e.g., 125000, 250000, 500000, 1000000).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanRateSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanRateSet(int hdwf, double hz);
 
+    /// <summary>
+    /// Sets the polarity of the CAN bus signals.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="fHigh">Polarity setting: 0 for normal (CAN_H high when dominant), 1 for inverted (CAN_H low when dominant). Typically 0.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanPolaritySet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanPolaritySet(int hdwf, int fHigh);
-    // 0 low, 1 high
+
+    /// <summary>
+    /// Sets the digital I/O pin to be used for the CAN Transmit (TX) signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin for CAN TX.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanTxSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanTxSet(int hdwf, int idxChannel);
 
+    /// <summary>
+    /// Sets the digital I/O pin to be used for the CAN Receive (RX) signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">The zero-based index of the digital I/O pin for CAN RX.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanRxSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanRxSet(int hdwf, int idxChannel);
 
-
+    /// <summary>
+    /// Transmits a CAN message.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="vID">CAN message identifier (11-bit for standard, 29-bit for extended).</param>
+    /// <param name="fExtended">1 (TRUE) if the ID is an extended (29-bit) identifier, 0 (FALSE) for standard (11-bit).</param>
+    /// <param name="fRemote">1 (TRUE) if this is a Remote Transmission Request (RTR) frame, 0 (FALSE) for a data frame.</param>
+    /// <param name="cDLC">Data Length Code (0-8), indicating the number of data bytes in <paramref name="rgTX"/>.</param>
+    /// <param name="rgTX">Array containing the data bytes to transmit. Length should be at least <paramref name="cDLC"/>.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanTx", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanTx(int hdwf, int vID, int fExtended, int fRemote, int cDLC, [MarshalAs(UnmanagedType.LPArray)] byte[] rgTX);
 
+    /// <summary>
+    /// Receives a CAN message.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pvID">When this method returns, contains the CAN message identifier.</param>
+    /// <param name="pfExtended">When this method returns, contains 1 if the ID is extended, 0 if standard.</param>
+    /// <param name="pfRemote">When this method returns, contains 1 if it's an RTR frame, 0 if a data frame.</param>
+    /// <param name="pcDLC">When this method returns, contains the Data Length Code (0-8) of the received message.</param>
+    /// <param name="rgRX">Array to store the received data bytes. Should be able to hold up to 8 bytes.</param>
+    /// <param name="cRX">Size of the <paramref name="rgRX"/> buffer in bytes (should be at least 8).</param>
+    /// <param name="pvStatus">When this method returns, contains the status of the receive operation (e.g., error flags, 0 for success).</param>
+    /// <returns>Returns 1 (TRUE) if a message was successfully received, 0 (FALSE) otherwise (e.g., no message available, error).</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalCanRx", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalCanRx(int hdwf, out int pvID, out int pfExtended, out int pfRemote, out int pcDLC, [MarshalAs(UnmanagedType.LPArray)] byte[] rgRX, int cRX, out int pvStatus);
 
-
+    /// <summary>
+    /// Resets the Analog Impedance instrument parameters to their default values.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceReset", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceReset(int hdwf);
 
+    /// <summary>
+    /// Sets the measurement mode for the Analog Impedance instrument.
+    /// Mode 0: W1-C1-DUT-C2-R-GND (Voltage across DUT, Current through Reference Resistor).
+    /// Mode 1: W1-C1-R-C2-DUT-GND (Voltage across Reference Resistor, Current through DUT).
+    /// Mode 8: Specific Impedance Analyzer mode for Analog Discovery devices.
+    /// Other modes may be device-specific.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="mode">The measurement mode to set. Common modes are 0, 1, or 8.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceModeSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceModeSet(int hdwf, int mode);
-    // 0 W1-C1-DUT-C2-R-GND, 1 W1-C1-R-C2-DUT-GND, 8 Impedance Analyzer for AD
+
+    /// <summary>
+    /// Gets the currently configured measurement mode for the Analog Impedance instrument.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="mode">When this method returns, contains the current measurement mode.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceModeGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceModeGet(int hdwf, out int mode);
 
+    /// <summary>
+    /// Sets the value of the reference resistor used in the impedance measurement circuit.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="ohms">The resistance value of the reference resistor in Ohms.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceReferenceSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceReferenceSet(int hdwf, double ohms);
 
+    /// <summary>
+    /// Gets the currently configured reference resistor value.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pohms">When this method returns, contains the reference resistance in Ohms.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceReferenceGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceReferenceGet(int hdwf, out double pohms);
 
+    /// <summary>
+    /// Sets the frequency of the excitation signal used for impedance measurement.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="hz">The desired excitation frequency in Hertz.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceFrequencySet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceFrequencySet(int hdwf, double hz);
 
+    /// <summary>
+    /// Gets the currently configured excitation frequency.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="phz">When this method returns, contains the excitation frequency in Hertz.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceFrequencyGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceFrequencyGet(int hdwf, out double phz);
 
+    /// <summary>
+    /// Sets the amplitude of the excitation signal used for impedance measurement.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="volts">The desired excitation amplitude in Volts.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceAmplitudeSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceAmplitudeSet(int hdwf, double volts);
 
+    /// <summary>
+    /// Gets the currently configured excitation signal amplitude.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pvolts">When this method returns, contains the excitation amplitude in Volts.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceAmplitudeGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceAmplitudeGet(int hdwf, out double pvolts);
 
+    /// <summary>
+    /// Sets the DC offset of the excitation signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="volts">The desired DC offset in Volts.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceOffsetSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceOffsetSet(int hdwf, double volts);
 
+    /// <summary>
+    /// Gets the currently configured DC offset of the excitation signal.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pvolts">When this method returns, contains the DC offset in Volts.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceOffsetGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceOffsetGet(int hdwf, out double pvolts);
 
+    /// <summary>
+    /// Sets the probe compensation parameters (resistance and capacitance).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="ohmRes">Probe resistance in Ohms.</param>
+    /// <param name="faradCap">Probe capacitance in Farads.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceProbeSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceProbeSet(int hdwf, double ohmRes, double faradCap);
 
+    /// <summary>
+    /// Gets the currently configured probe compensation parameters.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pohmRes">When this method returns, contains the probe resistance in Ohms.</param>
+    /// <param name="pfaradCap">When this method returns, contains the probe capacitance in Farads.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceProbeGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceProbeGet(int hdwf, out double pohmRes, out double pfaradCap);
 
+    /// <summary>
+    /// Sets the minimum number of periods of the excitation signal to measure for averaging.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cMinPeriods">Minimum number of periods to average.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedancePeriodSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedancePeriodSet(int hdwf, int cMinPeriods);
 
+    /// <summary>
+    /// Gets the currently configured minimum number of periods for averaging.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="cMinPeriods">When this method returns, contains the minimum number of periods.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedancePeriodGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedancePeriodGet(int hdwf, out int cMinPeriods);
 
+    /// <summary>
+    /// Resets the open and short circuit compensation values to their defaults (ideal).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceCompReset", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceCompReset(int hdwf);
 
+    /// <summary>
+    /// Sets the open and short circuit compensation values. These are complex impedance values (resistance and reactance).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="ohmOpenResistance">Resistance part of open circuit compensation (Ohms).</param>
+    /// <param name="ohmOpenReactance">Reactance part of open circuit compensation (Ohms).</param>
+    /// <param name="ohmShortResistance">Resistance part of short circuit compensation (Ohms).</param>
+    /// <param name="ohmShortReactance">Reactance part of short circuit compensation (Ohms).</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceCompSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceCompSet(int hdwf, double ohmOpenResistance, double ohmOpenReactance, double ohmShortResistance, double ohmShortReactance);
 
+    /// <summary>
+    /// Gets the currently configured open and short circuit compensation values.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="pohmOpenResistance">When this method returns, contains the open circuit compensation resistance.</param>
+    /// <param name="pohmOpenReactance">When this method returns, contains the open circuit compensation reactance.</param>
+    /// <param name="pohmShortResistance">When this method returns, contains the short circuit compensation resistance.</param>
+    /// <param name="pohmShortReactance">When this method returns, contains the short circuit compensation reactance.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceCompGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceCompGet(int hdwf, out double pohmOpenResistance, out double pohmOpenReactance, out double pohmShortResistance, out double pohmShortReactance);
 
+    /// <summary>
+    /// Configures the Analog Impedance instrument and optionally starts or stops a measurement.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="fStart">1 to start the measurement, 0 to stop.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceConfigure", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceConfigure(int hdwf, int fStart);
-    // 1 start, 0 stop
+
+    /// <summary>
+    /// Checks the status of the Analog Impedance measurement.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="psts">When this method returns, contains the current status (see <c>DwfState*</c> constants). <see cref="DwfStateDone"/> indicates measurement is complete.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceStatus", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceStatus(int hdwf, out byte psts);
 
+    /// <summary>
+    /// Retrieves the measured gain and phase for a specific input channel of the impedance analyzer.
+    /// This function provides raw measurement data before impedance calculation.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="idxChannel">Input channel index (0 or 1, device dependent).</param>
+    /// <param name="pgain">When this method returns, contains the measured gain for the channel.</param>
+    /// <param name="pradian">When this method returns, contains the measured phase in radians for the channel.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceStatusInput", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceStatusInput(int hdwf, int idxChannel, out double pgain, out double pradian);
 
+    /// <summary>
+    /// Retrieves a specific calculated impedance measurement result.
+    /// Call this after <see cref="FDwfAnalogImpedanceStatus"/> indicates the measurement is done (<see cref="DwfStateDone"/>).
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="measure">The type of measurement to retrieve (see <c>DwfAnalogImpedance*</c> constants like <see cref="DwfAnalogImpedanceImpedance"/>, <see cref="DwfAnalogImpedanceResistance"/>, etc.).</param>
+    /// <param name="pvalue">When this method returns, contains the value of the requested measurement.</param>
+    /// <returns>Returns 1 (TRUE) if successful, 0 (FALSE) otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfAnalogImpedanceStatusMeasure", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogImpedanceStatusMeasure(int hdwf, int measure, out double pvalue);
 
@@ -3789,128 +4194,172 @@ public class dwf
 
 
     // OBSOLETE but supported, avoid using the following in new projects:
-    public const byte DwfParamKeepOnClose = 1; // keep the device running after close, use DwfParamOnClose
+    /// <summary>OBSOLETE. Use <see cref="DwfParamOnClose"/> instead. Defines device behavior when <see cref="FDwfDeviceClose"/> is called. 1: Keep running.</summary>
+    public const byte DwfParamKeepOnClose = 1;
 
-    // use FDwfDigitalInTriggerSourceSet trigsrcAnalogIn
-    // call FDwfDigitalInConfigure before FDwfAnalogInConfigure
+    /// <summary>
+    /// OBSOLETE. Configures mixed signal mode for Digital Input when using AnalogIn as trigger.
+    /// Use <see cref="FDwfDigitalInTriggerSourceSet"/> with <see cref="trigsrcAnalogIn"/> and ensure <see cref="FDwfDigitalInConfigure"/> is called before <see cref="FDwfAnalogInConfigure"/>.
+    /// </summary>
+    /// <param name="hdwf">Device handle.</param>
+    /// <param name="fEnable">1 to enable mixed signal mode, 0 to disable.</param>
+    /// <returns>1 if successful, 0 otherwise.</returns>
     [DllImport("dwf", EntryPoint = "FDwfDigitalInMixedSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInMixedSet(int hdwf, int fEnable);
 
-    // use DwfTriggerSlope
+    /// <summary>OBSOLETE. Use <see cref="DwfTriggerSlopeRise"/> instead.</summary>
     public const int trigcondRisingPositive = 0;
+    /// <summary>OBSOLETE. Use <see cref="DwfTriggerSlopeFall"/> instead.</summary>
     public const int trigcondFallingNegative = 1;
 
-    // use FDwfDeviceTriggerInfo(hdwf, ptrigsrcInfo) As Integer
+    /// <summary>OBSOLETE. Use <see cref="FDwfDeviceTriggerInfo"/> instead to get available trigger sources for the device.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogInTriggerSourceInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogInTriggerSourceInfo(int hdwf, out int pfstrigsrc);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfDeviceTriggerInfo"/> instead to get available trigger sources for the device (though Analog Out typically uses internal or PC triggers, not device-wide trigger inputs directly for its source selection).</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutTriggerSourceInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutTriggerSourceInfo(int hdwf, int idxChannel, out int pfstrigsrc);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfDeviceTriggerInfo"/> instead to get available trigger sources for the device.</summary>
     [DllImport("dwf", EntryPoint = "FDwfDigitalInTriggerSourceInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalInTriggerSourceInfo(int hdwf, out int pfstrigsrc);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfDeviceTriggerInfo"/> instead to get available trigger sources for the device.</summary>
     [DllImport("dwf", EntryPoint = "FDwfDigitalOutTriggerSourceInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfDigitalOutTriggerSourceInfo(int hdwf, out int pfstrigsrc);
 
-
-    // use BYTE
+    /// <summary>OBSOLETE. Use <see cref="DwfStateReady"/> instead.</summary>
     public const byte stsRdy = 0;
+    /// <summary>OBSOLETE. Use <see cref="DwfStateArmed"/> instead.</summary>
     public const byte stsArm = 1;
+    /// <summary>OBSOLETE. Use <see cref="DwfStateDone"/> instead.</summary>
     public const byte stsDone = 2;
+    /// <summary>OBSOLETE. Use <see cref="DwfStateTriggered"/> or <see cref="DwfStateRunning"/> instead.</summary>
     public const byte stsTrig = 3;
+    /// <summary>OBSOLETE. Use <see cref="DwfStateConfig"/> instead.</summary>
     public const byte stsCfg = 4;
+    /// <summary>OBSOLETE. Use <see cref="DwfStatePrefill"/> instead.</summary>
     public const byte stsPrefill = 5;
+    /// <summary>OBSOLETE. Indicates a state that is not DwfStateDone; specific DwfState* should be checked.</summary>
     public const byte stsNotDone = 6;
+    /// <summary>OBSOLETE. Use <see cref="DwfStateWait"/> instead (or check specific instrument logic for trigger delays).</summary>
     public const byte stsTrigDly = 7;
+    /// <summary>OBSOLETE. Check API function return values and <see cref="FDwfGetLastError"/> for error conditions.</summary>
     public const byte stsError = 8;
+    /// <summary>OBSOLETE. Specific DwfState* like DwfStateRunning or DwfStateConfig indicate activity.</summary>
     public const byte stsBusy = 9;
+    /// <summary>OBSOLETE. Instrument is stopped, typically corresponds to DwfStateReady or DwfStateDone.</summary>
     public const byte stsStop = 10;
 
-
-    // use FDwfAnalogOutNode*
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeEnableSet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutEnableSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutEnableSet(int hdwf, int idxChannel, int fEnable);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeEnableGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutEnableGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutEnableGet(int hdwf, int idxChannel, out int pfEnable);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeFunctionInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutFunctionInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutFunctionInfo(int hdwf, int idxChannel, out int pfsfunc);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeFunctionSet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutFunctionSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutFunctionSet(int hdwf, int idxChannel, byte func);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeFunctionGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutFunctionGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutFunctionGet(int hdwf, int idxChannel, out byte pfunc);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeFrequencyInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutFrequencyInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutFrequencyInfo(int hdwf, int idxChannel, out double phzMin, out double phzMax);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeFrequencySet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutFrequencySet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutFrequencySet(int hdwf, int idxChannel, double hzFrequency);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeFrequencyGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutFrequencyGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutFrequencyGet(int hdwf, int idxChannel, out double phzFrequency);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeAmplitudeInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutAmplitudeInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutAmplitudeInfo(int hdwf, int idxChannel, out double pvoltsMin, out double pvoltsMax);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeAmplitudeSet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutAmplitudeSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutAmplitudeSet(int hdwf, int idxChannel, double voltsAmplitude);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeAmplitudeGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutAmplitudeGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutAmplitudeGet(int hdwf, int idxChannel, out double pvoltsAmplitude);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeOffsetInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutOffsetInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutOffsetInfo(int hdwf, int idxChannel, out double pvoltsMin, out double pvoltsMax);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeOffsetSet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutOffsetSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutOffsetSet(int hdwf, int idxChannel, double voltsOffset);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeOffsetGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutOffsetGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutOffsetGet(int hdwf, int idxChannel, out double pvoltsOffset);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeSymmetryInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutSymmetryInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutSymmetryInfo(int hdwf, int idxChannel, out double ppercentageMin, out double ppercentageMax);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeSymmetrySet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutSymmetrySet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutSymmetrySet(int hdwf, int idxChannel, double percentageSymmetry);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeSymmetryGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutSymmetryGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutSymmetryGet(int hdwf, int idxChannel, out double ppercentageSymmetry);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodePhaseInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutPhaseInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutPhaseInfo(int hdwf, int idxChannel, out double pdegreeMin, out double pdegreeMax);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodePhaseSet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutPhaseSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutPhaseSet(int hdwf, int idxChannel, double degreePhase);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodePhaseGet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutPhaseGet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutPhaseGet(int hdwf, int idxChannel, out double pdegreePhase);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeDataInfo"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutDataInfo", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutDataInfo(int hdwf, int idxChannel, out int pnSamplesMin, out int pnSamplesMax);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodeDataSet"/> with <see cref="AnalogOutNodeCarrier"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutDataSet", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutDataSet(int hdwf, int idxChannel, [MarshalAs(UnmanagedType.LPArray)] double[] rgdData, int cdData);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodePlayStatus"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutPlayStatus", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutPlayStatus(int hdwf, int idxChannel, out int cdDataFree, out int cdDataLost, out int cdDataCorrupted);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfAnalogOutNodePlayData"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfAnalogOutPlayData", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfAnalogOutPlayData(int hdwf, int idxChannel, [MarshalAs(UnmanagedType.LPArray)] double[] rgdData, int cdData);
 
-
+    /// <summary>OBSOLETE. Use <see cref="FDwfEnumConfigInfo"/> with <see cref="DECIAnalogInChannelCount"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfEnumAnalogInChannels", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfEnumAnalogInChannels(int idxDevice, out int pnChannels);
 
+    /// <summary>OBSOLETE. Use <see cref="FDwfEnumConfigInfo"/> with <see cref="DECIAnalogInBufferSize"/> instead.</summary>
     [DllImport("dwf", EntryPoint = "FDwfEnumAnalogInBufferSize", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfEnumAnalogInBufferSize(int idxDevice, out int pnBufferSize);
 
+    /// <summary>OBSOLETE. Use device specific functions like <see cref="FDwfAnalogInBitsInfo"/> after opening the device, or <see cref="FDwfEnumConfigInfo"/> for general capabilities if available for the specific device type.</summary>
     [DllImport("dwf", EntryPoint = "FDwfEnumAnalogInBits", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfEnumAnalogInBits(int idxDevice, out int pnBits);
 
+    /// <summary>OBSOLETE. Use device specific functions like <see cref="FDwfAnalogInFrequencyInfo"/> after opening the device, or <see cref="FDwfEnumConfigInfo"/> for general capabilities if available for the specific device type.</summary>
     [DllImport("dwf", EntryPoint = "FDwfEnumAnalogInFrequency", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int FDwfEnumAnalogInFrequency(int idxDevice, out double phzFrequency);
 

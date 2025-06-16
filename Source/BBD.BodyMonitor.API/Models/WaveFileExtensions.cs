@@ -138,7 +138,7 @@ namespace BBD.BodyMonitor.Models
         /// <param name="interval">The length of the audio segment to read, in seconds.</param>
         /// <returns>A <see cref="DiscreteSignal"/> containing the audio data read from the specified segment. Samples are normalized to floats between -1.0 and 1.0.</returns>
         /// <exception cref="Exception">Thrown if the WAV file is not mono, or if read operations fail.</exception>
-        public static DiscreteSignal ReadAsDiscreateSignal(Stream waveStream, double position, float interval) // Typo "Discreate" kept as per instruction not to change logic/names
+        public static DiscreteSignal ReadAsDiscreteSignal(Stream waveStream, double position, float interval)
         {
             WavePcmFormatHeader waveHeader = ReadWaveFileHeader(waveStream);
 

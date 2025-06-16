@@ -99,10 +99,16 @@ namespace BBD.BodyMonitor.Models
         /// </summary>
         /// <param name="headerBytes">A byte array representing the WAV file header (at least 44 bytes).</param>
         /// <returns>A new <see cref="WavePcmFormat"/> object populated with information from the header bytes.</returns>
-        /// <exception cref="System.Exception">Thrown if the header does not conform to expected WAV format identifiers (e.g., "RIFF", "WAVE", "fmt ", "data").</exception>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="headerBytes"/> is null.</exception>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="headerBytes"/> is less than 44 bytes long.</exception>
+        /// <exception cref="Exception">Thrown if the header does not conform to expected WAV format identifiers (e.g., "RIFF", "WAVE", "fmt ").</exception>
         public static new WavePcmFormat FromByteArray(byte[] headerBytes) // 'new' keyword hides the base class method if one exists with the same signature.
         {
-            if (headerBytes == null || headerBytes.Length < 44)
+            if (headerBytes == null)
+            {
+                throw new ArgumentNullException(nameof(headerBytes));
+            }
+            if (headerBytes.Length < 44)
             {
                 throw new ArgumentException("Header byte array must be at least 44 bytes long.", nameof(headerBytes));
             }
