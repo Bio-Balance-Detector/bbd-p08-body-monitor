@@ -9,6 +9,10 @@
         /// pH value
         /// </summary>
         public float PotentialOfHydrogen { get; set; }
+        /// <summary>
+        /// Returns a string representation of the pH segment, including the pH value and start time.
+        /// </summary>
+        /// <returns>A string summarizing the pH data.</returns>
         public override string ToString()
         {
             return $"{base.ToString()}: pH is {PotentialOfHydrogen} at {Start}";

@@ -31,9 +31,27 @@
         /// </summary>
         public required TimeSpan SignalLength { get; set; }
 
+        /// <summary>
+        /// Parses a string representation of a schedule into a <see cref="ScheduleOptions"/> object.
+        /// </summary>
+        /// <param name="input">The string to parse. Expected format: "ChannelId,StartTime[->StopTime][/RepeatPeriod],SignalName(SignalLength)".
+        /// Examples: "W1,*/4m,Stimulation-A2(30.9s)", "W2,09:15/5m,Stimulation-A3(94s)", "W2,11:30,Stimulation-A1(22s)", "W2,15:00->15:25/30s,Stimulation-A3(12.77s)"</param>
+        /// <returns>A new <see cref="ScheduleOptions"/> object.</returns>
+        /// <exception cref="FormatException">Thrown if the input string is not in the expected format.</exception>
+        /// <exception cref="ArgumentNullException">Thrown if the input string is null or empty.</exception>
         public static ScheduleOptions Parse(string input)
         {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                throw new ArgumentNullException(nameof(input), "Input string cannot be null or empty.");
+            }
+
             string[] parts = input.Split(',');
+
+            if (parts.Length != 3)
+            {
+                throw new FormatException($"Input string '{input}' is not in the expected format 'ChannelId,TimeSpec,SignalSpec'.");
+            }
 
             string[] timeParts = parts[1].Split('/');
 
@@ -41,52 +59,89 @@
             string? timeToEnd = timeParts[0].Contains("->") ? timeParts[0].Split("->")[1] : null;
             string? repeatPeriod = timeParts.Length > 1 ? timeParts[1] : null;
 
-            string signalName = parts[2][..parts[2].IndexOf('(')];
-            string signalLength = parts[2].Substring(parts[2].IndexOf('(') + 1, parts[2].IndexOf(')') - parts[2].IndexOf('(') - 1);
+            string signalNameString = parts[2];
+            int signalNameStartIndex = signalNameString.IndexOf('(');
+            int signalNameEndIndex = signalNameString.LastIndexOf(')');
 
-            TimeSpan timeSpanToStart = TimeSpanParse(timeToStart).Value;
+            if (signalNameStartIndex == -1 || signalNameEndIndex == -1 || signalNameEndIndex < signalNameStartIndex)
+            {
+                throw new FormatException($"Signal part '{signalNameString}' is not in the expected format 'SignalName(SignalLength)'.");
+            }
+
+            string signalName = signalNameString[..signalNameStartIndex];
+            string signalLength = signalNameString.Substring(signalNameStartIndex + 1, signalNameEndIndex - signalNameStartIndex - 1);
+
+            TimeSpan? parsedTimeToStart = TimeSpanParse(timeToStart);
+            if (!parsedTimeToStart.HasValue)
+            {
+                throw new FormatException($"Could not parse TimeToStart from '{timeToStart}'.");
+            }
+            TimeSpan timeSpanToStart = parsedTimeToStart.Value;
+
             TimeSpan? timeSpanToStop = timeToEnd == null ? null : TimeSpanParse(timeToEnd);
 
             if ((timeSpanToStop != null) && (timeSpanToStop < timeSpanToStart))
             {
-                timeSpanToStop = timeSpanToStop.Value + TimeSpan.FromDays(1);
+                // Assuming stop time on the next day if it's earlier than start time
+                timeSpanToStop = timeSpanToStop.Value.Add(TimeSpan.FromDays(1));
+            }
+
+            TimeSpan? parsedSignalLength = TimeSpanParse(signalLength);
+            if (!parsedSignalLength.HasValue)
+            {
+                throw new FormatException($"Could not parse SignalLength from '{signalLength}'.");
             }
 
             return new ScheduleOptions
             {
-                ChannelId = parts[0],
+                ChannelId = parts[0].Trim(),
                 TimeToStart = timeSpanToStart,
                 TimeToStop = timeSpanToStop,
                 RepeatPeriod = TimeSpanParse(repeatPeriod),
-                SignalName = signalName,
-                SignalLength = TimeSpanParse(signalLength).Value
+                SignalName = signalName.Trim(),
+                SignalLength = parsedSignalLength.Value
             };
         }
 
+        /// <summary>
+        /// Returns a string representation of the schedule in the format "ChannelId,StartTime[->StopTime][/RepeatPeriod],SignalName(SignalLength)".
+        /// </summary>
+        /// <returns>A string representation of the schedule.</returns>
         public override string ToString()
         {
-            string? timePart = TimeToStart.ToString();
+            string timePart = TimeToStart.ToString(@"hh\:mm\:ss");
 
             if (TimeToStop.HasValue)
             {
-                timePart += "->" + TimeToStop;
+                timePart += "->" + TimeToStop.Value.ToString(@"hh\:mm\:ss");
             }
 
             if (RepeatPeriod.HasValue)
             {
-                timePart += "/" + RepeatPeriod;
+                timePart += "/" + FormatTimeSpanForSchedule(RepeatPeriod.Value);
             }
 
-            string signalPart = $"{SignalName}({SignalLength:hh\\:mm\\:ss\\.ff})";
+            string signalPart = $"{SignalName}({FormatTimeSpanForSchedule(SignalLength)})";
 
             return $"{ChannelId},{timePart},{signalPart}";
         }
 
+        /// <summary>
+        /// Parses a string representation of a time span, which can be in HH:mm:ss format, or a number followed by 'h', 'm', or 's'.
+        /// Also handles a special "*" character, which resolves to the current time.
+        /// </summary>
+        /// <param name="str">The string to parse. Examples: "10:30:00", "30s", "5m", "1h", "*".</param>
+        /// <returns>A <see cref="TimeSpan"/> object if parsing is successful; otherwise, null.</returns>
         private static TimeSpan? TimeSpanParse(string? str)
         {
             TimeSpan? result = null;
-            str = str?.Trim().ToLower();
-            string[]? colonParts = str?.Split(':');
+            if (string.IsNullOrWhiteSpace(str))
+            {
+                return null;
+            }
+
+            str = str.Trim().ToLowerInvariant();
+            string[]? colonParts = str.Split(':');
 
             if (string.IsNullOrWhiteSpace(str))
             {
@@ -94,41 +149,67 @@
             }
             else if (str == "*")
             {
-                result = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second);
+                // Represents the current time of day
+                result = DateTime.Now.TimeOfDay;
             }
-            else if (colonParts.Length == 2)
+            else if (colonParts != null && colonParts.Length == 2 && int.TryParse(colonParts[0], out int hours) && int.TryParse(colonParts[1], out int minutes))
             {
-                result = new TimeSpan(int.Parse(colonParts[0]), int.Parse(colonParts[1]), 0);
+                result = new TimeSpan(hours, minutes, 0);
             }
-            else if (colonParts.Length == 3)
+            else if (colonParts != null && colonParts.Length == 3 && int.TryParse(colonParts[0], out hours) && int.TryParse(colonParts[1], out minutes) && int.TryParse(colonParts[2], out int seconds))
             {
-                result = new TimeSpan(int.Parse(colonParts[0]), int.Parse(colonParts[1]), int.Parse(colonParts[2]));
+                result = new TimeSpan(hours, minutes, seconds);
             }
-            else if ((colonParts.Length == 1) && (colonParts[0].Length >= 2))
+            else if (colonParts != null && colonParts.Length == 1 && str.Length >= 2)
             {
-                char unit = colonParts[0].Last();
-                double number = double.Parse(colonParts[0][..^1], System.Globalization.CultureInfo.InvariantCulture);
-
-                switch (unit)
+                char unit = str.Last();
+                if (double.TryParse(str[..^1], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double number))
                 {
-                    case 'h':
-                        result = TimeSpan.FromHours(number);
-                        break;
-                    case 'm':
-                        result = TimeSpan.FromMinutes(number);
-                        break;
-                    case 's':
-                        result = TimeSpan.FromSeconds(number);
-                        break;
+                    switch (unit)
+                    {
+                        case 'h':
+                            result = TimeSpan.FromHours(number);
+                            break;
+                        case 'm':
+                            result = TimeSpan.FromMinutes(number);
+                            break;
+                        case 's':
+                            result = TimeSpan.FromSeconds(number);
+                            break;
+                    }
                 }
             }
 
-            if ((result == null) && TimeSpan.TryParse(str, out TimeSpan parsedResult))
+            // Fallback for standard TimeSpan string formats if specific parsing above failed
+            if (result == null && TimeSpan.TryParse(str, System.Globalization.CultureInfo.InvariantCulture, out TimeSpan parsedResult))
             {
                 result = parsedResult;
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Formats a TimeSpan into a string suitable for the schedule output, e.g., "30.5s", "2m", "1.25h".
+        /// </summary>
+        /// <param name="timeSpan">The TimeSpan to format.</param>
+        /// <returns>A string representation of the TimeSpan.</returns>
+        private static string FormatTimeSpanForSchedule(TimeSpan timeSpan)
+        {
+            if (timeSpan.TotalHours >= 1 && timeSpan.TotalMinutes % 60 == 0 && timeSpan.Seconds == 0 && timeSpan.Milliseconds == 0)
+            {
+                return $"{timeSpan.TotalHours}h";
+            }
+            else if (timeSpan.TotalMinutes >= 1 && timeSpan.Seconds == 0 && timeSpan.Milliseconds == 0)
+            {
+                return $"{timeSpan.TotalMinutes}m";
+            }
+            else if (timeSpan.Milliseconds == 0)
+            {
+                return $"{timeSpan.TotalSeconds}s";
+            }
+            // Use a format that includes fractional seconds if needed, e.g., "ss.fff" and remove trailing zeros and dot.
+            return timeSpan.ToString(@"ss\.fff").TrimEnd('0').TrimEnd('.') + "s";
         }
     }
 }
