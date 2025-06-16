@@ -7,41 +7,45 @@ using System.Runtime.CompilerServices;
 
 namespace BBD.BodyMonitor
 {
+    /// <summary>
+    /// Parses strings containing ANSI escape codes to extract text segments and their associated colors.
+    /// This class is intended for internal use within the application, primarily for processing log messages with ANSI color codes.
+    /// </summary>
     internal sealed class AnsiParser
     {
         private readonly Action<string, int, int, ConsoleColor?, ConsoleColor?> _onParseWrite;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnsiParser"/> class.
+        /// </summary>
+        /// <param name="onParseWrite">An action to be called when a segment of text is parsed.
+        /// The action receives the original message string, the start index of the segment,
+        /// the length of the segment, the parsed background color (if any), and the parsed foreground color (if any).</param>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="onParseWrite"/> is null.</exception>
         public AnsiParser(Action<string, int, int, ConsoleColor?, ConsoleColor?> onParseWrite)
         {
-            //ThrowHelper.ThrowIfNull(onParseWrite);
-
+            if (onParseWrite == null)
+            {
+                throw new ArgumentNullException(nameof(onParseWrite));
+            }
             _onParseWrite = onParseWrite;
         }
 
         /// <summary>
-        /// Parses a subset of display attributes
-        /// Set Display Attributes
-        /// Set Attribute Mode [{attr1};...;{attrn}m
-        /// Sets multiple display attribute settings. The following lists standard attributes that are getting parsed:
-        /// 1 Bright
-        /// Foreground Colours
-        /// 30 Black
-        /// 31 Red
-        /// 32 Green
-        /// 33 Yellow
-        /// 34 Blue
-        /// 35 Magenta
-        /// 36 Cyan
-        /// 37 White
-        /// Background Colours
-        /// 40 Black
-        /// 41 Red
-        /// 42 Green
-        /// 43 Yellow
-        /// 44 Blue
-        /// 45 Magenta
-        /// 46 Cyan
-        /// 47 White
+        /// Parses a string message containing ANSI escape codes.
+        /// It identifies text segments and their foreground/background colors based on a subset of SGR (Select Graphic Rendition) parameters.
+        /// Supported SGR parameters include:
+        /// <list type="bullet">
+        ///   <item><description>0: Reset all attributes</description></item>
+        ///   <item><description>1: Bright/Bold</description></item>
+        ///   <item><description>Foreground Colors (30-37): Black, Red, Green, Yellow, Blue, Magenta, Cyan, White. Bright versions are applied if '1' was previously set.</description></item>
+        ///   <item><description>39: Default foreground color</description></item>
+        ///   <item><description>Background Colors (40-47): Black, Red, Green, Yellow, Blue, Magenta, Cyan, White.</description></item>
+        ///   <item><description>49: Default background color</description></item>
+        /// </list>
+        /// The <paramref name="message"/> is processed, and the callback provided in the constructor (<see cref="_onParseWrite"/>) is invoked for each segment of text found between or after ANSI escape codes.
         /// </summary>
+        /// <param name="message">The string message to parse.</param>
         public void Parse(string message)
         {
             int startIndex = -1;
@@ -63,34 +67,46 @@ namespace BBD.BodyMonitor
                         if (IsDigit(span[i + 2]))
                         {
                             escapeCode = (int)(span[i + 2] - '0');
-                            if (startIndex != -1)
+                            if (startIndex != -1 && length > 0) // Only write if there's content
                             {
                                 _onParseWrite(message, startIndex, length, background, foreground);
-                                startIndex = -1;
-                                length = 0;
                             }
-                            if (escapeCode == 1)
+                            startIndex = -1; // Reset for next segment
+                            length = 0;
+
+                            if (escapeCode == 0) // Reset all attributes
+                            {
+                                foreground = null;
+                                background = null;
+                                isBright = false;
+                            }
+                            else if (escapeCode == 1) // Bright/Bold
+                            {
                                 isBright = true;
+                            }
                             i += 3;
                             continue;
                         }
                     }
                     else if (span.Length >= i + 5 && span[i + 4] == 'm')
                     {
-                        // Example: \x1B[40m
+                        // Example: \x1B[40m or \x1B[31m
                         if (IsDigit(span[i + 2]) && IsDigit(span[i + 3]))
                         {
                             escapeCode = (int)(span[i + 2] - '0') * 10 + (int)(span[i + 3] - '0');
-                            if (startIndex != -1)
+                            if (startIndex != -1 && length > 0) // Only write if there's content
                             {
                                 _onParseWrite(message, startIndex, length, background, foreground);
-                                startIndex = -1;
-                                length = 0;
                             }
+                            startIndex = -1; // Reset for next segment
+                            length = 0;
+
                             if (TryGetForegroundColor(escapeCode, isBright, out color))
                             {
                                 foreground = color;
-                                isBright = false;
+                                // Reset brightness after applying a foreground color,
+                                // as brightness is typically applied per color code.
+                                if (escapeCode != 39) isBright = false; // Don't reset for default color code
                             }
                             else if (TryGetBackgroundColor(escapeCode, out color))
                             {
@@ -101,24 +117,18 @@ namespace BBD.BodyMonitor
                         }
                     }
                 }
+
+                // Regular character processing
                 if (startIndex == -1)
                 {
                     startIndex = i;
                 }
-                int nextEscapeIndex = -1;
-                if (i < message.Length - 1)
-                {
-                    nextEscapeIndex = message.IndexOf(EscapeChar, i + 1);
-                }
-                if (nextEscapeIndex < 0)
-                {
-                    length = message.Length - startIndex;
-                    break;
-                }
-                length = nextEscapeIndex - startIndex;
-                i = nextEscapeIndex - 1;
-            }
-            if (startIndex != -1)
+                length++; // Increment length for the current character
+
+            } // End of for loop
+
+            // After loop, if there's any remaining text segment, write it
+            if (startIndex != -1 && length > 0)
             {
                 _onParseWrite(message, startIndex, length, background, foreground);
             }
@@ -142,19 +152,22 @@ namespace BBD.BodyMonitor
                 ConsoleColor.DarkMagenta => "\x1B[35m",
                 ConsoleColor.DarkCyan => "\x1B[36m",
                 ConsoleColor.Gray => "\x1B[37m",
-                ConsoleColor.Red => "\x1B[1m\x1B[31m",
-                ConsoleColor.Green => "\x1B[1m\x1B[32m",
-                ConsoleColor.Yellow => "\x1B[1m\x1B[33m",
-                ConsoleColor.Blue => "\x1B[1m\x1B[34m",
-                ConsoleColor.Magenta => "\x1B[1m\x1B[35m",
-                ConsoleColor.Cyan => "\x1B[1m\x1B[36m",
-                ConsoleColor.White => "\x1B[1m\x1B[37m",
+                ConsoleColor.Red => "\x1B[1m\x1B[31m", // Bright Red
+                ConsoleColor.Green => "\x1B[1m\x1B[32m", // Bright Green
+                ConsoleColor.Yellow => "\x1B[1m\x1B[33m", // Bright Yellow
+                ConsoleColor.Blue => "\x1B[1m\x1B[34m", // Bright Blue
+                ConsoleColor.Magenta => "\x1B[1m\x1B[35m", // Bright Magenta
+                ConsoleColor.Cyan => "\x1B[1m\x1B[36m", // Bright Cyan
+                ConsoleColor.White => "\x1B[1m\x1B[37m", // Bright White
                 _ => DefaultForegroundColor // default foreground color
             };
         }
 
         internal static string GetBackgroundColorEscapeCode(ConsoleColor color)
         {
+            // For background colors, "bright" versions are not standard via SGR codes 40-47.
+            // SGR codes 100-107 are for bright background colors but are less universally supported.
+            // This implementation maps DarkGray to Gray for background for better visibility if needed.
             return color switch
             {
                 ConsoleColor.Black => "\x1B[40m",
@@ -164,7 +177,9 @@ namespace BBD.BodyMonitor
                 ConsoleColor.DarkBlue => "\x1B[44m",
                 ConsoleColor.DarkMagenta => "\x1B[45m",
                 ConsoleColor.DarkCyan => "\x1B[46m",
-                ConsoleColor.Gray => "\x1B[47m",
+                ConsoleColor.Gray => "\x1B[47m", // Standard White background
+                // ConsoleColor.DarkGray could map to "\x1B[100m" (Bright Black/Dark Gray) if needed
+                // Other bright colors (Red, Green, etc.) don't have direct standard background SGR codes in the 40-47 range.
                 _ => DefaultBackgroundColor // Use default background color
             };
         }
@@ -173,17 +188,19 @@ namespace BBD.BodyMonitor
         {
             color = number switch
             {
-                30 => ConsoleColor.Black,
-                31 => isBright ? ConsoleColor.Red : ConsoleColor.DarkRed,
-                32 => isBright ? ConsoleColor.Green : ConsoleColor.DarkGreen,
-                33 => isBright ? ConsoleColor.Yellow : ConsoleColor.DarkYellow,
-                34 => isBright ? ConsoleColor.Blue : ConsoleColor.DarkBlue,
-                35 => isBright ? ConsoleColor.Magenta : ConsoleColor.DarkMagenta,
-                36 => isBright ? ConsoleColor.Cyan : ConsoleColor.DarkCyan,
-                37 => isBright ? ConsoleColor.White : ConsoleColor.Gray,
+                30 => ConsoleColor.Black, // Black
+                31 => isBright ? ConsoleColor.Red : ConsoleColor.DarkRed, // Red
+                32 => isBright ? ConsoleColor.Green : ConsoleColor.DarkGreen, // Green
+                33 => isBright ? ConsoleColor.Yellow : ConsoleColor.DarkYellow, // Yellow
+                34 => isBright ? ConsoleColor.Blue : ConsoleColor.DarkBlue, // Blue
+                35 => isBright ? ConsoleColor.Magenta : ConsoleColor.DarkMagenta, // Magenta
+                36 => isBright ? ConsoleColor.Cyan : ConsoleColor.DarkCyan, // Cyan
+                37 => isBright ? ConsoleColor.White : ConsoleColor.Gray, // White (bright) / Gray (normal)
+                39 => ConsoleColor.Gray, // Default foreground color - behavior can vary; often Gray or White.
                 _ => null
             };
-            return color != null || number == 39;
+            // Return true if a color was matched OR if it's the default color code (39)
+            return color != null;
         }
 
         private static bool TryGetBackgroundColor(int number, out ConsoleColor? color)
@@ -197,10 +214,12 @@ namespace BBD.BodyMonitor
                 44 => ConsoleColor.DarkBlue,
                 45 => ConsoleColor.DarkMagenta,
                 46 => ConsoleColor.DarkCyan,
-                47 => ConsoleColor.Gray,
+                47 => ConsoleColor.Gray, // Standard White background
+                49 => ConsoleColor.Black, // Default background color - behavior can vary; often Black.
                 _ => null
             };
-            return color != null || number == 49;
+            // Return true if a color was matched OR if it's the default color code (49)
+            return color != null;
         }
     }
 }

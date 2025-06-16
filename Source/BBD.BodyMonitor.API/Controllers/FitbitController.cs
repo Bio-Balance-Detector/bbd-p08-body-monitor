@@ -13,6 +13,10 @@ using System.Text.Json;
 
 namespace BBD.BodyMonitor.Controllers
 {
+    /// <summary>
+    /// Controller for interacting with the Fitbit API.
+    /// It handles authentication, fetching user profile, sleep data, and heart rate data.
+    /// </summary>
     [ApiController]
     [Route("[controller]")]
     public class FitbitController : ControllerBase
@@ -27,6 +31,13 @@ namespace BBD.BodyMonitor.Controllers
         private static string accessTokenFilename;
         private static UserProfile userProfile;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FitbitController"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance for logging messages.</param>
+        /// <param name="configRoot">The root configuration interface.</param>
+        /// <param name="fitbitOptions">The Fitbit options monitor.</param>
+        /// <param name="sessionManager">The session manager service.</param>
         public FitbitController(ILogger<SystemController> logger, IConfiguration configRoot, IOptionsMonitor<FitbitOptions> fitbitOptions, ISessionManagerService sessionManager)
         {
             _logger = logger;
@@ -53,6 +64,14 @@ namespace BBD.BodyMonitor.Controllers
             }
         }
 
+        /// <summary>
+        /// Generates the Fitbit authentication URL.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint initiates the OAuth 2.0 authentication process with Fitbit.
+        /// The user should be redirected to the returned URL to authorize the application.
+        /// </remarks>
+        /// <returns>The Fitbit authentication URL.</returns>
         [HttpGet]
         [Route("authenticate")]
         public string Authenticate()
@@ -65,6 +84,15 @@ namespace BBD.BodyMonitor.Controllers
             return authUrl;
         }
 
+        /// <summary>
+        /// Exchanges the authentication code for an access token.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint is called by Fitbit after the user authorizes the application.
+        /// The provided code is used to obtain an access token, which is then stored for future API calls.
+        /// </remarks>
+        /// <param name="code">The authentication code provided by Fitbit.</param>
+        /// <exception cref="Exception">Thrown if the Fitbit client secret is not defined.</exception>
         [HttpGet]
         [Route("accesstoken")]
         public async void AccessToken(string code)
@@ -86,6 +114,12 @@ namespace BBD.BodyMonitor.Controllers
             System.IO.File.WriteAllText(accessTokenFilename, accessTokenJson);
         }
 
+        /// <summary>
+        /// Retrieves the Fitbit user profile for the specified user.
+        /// </summary>
+        /// <param name="encodedUserId">The encoded ID of the Fitbit user. Use "-" for the currently authenticated user.</param>
+        /// <returns>The <see cref="UserProfile"/> object containing the user's profile information.</returns>
+        /// <exception cref="Exception">Thrown if the Fitbit access token is not available (i.e., user is not authenticated).</exception>
         [HttpGet]
         [Route("getprofile/{encodedUserId}")]
         public UserProfile GetProfile(string encodedUserId)
@@ -102,6 +136,13 @@ namespace BBD.BodyMonitor.Controllers
             return profile;
         }
 
+        /// <summary>
+        /// Retrieves sleep data for the specified user and date.
+        /// </summary>
+        /// <param name="encodedUserId">The encoded ID of the Fitbit user. Use "-" for the currently authenticated user.</param>
+        /// <param name="date">The date for which to retrieve sleep data.</param>
+        /// <returns>An array of <see cref="SleepSegment"/> objects representing the sleep periods for the given date.</returns>
+        /// <exception cref="Exception">Thrown if the Fitbit access token is not available (i.e., user is not authenticated).</exception>
         [HttpGet]
         [Route("getsleepdata/{encodedUserId}/{date}")]
         public SleepSegment[] GetSleepData(string encodedUserId, DateTime date)
@@ -152,7 +193,7 @@ namespace BBD.BodyMonitor.Controllers
 
         [HttpGet]
         [Route("getheartrate/{encodedUserId}/{date}")]
-        [Obsolete]
+        [Obsolete("This method for fetching heart rate is obsolete. Consider using newer Fitbit API endpoints or a different approach if available.")]
         public HeartRateSegment[] GetHeartRate(string encodedUserId, DateTime date)
         {
             if (currentAccessToken == null)
@@ -194,7 +235,7 @@ namespace BBD.BodyMonitor.Controllers
 
         [HttpGet]
         [Route("savefitbitdata/{subjectAlias}/{date?}")]
-        [Obsolete]
+        [Obsolete("This method for saving Fitbit data is obsolete and may be removed in future versions. It is recommended to implement a more robust data synchronization strategy.")]
         public void SaveFitbitData(string subjectAlias, DateTime? date)
         {
             if (currentAccessToken == null)

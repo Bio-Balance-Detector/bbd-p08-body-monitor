@@ -6,20 +6,48 @@ using static BBD.BodyMonitor.Buffering.ShiftingBuffer;
 
 namespace BBD.BodyMonitor.Models
 {
+    /// <summary>
+    /// Handles the data acquisition process from a Digilent WaveForms (DWF) device.
+    /// This class is internal and primarily used by services within the API.
+    /// </summary>
     internal class DataAcquisition
     {
+        /// <summary>
+        /// Gets the index of the Digilent WaveForms device being used.
+        /// </summary>
         public int DeviceIndex { get; internal set; }
+        /// <summary>
+        /// Gets the serial number of the connected device.
+        /// </summary>
         public string SerialNumber { get; private set; }
+        /// <summary>
+        /// Gets the actual sampling rate of the acquisition in Hz.
+        /// </summary>
         public float Samplerate { get; private set; }
         /// <summary>
-        /// Number of samples to fill the buffer
+        /// Gets the total number of samples in the acquisition buffer. This defines the capacity of the internal <see cref="ShiftingBuffer"/>.
         /// </summary>
         public int BufferSize { get; internal set; }
+        /// <summary>
+        /// Gets the number of samples per block. Data is processed in blocks of this size.
+        /// </summary>
         public int BlockSize { get; internal set; }
+        /// <summary>
+        /// Gets the length of each data block in seconds.
+        /// </summary>
         public float BlockLength { get; private set; }
+        /// <summary>
+        /// Gets the total length of the acquisition buffer in seconds.
+        /// </summary>
         public float BufferLength { get; private set; }
+        /// <summary>
+        /// Gets the array of acquisition channel identifiers (e.g., "CH1", "CH2").
+        /// </summary>
         public string[] AcquisitionChannels { get; private set; }
         private BufferErrorHandlingMode _bufferErrorHandling;
+        /// <summary>
+        /// Gets or sets the error handling mode for the internal samples buffer.
+        /// </summary>
         public BufferErrorHandlingMode ErrorHandling
         {
             get
@@ -49,11 +77,14 @@ namespace BBD.BodyMonitor.Models
         private int dwfHandle = -1;
 
         /// <summary>
-        /// Number of samples per buffer
+        /// Number of samples per buffer on the device itself, not the ShiftingBuffer.
         /// </summary>
         private int bufferSize;
 
         private ShiftingBuffer samplesBuffer;
+        /// <summary>
+        /// Occurs when an error is detected in the data buffer, such as data loss or corruption.
+        /// </summary>
         public event BufferErrorEventHandler BufferError;
         private double[] voltData;
 
@@ -61,6 +92,11 @@ namespace BBD.BodyMonitor.Models
 
         private readonly Dictionary<int, List<Action<object, BlockReceivedEventArgs>>> subscribers = new();
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DataAcquisition"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance for logging messages.</param>
+        /// <param name="session">The session object associated with this data acquisition instance.</param>
         public DataAcquisition(ILogger logger, Session session)
         {
             _logger = logger;
@@ -69,6 +105,10 @@ namespace BBD.BodyMonitor.Models
             logger.LogInformation($"DWF Version: {GetDwfVersion()}");
         }
 
+        /// <summary>
+        /// Gets the version of the DWF library currently in use.
+        /// </summary>
+        /// <returns>A string representing the DWF library version, or "N/A" if it cannot be retrieved.</returns>
         public static string? GetDwfVersion()
         {
             try
@@ -82,6 +122,10 @@ namespace BBD.BodyMonitor.Models
             }
         }
 
+        /// <summary>
+        /// Lists all connected Digilent devices.
+        /// </summary>
+        /// <returns>An array of <see cref="ConnectedDevice"/> objects, each representing a detected device.</returns>
         public static ConnectedDevice[] ListDevices()
         {
             List<ConnectedDevice> result = new();
@@ -119,19 +163,15 @@ namespace BBD.BodyMonitor.Models
         }
 
         /// <summary>
-        /// Open the device and set up the acquisition.
+        /// Opens the specified Digilent device and configures it for data acquisition.
         /// </summary>
-        /// <param name="deviceIndex">Index of the device, or -1 for the default device</param>
-        /// <param name="acquisitionChannels"></param>
-        /// <param name="acquisitionSamplerate"></param>
-        /// <param name="signalGeneratorEnabled"></param>
-        /// <param name="signalGeneratorChannel"></param>
-        /// <param name="signalGeneratorFrequency"></param>
-        /// <param name="signalGeneratorVoltage"></param>
-        /// <param name="blockLength"></param>
-        /// <param name="bufferLength"></param>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>
+        /// <param name="deviceIndex">The index of the device to open. Use -1 to attempt to open the first available device.</param>
+        /// <param name="acquisitionChannels">An array of channel identifiers (e.g., "CH1", "CH2") to be used for acquisition.</param>
+        /// <param name="acquisitionSamplerate">The desired sampling rate in Hz.</param>
+        /// <param name="blockLength">The desired length of each data block in seconds.</param>
+        /// <param name="bufferLength">The desired total length of the acquisition buffer in seconds. Must be a multiple of <paramref name="blockLength"/>.</param>
+        /// <returns>The serial number of the opened device if successful; otherwise, null.</returns>
+        /// <exception cref="Exception">Thrown if <paramref name="bufferLength"/> is not a multiple of <paramref name="blockLength"/>.</exception>
         public string? OpenDevice(int deviceIndex, string[] acquisitionChannels, float acquisitionSamplerate, float blockLength, float bufferLength)
         {
             DeviceIndex = deviceIndex;
@@ -178,7 +218,7 @@ namespace BBD.BodyMonitor.Models
             }
 
             _ = dwf.FDwfAnalogInBufferSizeInfo(dwfHandle, out int bufferSizeMinimum, out int bufferSizeMaximum);
-            bufferSize = Math.Min(bufferSizeMaximum, (int)acquisitionSamplerate);
+            bufferSize = Math.Min(bufferSizeMaximum, (int)acquisitionSamplerate); // this refers to the device's internal buffer, not our ShiftingBuffer
             _logger.LogTrace($"Device buffer size range: {bufferSizeMinimum:N0} - {bufferSizeMaximum:N0} samples, set to {bufferSize:N0}.");
             voltData = new double[bufferSize];
 
@@ -194,24 +234,24 @@ namespace BBD.BodyMonitor.Models
 
             if ((bufferLength / blockLength) - Math.Truncate(bufferLength / blockLength) != 0)
             {
-                throw new Exception($"Buffer size {bufferLength} and {blockLength} must be multiples. Adjust your settings!");
+                throw new Exception($"Buffer length {bufferLength}s and block length {blockLength}s must result in an integer number of blocks. Adjust your settings!");
             }
             int blockCountInBuffer = (int)(bufferLength / blockLength);
 
             BlockSize = (int)Math.Floor(Samplerate * blockLength);
-            BufferSize = blockCountInBuffer * BlockSize;
+            BufferSize = blockCountInBuffer * BlockSize; // This is the ShiftingBuffer size
             subscribers.Clear();
 
-            _ = dwf.FDwfAnalogInBufferSizeSet(dwfHandle, bufferSize);
+            _ = dwf.FDwfAnalogInBufferSizeSet(dwfHandle, bufferSize); // Set device buffer size
             _ = dwf.FDwfAnalogInAcquisitionModeSet(dwfHandle, dwf.acqmodeRecord);
-            _ = dwf.FDwfAnalogInRecordLengthSet(dwfHandle, -1);
+            _ = dwf.FDwfAnalogInRecordLengthSet(dwfHandle, -1); // Set for continuous record
 
             foreach (string channelId in acquisitionChannels)
             {
                 byte acquisitionChannelIndex = GetDataAcquisitionChannelIndex(channelId);
 
                 _ = dwf.FDwfAnalogInChannelEnableSet(dwfHandle, acquisitionChannelIndex, 1);
-                _ = dwf.FDwfAnalogInChannelRangeSet(dwfHandle, acquisitionChannelIndex, 5.0);
+                _ = dwf.FDwfAnalogInChannelRangeSet(dwfHandle, acquisitionChannelIndex, 5.0); // Default range
             }
 
             // wait at least 2 seconds for the offset to stabilize
@@ -223,11 +263,18 @@ namespace BBD.BodyMonitor.Models
             return serialNumber;
         }
 
+        /// <summary>
+        /// Closes the connection to the currently open Digilent device.
+        /// </summary>
         public void CloseDevice()
         {
             _ = dwf.FDwfDeviceClose(dwfHandle);
         }
 
+        /// <summary>
+        /// Resets the currently open Digilent device by closing and reopening it with the existing settings.
+        /// </summary>
+        /// <returns>The serial number of the re-opened device if successful; otherwise, null.</returns>
         public string? ResetDevice()
         {
             try
@@ -240,14 +287,15 @@ namespace BBD.BodyMonitor.Models
         }
 
         /// <summary>
-        /// Start the data acquisition.
+        /// Starts the data acquisition loop on a separate thread.
         /// </summary>
+        /// <param name="channelId">The primary channel identifier (e.g., "CH1") from which to acquire data. This determines the channel index used in <c>FDwfAnalogInStatusData</c>.</param>
         public void Start(string channelId = "CH1")
         {
             int channelIndex = GetDataAcquisitionChannelIndex(channelId);
 
             terminateAcquisition = false;
-            bool bufferError = false;
+            bool bufferErrorOccurred = false; // Renamed to avoid conflict
 
             samplesBuffer = new ShiftingBuffer(BufferSize, BlockSize, Samplerate)
             {
@@ -256,56 +304,58 @@ namespace BBD.BodyMonitor.Models
             samplesBuffer.BlockReceived += SamplesBuffer_BlockReceived;
             samplesBuffer.BufferError += SamplesBuffer_BufferError;
 
-            float totalBytes = 0;
-            float availableBytes = 0;
-            float corruptedBytes = 0;
-            float lostBytes = 0;
+            float totalSamplesProcessed = 0; // Renamed for clarity
+            float availableSamples = 0;    // Renamed for clarity
+            float corruptedSamples = 0;  // Renamed for clarity
+            float lostSamples = 0;       // Renamed for clarity
 
             Thread acquisitionLoopThread = new(() =>
             {
                 int i = 0;
                 while (!terminateAcquisition)
                 {
-                    if (i++ % 100 == 0)
+                    if (i++ % 100 == 0) // Log summary periodically
                     {
-                        if (availableBytes != totalBytes)
+                        if (totalSamplesProcessed > 0 && (corruptedSamples > 0 || lostSamples > 0)) // Log only if there were errors
                         {
-                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' reported some errors! Good: {availableBytes / totalBytes,6:0.0%} | Corrupted: {corruptedBytes / totalBytes,6:0.0%} | Lost: {lostBytes / totalBytes,6:0.0%}");
+                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' error summary: Good: {availableSamples / totalSamplesProcessed:P1} | Corrupted: {corruptedSamples / totalSamplesProcessed:P1} | Lost: {lostSamples / totalSamplesProcessed:P1} (Total samples in period: {totalSamplesProcessed:N0})");
                         }
 
-                        totalBytes = 0;
-                        availableBytes = 0;
-                        corruptedBytes = 0;
-                        lostBytes = 0;
+                        totalSamplesProcessed = 0;
+                        availableSamples = 0;
+                        corruptedSamples = 0;
+                        lostSamples = 0;
                     }
 
-                    while (true)
+                    byte sts;
+                    do // Wait for device to be running
                     {
-                        _ = dwf.FDwfAnalogInStatus(dwfHandle, 1, out byte sts);
+                        _ = dwf.FDwfAnalogInStatus(dwfHandle, 1, out sts);
 
-                        if (sts == dwf.DwfStateRunning)
+                        if (sts is not dwf.DwfStateRunning and not dwf.DwfStateConfig and not dwf.DwfStateArmed)
                         {
-                            break;
+                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' entered an unusual state! sts:{sts} - {DwfStateToString(sts)}");
                         }
+                        if (sts != dwf.DwfStateRunning) Thread.Sleep(100); // Polling delay
+                    } while (sts != dwf.DwfStateRunning && !terminateAcquisition);
 
-                        if (sts is not dwf.DwfStateConfig and not dwf.DwfStateArmed)
-                        {
-                            _logger.LogWarning($"Data acquisition device '{SerialNumber}' got into an unusual state! sts:{sts} - {DwfStateToString(sts)}");
-                        }
-                        Thread.Sleep(100);
-                    }
+                    if (terminateAcquisition) break;
 
                     _ = dwf.FDwfAnalogInStatusRecord(dwfHandle, out int cAvailable, out int cLost, out int cCorrupted);
 
-                    if (cAvailable == 0)
+                    if (cAvailable == 0 && !terminateAcquisition) // No data available, but not terminating
                     {
-                        _logger.LogWarning($"Aqusition error! cAvailable: {cAvailable:N0}");
-                        Thread.Sleep(500);
+                        _logger.LogWarning($"Acquisition error on '{SerialNumber}': No data available (cAvailable: {cAvailable:N0}). Retrying device reset.");
+                        Thread.Sleep(500); // Brief pause before reset
 
-                        _logger.LogTrace($"Reseting device...");
-                        _ = ResetDevice();
+                        _logger.LogTrace($"Resetting device '{SerialNumber}'...");
+                        if (ResetDevice() == null)
+                        {
+                            _logger.LogError($"Failed to reset device '{SerialNumber}'. Terminating acquisition loop.");
+                            break; // Exit if reset fails
+                        }
 
-                        bufferError = false;
+                        bufferErrorOccurred = false; // Reset error flag
                         samplesBuffer.Clear();
                         continue;
                     }
@@ -313,26 +363,26 @@ namespace BBD.BodyMonitor.Models
                     int cTotal = cAvailable + cLost + cCorrupted;
                     if (cLost > 0 || cCorrupted > 0)
                     {
-                        bufferError = true;
+                        bufferErrorOccurred = true;
                     }
 
-                    totalBytes += cTotal;
-                    availableBytes += cAvailable;
-                    lostBytes += cLost;
-                    corruptedBytes += cCorrupted;
+                    totalSamplesProcessed += cTotal;
+                    availableSamples += cAvailable;
+                    lostSamples += cLost;
+                    corruptedSamples += cCorrupted;
 
                     if (cAvailable > voltData.Length)
                     {
-                        _logger.LogWarning($"The data available on the device is more than our local buffer size ({cAvailable} > {voltData.Length}), so we double the size of the buffer.");
-                        voltData = new double[voltData.Length * 2];
+                        _logger.LogWarning($"Device '{SerialNumber}' provided more data ({cAvailable}) than local buffer ({voltData.Length}). Increasing buffer size.");
+                        voltData = new double[cAvailable]; // Resize to what's available now
                     }
 
-                    _ = dwf.FDwfAnalogInStatusData(dwfHandle, channelIndex, voltData, cAvailable);     // get CH1/CH2 data chunk
+                    _ = dwf.FDwfAnalogInStatusData(dwfHandle, channelIndex, voltData, cAvailable);
 
-                    if (bufferError)
+                    if (bufferErrorOccurred)
                     {
                         samplesBuffer.Error(cAvailable, cLost, cCorrupted, cTotal);
-                        bufferError = false;
+                        bufferErrorOccurred = false; // Reset after handling
                         continue;
                     }
 
@@ -342,11 +392,12 @@ namespace BBD.BodyMonitor.Models
                 }
 
                 CloseDevice();
-                samplesBuffer.Clear();
-                _logger.LogTrace($"Acquisition done on '{SerialNumber}'");
+                samplesBuffer?.Clear(); // Ensure samplesBuffer is not null
+                _logger.LogTrace($"Acquisition loop done on '{SerialNumber}'.");
             })
             {
-                Priority = ThreadPriority.Highest
+                Priority = ThreadPriority.Highest,
+                Name = $"AcquisitionLoop-{SerialNumber}" // Give the thread a descriptive name
             };
 
             acquisitionLoopThread.Start();
@@ -367,61 +418,86 @@ namespace BBD.BodyMonitor.Models
 
                     foreach (Action<object, BlockReceivedEventArgs> subscribedAction in subscribedActionList.Value)
                     {
+                        // Consider using Task.Run for CPU-bound work, or if subscribedAction is async itself.
+                        // For simple, fast event handlers, direct invocation might be okay.
                         _ = Task.Run(() => subscribedAction(sender, new BlockReceivedEventArgs(e.Buffer, db, _session, e.Error)));
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Subscribes an action to be called when a new data block is received, at a specified interval.
+        /// The interval will be adjusted to the closest multiple of the underlying block length if necessary.
+        /// </summary>
+        /// <param name="interval">The desired interval in seconds for receiving data blocks. This will be rounded to the nearest multiple of the acquisition block length.</param>
+        /// <param name="action">The action to execute when a data block is received. The action takes the sender and <see cref="BlockReceivedEventArgs"/> as parameters.</param>
+        /// <exception cref="ArgumentException">Thrown if the specified interval is too low for the current block length or results in a zero calling frequency.</exception>
         public void SubscribeToBlockReceived(float interval, Action<object, BlockReceivedEventArgs> action)
         {
             double samplesInInterval = Samplerate * interval;
 
             if (samplesInInterval % BlockSize != 0)
             {
+                float newInterval;
                 if (samplesInInterval >= BlockSize)
                 {
                     double samplesInIntervalRounded = Math.Round(samplesInInterval / BlockSize) * BlockSize;
-                    float newInterval = (float)(samplesInIntervalRounded / Samplerate);
+                    newInterval = (float)(samplesInIntervalRounded / Samplerate);
 
-                    _logger.LogWarning($"The interval {interval} would have produced a sample count that is not a multiple of the block size {BlockSize}, so it was modified to {newInterval}.");
-
-                    interval = newInterval;
+                    _logger.LogWarning($"The interval {interval}s would have produced a sample count ({samplesInInterval:F2}) not a multiple of the block size ({BlockSize}), so it was modified to {newInterval:F3}s.");
                 }
-                else
+                else // samplesInInterval < BlockSize
                 {
-                    throw new ArgumentException("The interval must be a multiple of the block length.", "interval");
+                    // If desired interval is less than one block, round up to one block length.
+                    newInterval = BlockLength;
+                     _logger.LogWarning($"The interval {interval}s is less than the block length ({BlockLength}s). It has been adjusted to {newInterval:F3}s.");
                 }
+                interval = newInterval;
             }
 
-            int callingFrequency = (int)(Samplerate * interval / BlockSize);
+            int callingFrequencyFactor = (int)Math.Max(1, Math.Round(Samplerate * interval / BlockSize)); // Ensure at least 1
 
-            if (callingFrequency == 0)
+            if (!subscribers.ContainsKey(callingFrequencyFactor))
             {
-                throw new ArgumentException($"The interval ({interval:N0} seconds) is too low for this block length ({BlockSize} samples).", "interval");
+                subscribers.Add(callingFrequencyFactor, new List<Action<object, BlockReceivedEventArgs>>());
             }
 
-            if (!subscribers.ContainsKey(callingFrequency))
-            {
-                subscribers.Add(callingFrequency, new List<Action<object, BlockReceivedEventArgs>>());
-            }
-
-            subscribers[callingFrequency].Add(action);
+            subscribers[callingFrequencyFactor].Add(action);
+            _logger.LogInformation($"Action subscribed to run every {callingFrequencyFactor} data blocks (approx. every {interval:F3} seconds).");
         }
 
         /// <summary>
-        /// Stop the data acquisition.
+        /// Stops the data acquisition loop.
         /// </summary>
         public void Stop()
         {
             terminateAcquisition = true;
+            _logger.LogInformation($"Stop acquisition requested for device '{SerialNumber}'.");
         }
 
+        /// <summary>
+        /// Clears all data from the internal samples buffer.
+        /// </summary>
         public void ClearBuffer()
         {
-            samplesBuffer.Clear();
+            samplesBuffer?.Clear();
+            _logger.LogInformation($"Buffer cleared for device '{SerialNumber}'.");
         }
 
+        /// <summary>
+        /// Changes the parameters of the signal generator on the specified channel.
+        /// </summary>
+        /// <param name="channelId">The identifier of the signal generator channel (e.g., "W1", "W2").</param>
+        /// <param name="function">The waveform function to generate (e.g., Sine, Square).</param>
+        /// <param name="startFrequency">The starting frequency in Hz. For static frequency, set <paramref name="endFrequency"/> to null.</param>
+        /// <param name="endFrequency">Optional. The ending frequency in Hz for a frequency sweep. If null, frequency remains static at <paramref name="startFrequency"/>.</param>
+        /// <param name="isFrequencyPingPong">If true and sweeping, the frequency will sweep back and forth (triangle modulation). If false, it will ramp (sawtooth modulation).</param>
+        /// <param name="startAmplitude">The starting amplitude in Volts. For static amplitude, set <paramref name="endAmplitude"/> to null.</param>
+        /// <param name="endAmplitude">Optional. The ending amplitude in Volts for an amplitude sweep. If null, amplitude remains static at <paramref name="startAmplitude"/>.</param>
+        /// <param name="isAmplitudePingPong">If true and sweeping, the amplitude will sweep back and forth. If false, it will ramp.</param>
+        /// <param name="duration">Optional. The duration of one sweep cycle. If null, the signal generator runs continuously with the initial parameters or until stopped.</param>
+        /// <exception cref="ArgumentException">Thrown if an invalid <paramref name="channelId"/> or <paramref name="function"/> is provided.</exception>
         public void ChangeSingalGenerator(string channelId, SignalFunction function, float startFrequency, float? endFrequency, bool isFrequencyPingPong, float startAmplitude, float? endAmplitude, bool isAmplitudePingPong, TimeSpan? duration)
         {
             // get the signal generator channel index
@@ -435,36 +511,23 @@ namespace BBD.BodyMonitor.Models
 
             // change the carrier signal function, frequency and amplitude
             _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 1);
-            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, function == SignalFunction.Sine ? dwf.funcSine : function == SignalFunction.Square ? dwf.funcSquare : throw new ArgumentException($"The signal function '{function}' is not valid.", "function"));
+            _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, function == SignalFunction.Sine ? dwf.funcSine : function == SignalFunction.Square ? dwf.funcSquare : throw new ArgumentException($"The signal function '{function}' is not valid.", nameof(function)));
             _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, middleFrequency);
             _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, middleAmplitude);
             _ = dwf.FDwfAnalogOutNodeOffsetSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, 0.0f);
 
-            if (endFrequency.HasValue && duration.HasValue)
+            if (endFrequency.HasValue && duration.HasValue && duration.Value.TotalSeconds > 0)
             {
                 // enable the frequency modulation
                 byte fmFunction = isFrequencyPingPong ? dwf.funcTriangle : startFrequency < endFrequency.Value ? dwf.funcRampUp : dwf.funcRampDown;
-                double fmSimmetry = 100;
-                double fmPhase = 0;
-                if (fmFunction == dwf.funcRampUp)
-                {
-                    fmSimmetry = 100;
-                }
-                else if (fmFunction == dwf.funcRampDown)
-                {
-                    fmSimmetry = 0;
-                }
-                else if (fmFunction == dwf.funcTriangle)
-                {
-                    fmSimmetry = 50;
-                    fmPhase = 270;
-                }
+                double fmSymmetry = (fmFunction == dwf.funcRampUp) ? 100 : (fmFunction == dwf.funcRampDown) ? 0 : 50;
+                double fmPhase = (fmFunction == dwf.funcTriangle) ? 270 : 0;
 
                 _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1);
                 _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmFunction);
                 _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 1.0 / duration.Value.TotalSeconds);
                 _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 100.0 * (endFrequency.Value - middleFrequency) / middleFrequency);
-                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmSimmetry);
+                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmSymmetry);
                 _ = dwf.FDwfAnalogOutNodePhaseSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, fmPhase);
             }
             else
@@ -473,31 +536,18 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeFM, 0);
             }
 
-            if (endAmplitude.HasValue && duration.HasValue)
+            if (endAmplitude.HasValue && duration.HasValue && duration.Value.TotalSeconds > 0)
             {
                 // enable the amplitude modulation
-                byte amFunction = isAmplitudePingPong ? dwf.funcTriangle : dwf.funcRampUp;
-                double amSimmetry = 100;
-                double amPhase = 0;
-                if (amFunction == dwf.funcRampUp)
-                {
-                    amSimmetry = 100;
-                }
-                else if (amFunction == dwf.funcRampDown)
-                {
-                    amSimmetry = 0;
-                }
-                else if (amFunction == dwf.funcTriangle)
-                {
-                    amSimmetry = 50;
-                    amPhase = 270;
-                }
+                byte amFunction = isAmplitudePingPong ? dwf.funcTriangle : startAmplitude < endAmplitude.Value ? dwf.funcRampUp : dwf.funcRampDown;
+                double amSymmetry = (amFunction == dwf.funcRampUp) ? 100 : (amFunction == dwf.funcRampDown) ? 0 : 50;
+                double amPhase = (amFunction == dwf.funcTriangle) ? 270 : 0;
 
                 _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 1);
                 _ = dwf.FDwfAnalogOutNodeFunctionSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amFunction);
                 _ = dwf.FDwfAnalogOutNodeFrequencySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 1.0 / duration.Value.TotalSeconds);
                 _ = dwf.FDwfAnalogOutNodeAmplitudeSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 100.0 * (endAmplitude.Value - middleAmplitude) / middleAmplitude);
-                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amSimmetry);
+                _ = dwf.FDwfAnalogOutNodeSymmetrySet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amSymmetry);
                 _ = dwf.FDwfAnalogOutNodePhaseSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, amPhase);
             }
             else
@@ -506,30 +556,31 @@ namespace BBD.BodyMonitor.Models
                 _ = dwf.FDwfAnalogOutNodeEnableSet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeAM, 0);
             }
 
-            if (duration.HasValue)
+            if (duration.HasValue && duration.Value.TotalSeconds > 0)
             {
                 // set the signal generator repeat duration
                 _ = dwf.FDwfAnalogOutRunSet(dwfHandle, signalGeneratorChannelIndex, duration.Value.TotalSeconds);
-                _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1);
+                _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 1); // Repeat once for the specified duration
+            }
+            else // Continuous run
+            {
+                _ = dwf.FDwfAnalogOutRunSet(dwfHandle, signalGeneratorChannelIndex, 0); // Run indefinitely
+                _ = dwf.FDwfAnalogOutRepeatSet(dwfHandle, signalGeneratorChannelIndex, 0); // Repeat indefinitely
             }
 
-            _logger.LogTrace($"Generating {function} wave at {startFrequency:N} Hz with {startAmplitude:N} V of amplitude on channel {signalGeneratorChannelIndex}...");
+            _logger.LogTrace($"Generating {function} wave on channel {channelId} (HW Index: {signalGeneratorChannelIndex}). Freq: {startFrequency:N}Hz{(endFrequency.HasValue ? $" to {endFrequency.Value:N}Hz" : "")}, Amp: {startAmplitude:N}V{(endAmplitude.HasValue ? $" to {endAmplitude.Value:N}V" : "")}, Duration: {(duration.HasValue ? $"{duration.Value.TotalSeconds:N2}s" : "Continuous")}");
 
             _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-            if (psts != dwf.DwfStateRunning)
-            {
-                // start the signal generator
-                _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 1);
-            }
-            else
-            {
-                // apply changes to the signal generator
-                _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 3);
-            }
+            // Apply changes (3) if running, otherwise start (1)
+            _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, (psts == dwf.DwfStateRunning) ? 3 : 1);
 
             ApplySignalGeneratorChanges(signalGeneratorChannelIndex);
         }
 
+        /// <summary>
+        /// Stops the signal generator on the specified channel.
+        /// </summary>
+        /// <param name="channelId">The identifier of the signal generator channel to stop (e.g., "W1", "W2").</param>
         public void StopSingalGenerator(string channelId)
         {
             // get the signal generator channel index
@@ -538,15 +589,21 @@ namespace BBD.BodyMonitor.Models
             _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
             if (psts != dwf.DwfStateRunning)
             {
-                _logger.LogWarning($"The signal generator on channel {channelId} is not running.");
+                _logger.LogWarning($"The signal generator on channel {channelId} is not currently running.");
             }
 
-            // apply changes to the signal generator
+            // Stop the signal generator
             _ = dwf.FDwfAnalogOutConfigure(dwfHandle, signalGeneratorChannelIndex, 0);
 
             ApplySignalGeneratorChanges(signalGeneratorChannelIndex);
+            _logger.LogInformation($"Signal generator stopped on channel {channelId}.");
         }
 
+        /// <summary>
+        /// Gets the current status of the signal generator on the specified channel.
+        /// </summary>
+        /// <param name="channelId">The identifier of the signal generator channel (e.g., "W1", "W2").</param>
+        /// <returns>A <see cref="SignalGeneratorStatus"/> object containing the current state, frequency, and amplitude of the signal generator.</returns>
         public SignalGeneratorStatus GetSignalGeneratorStatus(string channelId)
         {
             SignalGeneratorStatus signalGeneratorStatus = new()
@@ -559,14 +616,14 @@ namespace BBD.BodyMonitor.Models
             signalGeneratorStatus.ChannelIndex = signalGeneratorChannelIndex;
 
             _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-            if (psts != dwf.DwfStateRunning)
-            {
-                _logger.LogWarning($"The signal generator on channel {channelId} is not running.");
-            }
             signalGeneratorStatus.State = psts;
             signalGeneratorStatus.IsRunning = psts == dwf.DwfStateRunning;
+            if (!signalGeneratorStatus.IsRunning)
+            {
+                _logger.LogWarning($"The signal generator on channel {channelId} is not running (State: {DwfStateToString(psts)}). Reported frequency and amplitude may not be active.");
+            }
 
-            // get the current frequemcy of the signal generator 
+            // get the current frequency of the signal generator
             _ = dwf.FDwfAnalogOutNodeFrequencyGet(dwfHandle, signalGeneratorChannelIndex, dwf.AnalogOutNodeCarrier, out double frequency);
             signalGeneratorStatus.Frequency = frequency;
 
@@ -579,60 +636,57 @@ namespace BBD.BodyMonitor.Models
 
         private static byte GetSignalGeneratorChannelIndex(string channelId)
         {
-            byte signalGeneratorChannelIndex = channelId switch
+            return channelId switch
             {
                 "W1" => 0,
                 "W2" => 1,
-                _ => throw new ArgumentException($"The signal generator channel id '{channelId}' is not valid.", "channelId"),
+                _ => throw new ArgumentException($"The signal generator channel id '{channelId}' is not valid. Valid options are 'W1' or 'W2'.", nameof(channelId)),
             };
-            return signalGeneratorChannelIndex;
         }
 
         private static byte GetDataAcquisitionChannelIndex(string channelId)
         {
-            byte dataAcquisitionChannelIndex = channelId switch
+            return channelId switch
             {
                 "CH1" => 0,
                 "CH2" => 1,
-                _ => throw new ArgumentException($"The data acquisition channel id '{channelId}' is not valid.", "channelId"),
+                _ => throw new ArgumentException($"The data acquisition channel id '{channelId}' is not valid. Valid options are 'CH1' or 'CH2'.", nameof(channelId)),
             };
-            return dataAcquisitionChannelIndex;
         }
 
         private void ApplySignalGeneratorChanges(byte signalGeneratorChannelIndex)
         {
-            while (true)
+            // It can take a moment for the device to report the new state after configuration.
+            // This loop provides a brief period to observe the state transition.
+            for (int attempt = 0; attempt < 5; attempt++) // Try up to 5 times with short delays
             {
-                _logger.LogTrace($"FDwfAnalogOutStatus begin | dwfHandle:{dwfHandle}");
                 _ = dwf.FDwfAnalogOutStatus(dwfHandle, signalGeneratorChannelIndex, out byte psts);
-                _logger.LogTrace($"FDwfAnalogOutStatus end   | sts:{psts} - {DwfStateToString(psts)}");
+                _logger.LogTrace($"Signal generator on channel index {signalGeneratorChannelIndex} status after configure attempt {attempt + 1}: {DwfStateToString(psts)}");
 
-                if (psts == dwf.DwfStateRunning)
+                // If the desired state (or a stable intermediate state) is reached, we can break.
+                // For now, just logging and a small delay is sufficient.
+                if (psts == dwf.DwfStateRunning || psts == dwf.DwfStateReady || psts == dwf.DwfStateDone) // Added Ready/Done as stable states
                 {
                     break;
                 }
-
-                _logger.LogWarning($"We got into an unusual signal generator state! sts:{psts} - {DwfStateToString(psts)}");
-                Thread.Sleep(500);
-                break;
+                Thread.Sleep(10); // Shorter delay
             }
-
-            // signal generator needs a little time to start
-            Thread.Sleep(50);
+            // Final short delay to ensure settings are applied.
+            Thread.Sleep(40); // Reduced from 50 to make total 5*10+40 = 90ms max for this part.
         }
 
-        private object DwfStateToString(byte psts)
+        private string DwfStateToString(byte psts) // Made private as it's a helper for this class
         {
             return psts switch
             {
-                0 => "Ready",
-                1 => "Config",
-                2 => "Prefill",
-                3 => "Armed",
-                4 => "Wait",
-                5 => "Triggered",
-                6 => "Running",
-                _ => "Unknown",
+                dwf.DwfStateReady => "Ready",
+                dwf.DwfStateConfig => "Config", // Note: DwfStateConfig is 4
+                dwf.DwfStatePrefill => "Prefill",
+                dwf.DwfStateArmed => "Armed",
+                dwf.DwfStateWait => "Wait", // Note: DwfStateWait is 7
+                dwf.DwfStateTriggered => "Triggered/Running", // DwfStateTriggered and DwfStateRunning are both 3
+                dwf.DwfStateDone => "Done",
+                _ => $"Unknown ({psts})",
             };
         }
     }

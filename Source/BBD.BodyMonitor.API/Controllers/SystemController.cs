@@ -10,6 +10,10 @@ using System.Text;
 
 namespace BBD.BodyMonitor.Controllers
 {
+    /// <summary>
+    /// Controller for system-level operations and information retrieval.
+    /// This includes managing configuration, listing sessions, subjects, locations, and providing system status updates.
+    /// </summary>
     [ApiController]
     [Route("[controller]")]
     public class SystemController : ControllerBase
@@ -20,6 +24,12 @@ namespace BBD.BodyMonitor.Controllers
         private static DateTime lastIpCheck = DateTime.MinValue;
         private static List<string> ipAddresses = new();
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SystemController"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance for logging messages.</param>
+        /// <param name="dataProcessor">The data processor service for handling data operations and configuration.</param>
+        /// <param name="sessionManager">The session manager service for managing sessions, subjects, and locations.</param>
         public SystemController(ILogger<SystemController> logger, IDataProcessorService dataProcessor, ISessionManagerService sessionManager)
         {
             _logger = logger;
@@ -27,6 +37,10 @@ namespace BBD.BodyMonitor.Controllers
             _sessionManager = sessionManager;
         }
 
+        /// <summary>
+        /// Retrieves the current application configuration.
+        /// </summary>
+        /// <returns>The current <see cref="BodyMonitorOptions"/>.</returns>
         [HttpGet]
         [Route("getconfig")]
         public BodyMonitorOptions GetConfig()
@@ -34,6 +48,11 @@ namespace BBD.BodyMonitor.Controllers
             return _dataProcessor.GetConfig();
         }
 
+        /// <summary>
+        /// Sets the application configuration.
+        /// </summary>
+        /// <param name="config">The <see cref="BodyMonitorOptions"/> to set.</param>
+        /// <returns>The updated <see cref="BodyMonitorOptions"/> after applying the changes.</returns>
         [HttpPost]
         [Route("setconfig")]
         public BodyMonitorOptions SetConfig(BodyMonitorOptions config)
@@ -42,6 +61,14 @@ namespace BBD.BodyMonitor.Controllers
             return _dataProcessor.GetConfig();
         }
 
+        /// <summary>
+        /// Retrieves logs for a specific background task.
+        /// </summary>
+        /// <remarks>
+        /// This method is currently not fully implemented and returns an empty array.
+        /// </remarks>
+        /// <param name="taskId">The ID of the task for which to retrieve logs.</param>
+        /// <returns>An array of strings representing the task logs. Currently returns an empty array.</returns>
         [HttpGet]
         [Route("gettasklogs")]
         public string[] GetTaskLogs(int taskId)
@@ -49,6 +76,10 @@ namespace BBD.BodyMonitor.Controllers
             return new string[0];
         }
 
+        /// <summary>
+        /// Lists all available locations.
+        /// </summary>
+        /// <returns>An array of <see cref="Location"/> objects, or an empty array if none are found.</returns>
         [HttpGet]
         [Route("listlocations")]
         public Location[] ListLocations()
@@ -56,6 +87,10 @@ namespace BBD.BodyMonitor.Controllers
             return _sessionManager.ListLocations() ?? new Location[0];
         }
 
+        /// <summary>
+        /// Lists all available subjects.
+        /// </summary>
+        /// <returns>An array of <see cref="Subject"/> objects, or an empty array if none are found.</returns>
         [HttpGet]
         [Route("listsubjects")]
         public Subject[] ListSubjects()
@@ -63,6 +98,10 @@ namespace BBD.BodyMonitor.Controllers
             return _sessionManager.ListSubjects() ?? new Subject[0];
         }
 
+        /// <summary>
+        /// Lists all available sessions.
+        /// </summary>
+        /// <returns>An array of <see cref="Session"/> objects, or an empty array if none are found.</returns>
         [HttpGet]
         [Route("listsessions")]
         public Session[] ListSessions()
@@ -70,6 +109,11 @@ namespace BBD.BodyMonitor.Controllers
             return _sessionManager.ListSessions() ?? new Session[0];
         }
 
+        /// <summary>
+        /// Retrieves comprehensive system information.
+        /// This includes IP addresses, connected devices, current configuration, locations, subjects, and sessions.
+        /// </summary>
+        /// <returns>A <see cref="SystemInformation"/> object containing various system details.</returns>
         [HttpGet]
         [Route("getsysteminformation")]
         public SystemInformation GetSystemInformation()
@@ -166,7 +210,15 @@ namespace BBD.BodyMonitor.Controllers
             return result;
         }
 
-        // Add a streaming endpoint for the system information
+        /// <summary>
+        /// Establishes a WebSocket connection to stream system information in real-time.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint upgrades the HTTP GET request to a WebSocket connection.
+        /// It continuously sends JSON serialized <see cref="SystemInformation"/> objects to the client.
+        /// The stream closes when the client disconnects or the cancellation token is triggered.
+        /// </remarks>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation of streaming system information.</returns>
         [HttpGet]
         [Route("streamsysteminformation")]
         public async Task StreamSystemInformation()

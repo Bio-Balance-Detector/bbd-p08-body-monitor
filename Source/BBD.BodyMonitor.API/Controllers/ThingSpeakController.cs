@@ -9,6 +9,10 @@ using System.Text.Json;
 
 namespace BBD.BodyMonitor.Controllers
 {
+    /// <summary>
+    /// Controller for interacting with the ThingSpeak IoT platform.
+    /// It handles fetching sensor data from ThingSpeak channels and saving it locally.
+    /// </summary>
     [ApiController]
     [Route("[controller]")]
     public class ThingSpeakController : ControllerBase
@@ -19,7 +23,13 @@ namespace BBD.BodyMonitor.Controllers
 
         private readonly ThingSpeakOptions _thingSpeakOptions;
 
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ThingSpeakController"/> class.
+        /// </summary>
+        /// <param name="logger">The logger instance for logging messages.</param>
+        /// <param name="configRoot">The root configuration interface.</param>
+        /// <param name="thingSpeakOptions">The ThingSpeak options monitor.</param>
+        /// <param name="sessionManager">The session manager service.</param>
         public ThingSpeakController(ILogger<SystemController> logger, IConfiguration configRoot, IOptionsMonitor<ThingSpeakOptions> thingSpeakOptions, ISessionManagerService sessionManager)
         {
             _logger = logger;
@@ -35,11 +45,16 @@ namespace BBD.BodyMonitor.Controllers
         }
 
         /// <summary>
-        /// Get entries from a ThingSpeak channel. The maximum number of entries is 8000.
+        /// Retrieves sensor data entries from a specified ThingSpeak channel.
         /// </summary>
-        /// <param name="channelId"></param>
-        /// <param name="entryCount"></param>
-        /// <returns></returns>
+        /// <remarks>
+        /// The maximum number of entries that can be fetched in a single request is 8000.
+        /// Data is fetched in UTC timezone.
+        /// </remarks>
+        /// <param name="channelId">The ID of the ThingSpeak channel from which to retrieve data.</param>
+        /// <param name="entryCount">Optional. The number of entries to retrieve. Defaults to 8000 (the maximum allowed by ThingSpeak).</param>
+        /// <returns>An array of <see cref="SensorSegment"/> objects representing the fetched data. Returns an empty array if the request fails or no data is available.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="channelId"/> is null or whitespace.</exception>
         [HttpGet]
         [Route("getsensordata/{channelId}/{entryCount?}")]
         public SensorSegment[] GetSensorData(string channelId, int entryCount = 8000)
@@ -74,6 +89,16 @@ namespace BBD.BodyMonitor.Controllers
             return request.IsCompletedSuccessfully ? request.Result : (new SensorSegment[0]);
         }
 
+        /// <summary>
+        /// Fetches data from a subject's configured ThingSpeak channel and saves it into local session files.
+        /// </summary>
+        /// <remarks>
+        /// This method retrieves the latest sensor data from the ThingSpeak channel associated with the given subject.
+        /// It then organizes this data by date and merges it with any existing data in local session files.
+        /// Session files are named using the pattern: "Subjects\{subjectAlias}\{subjectAlias}_{date:yyyyMMdd_HHmmss}__ThingSpeak.json".
+        /// </remarks>
+        /// <param name="subjectAlias">The alias of the subject for whom to save ThingSpeak data.</param>
+        /// <exception cref="Exception">Thrown if the subject is not found or if the subject does not have a ThingSpeak channel defined.</exception>
         [HttpGet]
         [Route("savedata/{subjectAlias}")]
         public void SaveThingSpeakData(string subjectAlias)

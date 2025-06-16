@@ -11,6 +11,11 @@ using Microsoft.Extensions.Logging.Console;
 
 namespace BBD.BodyMonitor
 {
+    /// <summary>
+    /// Formats log messages for console output with custom simple formatting rules.
+    /// This class is sealed and intended for internal use within the application.
+    /// It handles log levels, timestamps, scopes, and colorization of output.
+    /// </summary>
     internal sealed class CustomSimpleConsoleFormatter : ConsoleFormatter, IDisposable
     {
         private const string LoglevelPadding = ": ";
@@ -25,8 +30,12 @@ namespace BBD.BodyMonitor
 #endif
         private IDisposable? _optionsReloadToken;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CustomSimpleConsoleFormatter"/> class.
+        /// </summary>
+        /// <param name="options">An <see cref="IOptionsMonitor{SimpleConsoleFormatterOptions}"/> used to monitor and reload formatter options.</param>
         public CustomSimpleConsoleFormatter(IOptionsMonitor<SimpleConsoleFormatterOptions> options)
-            : base("customSimpleConsoleFormatter")
+            : base("customSimpleConsoleFormatter") // Name of the formatter
         {
             ReloadLoggerOptions(options.CurrentValue);
             _optionsReloadToken = options.OnChange(ReloadLoggerOptions);
@@ -38,13 +47,27 @@ namespace BBD.BodyMonitor
             FormatterOptions = options;
         }
 
+        /// <summary>
+        /// Releases the resources used by the <see cref="CustomSimpleConsoleFormatter"/>.
+        /// Specifically, it disposes of the options reload token.
+        /// </summary>
         public void Dispose()
         {
             _optionsReloadToken?.Dispose();
         }
 
+        /// <summary>
+        /// Gets or sets the options for this console formatter.
+        /// </summary>
         internal SimpleConsoleFormatterOptions FormatterOptions { get; set; }
 
+        /// <summary>
+        /// Writes the log message to the specified <see cref="TextWriter"/>.
+        /// </summary>
+        /// <typeparam name="TState">The type of the object representing the state.</typeparam>
+        /// <param name="logEntry">The log entry to write.</param>
+        /// <param name="scopeProvider">An <see cref="IExternalScopeProvider"/> to obtain scope information, if any.</param>
+        /// <param name="textWriter">The <see cref="TextWriter"/> to write the formatted log message to.</param>
         public override void Write<TState>(in LogEntry<TState> logEntry, IExternalScopeProvider? scopeProvider, TextWriter textWriter)
         {
             string message = logEntry.Formatter(logEntry.State, logEntry.Exception);
@@ -69,6 +92,8 @@ namespace BBD.BodyMonitor
             }
             if (logLevelString != null)
             {
+                // Custom extension method WriteColoredMessage is assumed to be defined elsewhere,
+                // for example, on TextWriterExtensions.
                 textWriter.WriteColoredMessage(logLevelString, logLevelColors.Background, logLevelColors.Foreground);
             }
             CreateDefaultLogMessage(textWriter, logEntry, message, scopeProvider);
@@ -77,15 +102,16 @@ namespace BBD.BodyMonitor
         private void CreateDefaultLogMessage<TState>(TextWriter textWriter, in LogEntry<TState> logEntry, string message, IExternalScopeProvider? scopeProvider)
         {
             bool singleLine = FormatterOptions.SingleLine;
-            int eventId = logEntry.EventId.Id;
+            //int eventId = logEntry.EventId.Id; // EventId is not used in this formatter's output
             Exception? exception = logEntry.Exception;
 
             // Example:
             // info: ConsoleApp.Program[10]
             //       Request received
 
-            // category and event id
+            // category and event id (though EventId is not written here)
             textWriter.Write(LoglevelPadding);
+            // No category writing in this version, but could be: textWriter.Write(logEntry.Category);
             if (!singleLine)
             {
                 textWriter.Write(System.Environment.NewLine);
@@ -148,7 +174,7 @@ namespace BBD.BodyMonitor
                 LogLevel.Warning => "warn",
                 LogLevel.Error => "fail",
                 LogLevel.Critical => "crit",
-                _ => throw new ArgumentOutOfRangeException(nameof(logLevel))
+                _ => throw new ArgumentOutOfRangeException(nameof(logLevel), $"Unknown log level: {logLevel}")
             };
         }
 
@@ -172,7 +198,7 @@ namespace BBD.BodyMonitor
                 LogLevel.Warning => new ConsoleColors(ConsoleColor.Yellow, ConsoleColor.Black),
                 LogLevel.Error => new ConsoleColors(ConsoleColor.Black, ConsoleColor.DarkRed),
                 LogLevel.Critical => new ConsoleColors(ConsoleColor.White, ConsoleColor.DarkRed),
-                _ => new ConsoleColors(null, null)
+                _ => new ConsoleColors(null, null) // Should not happen due to GetLogLevelString check, but as a fallback.
             };
         }
 
@@ -203,6 +229,7 @@ namespace BBD.BodyMonitor
             }
         }
 
+        // Private struct for storing console color pairs.
         private readonly struct ConsoleColors
         {
             public ConsoleColors(ConsoleColor? foreground, ConsoleColor? background)
