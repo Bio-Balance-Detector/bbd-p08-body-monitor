@@ -29,7 +29,7 @@ The BBD Body Monitor is designed to be a convenient and wearable device, often u
 *   **Android:** Supported for data acquisition in a mobile scenario. This typically involves using the VirtualHere USB Server app to share the Analog Discovery 2 over IP to a machine running the main BBD software.
 
 ### Core Software Technologies
-*   **.NET 6:** The primary development framework for the entire software suite. (Specified in `Source/global.json`)
+*   **.NET 9:** The primary development framework for the entire software suite. (Specified in `Source/global.json`)
 *   **C#:** The programming language used for all backend logic, APIs, core libraries, and the web frontend.
 *   **ASP.NET Core:** Framework used to build the backend REST API (`BBD.BodyMonitor.API`).
 *   **Blazor WebAssembly:** Used for the client-side frontend web application (`BBD.BodyMonitor.Web`), providing an interactive user interface.
