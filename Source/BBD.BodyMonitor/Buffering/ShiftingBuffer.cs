@@ -195,41 +195,68 @@
                     long samplesToWriteFirst = bufferLength - Position;
                     Array.Copy(samplesToWrite, 0, buffer, Position, samplesToWriteFirst);
 
-                    long samplesToWriteSecond = samplesToWriteLength - samplesToWriteFirst;
-                    Array.Copy(samplesToWrite, samplesToWriteFirst, buffer, 0, samplesToWriteSecond);
-                    Position = samplesToWriteSecond;
+                    long samplesToWriteSecondCalculated = samplesToWriteLength - samplesToWriteFirst;
+                    Array.Copy(samplesToWrite, samplesToWriteFirst, buffer, 0, samplesToWriteSecondCalculated);
+                    Position = samplesToWriteSecondCalculated;
                 }
                 else
                 {
                     // No overflow, copy directly.
                     Array.Copy(samplesToWrite, 0, buffer, Position, samplesToWriteLength);
                     Position += samplesToWriteLength;
+                    if (Position == bufferLength) // Exact fill
+                    {
+                        Position = 0;
+                    }
                 }
 
-                long previousBlockIndex = TotalWrites / BlockSize;
-                long currentBlockIndex = (TotalWrites + samplesToWriteLength) / BlockSize;
+                long lastTotalWrites = TotalWrites;
+                TotalWrites += samplesToWriteLength; // Update TotalWrites before calculating block indices
 
-                double blockTime = BlockSize * (1000 / samplerate); // Duration of a block in milliseconds.
-                DateTimeOffset endTime = DateTimeOffset.Now;
-                for (long blockIndex = currentBlockIndex; blockIndex > previousBlockIndex; blockIndex--)
+                long previousBlockIndex = lastTotalWrites / BlockSize;
+                long currentBlockIndex = TotalWrites / BlockSize;
+
+
+                if (currentBlockIndex > previousBlockIndex) // Check if at least one new block was completed
                 {
-                    // A new block has been completely written.
-                    long blockBufferPosition = blockIndex * BlockSize % buffer.Length; // Position of the start of this block in the circular buffer.
-                    DateTimeOffset startTime = endTime.AddMilliseconds(-blockTime);
+                    double blockTime = BlockSize * (1000 / samplerate); // Duration of a block in milliseconds.
+                    DateTimeOffset commonEndTime = DateTimeOffset.Now; // Use a common end time for blocks generated in this Write call
 
-                    // Extract the data for the new block.
-                    float[] blockData = Get(BlockSize, (blockBufferPosition + BlockSize) % bufferLength); // Get data ending at the current block's end position
-                    DataBlock newBlock = new(BlockSize, blockBufferPosition, blockIndex, blockIndex, blockData, startTime, endTime);
-                    blockRepo[blockIndex] = newBlock; // Add or update the block in the repository.
+                    for (long bi = previousBlockIndex + 1; bi <= currentBlockIndex; bi++)
+                    {
+                        // A new block has been completely written.
+                        // The data for block 'bi' ends at TotalWrites relative to the start of all data ever written.
+                        // Its position in the circular buffer needs to be calculated based on where its *last* sample landed.
+                        // The end position of block 'bi' in the linear stream of all samples is 'bi * BlockSize'.
+                        // The start position of block 'bi' in the linear stream is '(bi - 1) * BlockSize'.
+                        // The actual data for this block is the last 'BlockSize' samples written *if this is the only block formed*.
+                        // If multiple blocks are formed, we need to segment them.
 
-                    endTime = startTime; // The end time for the next older block is the start time of this one.
+                        // Calculate where this block's data *starts* in the circular buffer.
+                        // Position points to the next write location. TotalWrites points to total samples ever written.
+                        // A block with index `bi` contains samples from `(bi-1)*BlockSize` to `bi*BlockSize-1`.
+                        long blockEndPositionInFullStream = bi * BlockSize;
+                        long blockStartPositionInFullStream = blockEndPositionInFullStream - BlockSize;
 
-                    // Session context is not directly available here; the caller (e.g., DataProcessorService) is responsible for associating the block with a session if needed.
-                    BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock, null, _lastError));
-                    _lastError = null; // Reset error after a successful block processing.
+                        // The actual position in the circular buffer where the *last* sample of block `bi` is stored.
+                        long lastSampleActualBufferPos = (Position + bufferLength - (TotalWrites - blockEndPositionInFullStream)) % bufferLength;
+
+                        // The data for block `bi` is from `lastSampleActualBufferPos - BlockSize + 1` to `lastSampleActualBufferPos`.
+                        float[] blockData = Get(BlockSize, lastSampleActualBufferPos);
+
+                        // The BufferPosition for DataBlock should be where this block starts in the physical buffer array.
+                        long physicalStartOfBlock = (lastSampleActualBufferPos - BlockSize + bufferLength) % bufferLength;
+
+                        DateTimeOffset startTime = commonEndTime.AddMilliseconds(-(currentBlockIndex - bi + 1) * blockTime);
+                        DateTimeOffset blockSpecificEndTime = commonEndTime.AddMilliseconds(-(currentBlockIndex - bi) * blockTime);
+
+                        DataBlock newBlock = new(BlockSize, physicalStartOfBlock, bi, bi, blockData, startTime, blockSpecificEndTime);
+                        blockRepo[bi] = newBlock;
+
+                        BlockReceived?.Invoke(this, new BlockReceivedEventArgs(this, newBlock, null, _lastError));
+                        _lastError = null; // Reset error after a successful block processing.
+                    }
                 }
-
-                TotalWrites += samplesToWriteLength;
             }
 
             return Position;
@@ -244,7 +271,8 @@
         public DataBlock GetBlocks(float duration, long? endBlockIndex = null)
         {
             // Calculate the number of blocks based on duration and sample rate.
-            int blockCount = (int)(duration * samplerate / BlockSize) + 1;
+            int blockCount = (int)(duration * samplerate / BlockSize);
+            if (blockCount == 0 && duration > 0) blockCount = 1; // Ensure at least 1 block if duration is non-zero
 
             return GetBlocks(blockCount, endBlockIndex);
         }
@@ -252,7 +280,7 @@
         /// <summary>
         /// Retrieves a <see cref="DataBlock"/> containing a specified number of blocks, ending at a specific block index.
         /// </summary>
-        /// <param name="blockCount">The number of blocks to retrieve.</param>
+        /// <param name="blockCount">The number of blocks to retrieve. If 0, will fetch based on latest endBlockIndex if available.</param>
         /// <param name="endBlockIndex">Optional. The index of the last block to include. If null, the latest available block is used.</param>
         /// <returns>A <see cref="DataBlock"/> containing the requested data, or an empty DataBlock if data is not available.</returns>
         public DataBlock GetBlocks(int blockCount, long? endBlockIndex = null)
@@ -263,11 +291,20 @@
             {
                 if (blockRepo.Count == 0)
                 {
-                    return new DataBlock(BlockSize, -1, 0, 0, Array.Empty<float>(), DateTimeOffset.MinValue, DateTimeOffset.MinValue);
+                    // Return an empty DataBlock with StartIndex = 1, EndIndex = 0 for "no blocks"
+                    return new DataBlock(BlockSize, -1, 1, 0, Array.Empty<float>(), DateTimeOffset.MinValue, DateTimeOffset.MinValue);
                 }
 
-                endBlockIndex ??= blockRepo.Keys.Last();
+                endBlockIndex ??= blockRepo.Keys.Max(); // Ensure it's truly the max/latest
+
+                if (blockCount == 0) // If blockCount is 0, interpret as "get the single block at endBlockIndex"
+                {
+                    blockCount = 1;
+                }
+
                 long startBlockIndex = endBlockIndex.Value - blockCount + 1;
+                if (startBlockIndex <= 0) startBlockIndex = 1; // Block indices are 1-based
+
 
                 DateTimeOffset startTime = DateTimeOffset.MaxValue;
                 DateTimeOffset endTime = DateTimeOffset.MinValue;
@@ -290,9 +327,10 @@
                         data.AddRange(db.Data);
                     }
                 }
-                // If no data was found (e.g. requested blocks are not in repo), return an empty DataBlock with sensible defaults.
+
                 if (data.Count == 0)
                 {
+                    // If no data found for the requested range, reflect the query range.
                     return new DataBlock(BlockSize, -1, startBlockIndex, endBlockIndex.Value, Array.Empty<float>(), DateTimeOffset.MinValue, DateTimeOffset.MinValue);
                 }
 
@@ -315,12 +353,11 @@
             {
                 throw new ArgumentException($"The maximum number of samples available to read is {buffer.Length}, but you are trying to read {samplesToRead}. Lower the requested number of samples, or increase the buffer size.", nameof(samplesToRead));
             }
+            if (samplesToRead == 0) return Array.Empty<float>(); // Handle reading 0 samples
 
             int bufferLength = buffer.Length;
             float[] result = new float[samplesToRead];
-            // If bufferPosition is null, use current Position. This means we read the last 'samplesToRead' samples written.
             long endReadPosition = bufferPosition ?? Position;
-            // Calculate the effective start position in the circular buffer.
             long readStartPosition = (endReadPosition - samplesToRead + bufferLength) % bufferLength;
 
             lock (buffer)
