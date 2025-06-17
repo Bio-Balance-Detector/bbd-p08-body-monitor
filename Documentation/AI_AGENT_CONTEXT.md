@@ -146,6 +146,22 @@ The BBD Body Monitor is designed to be a convenient and wearable device, often u
     *   Command: `bbd.bodymonitor.exe --testmodels TrainingData 5%`
     *   This command uses a portion of the labeled data (e.g., 5%) to evaluate the models and generates confusion matrices, which show performance metrics like true positives, true negatives, false positives, and false negatives.
 
+## Testing Framework
+
+The BBD Body Monitor project incorporates several testing strategies to ensure code quality and model accuracy.
+
+*   **Unit Testing:** The solution includes dedicated test projects for various components, likely using a framework like MSTest or xUnit, given the .NET environment:
+    *   `Source/BBD.BodyMonitor.API.Tests/`: Contains tests for the ASP.NET Core backend API, ensuring controllers and services function as expected.
+    *   `Source/BBD.BodyMonitor.Tests/`: Houses tests for the core `BBD.BodyMonitor` library, validating its business logic, data processing, and utility functions.
+    *   `Source/BBD.BodyMonitor.Web.Tests/`: Includes tests for the Blazor WebAssembly frontend application, potentially covering component behavior and service interactions.
+    *   `Source/Fitbit.Portable.Tests/`: Contains tests for the `Fitbit.Portable` library, verifying its interaction with the Fitbit API and data models.
+*   **Machine Learning Model Testing:**
+    *   The application provides a specific command-line interface for evaluating the performance of trained machine learning models.
+    *   Command: `bbd.bodymonitor.exe --testmodels TrainingData 5%`
+    *   This command typically uses a specified percentage (e.g., 5%) of the labeled data from the `TrainingData` directory to test the models. It often generates confusion matrices and other metrics to assess the accuracy of predictions for different states or subjects.
+
+This approach ensures that individual components are functioning correctly and that the machine learning models perform adequately on unseen data.
+
 ## Key Features and Functionalities
 
 *   **Real-time Bio-potential Analysis:** Acquisition and FFT processing of bio-signals.
