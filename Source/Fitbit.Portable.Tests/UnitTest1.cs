@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace Fitbit.Portable.Tests;
 
 public class UnitTest1

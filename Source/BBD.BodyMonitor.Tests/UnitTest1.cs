@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace BBD.BodyMonitor.Tests;
 
 public class UnitTest1
