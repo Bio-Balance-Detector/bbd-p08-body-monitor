@@ -13,6 +13,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EDF", "EDF\EDF\EDF.csproj",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBD.BodyMonitor.Web", "BBD.BodyMonitor.Web\BBD.BodyMonitor.Web.csproj", "{7C52CFEC-52BB-42EE-825D-5DC1E22D7848}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BBD.BodyMonitor.Tests", "BBD.BodyMonitor.Tests\BBD.BodyMonitor.Tests.csproj", "{140005B3-43E4-45C9-9B16-5F514F576CEB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BBD.BodyMonitor.API.Tests", "BBD.BodyMonitor.API.Tests\BBD.BodyMonitor.API.Tests.csproj", "{A3F1F7A9-F1B0-4E22-B453-DD8BFE461BC2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BBD.BodyMonitor.Web.Tests", "BBD.BodyMonitor.Web.Tests\BBD.BodyMonitor.Web.Tests.csproj", "{F63318C6-0DC3-4169-8A19-49837D1B1CC4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fitbit.Portable.Tests", "Fitbit.Portable.Tests\Fitbit.Portable.Tests.csproj", "{DB35675E-4EED-4200-B3F1-42EC2CAAADEB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +91,22 @@ Global
 		{7C52CFEC-52BB-42EE-825D-5DC1E22D7848}.Release|x64.Build.0 = Release|Any CPU
 		{7C52CFEC-52BB-42EE-825D-5DC1E22D7848}.Release|x86.ActiveCfg = Release|Any CPU
 		{7C52CFEC-52BB-42EE-825D-5DC1E22D7848}.Release|x86.Build.0 = Release|Any CPU
+		{140005B3-43E4-45C9-9B16-5F514F576CEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{140005B3-43E4-45C9-9B16-5F514F576CEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{140005B3-43E4-45C9-9B16-5F514F576CEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{140005B3-43E4-45C9-9B16-5F514F576CEB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3F1F7A9-F1B0-4E22-B453-DD8BFE461BC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3F1F7A9-F1B0-4E22-B453-DD8BFE461BC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3F1F7A9-F1B0-4E22-B453-DD8BFE461BC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3F1F7A9-F1B0-4E22-B453-DD8BFE461BC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F63318C6-0DC3-4169-8A19-49837D1B1CC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F63318C6-0DC3-4169-8A19-49837D1B1CC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F63318C6-0DC3-4169-8A19-49837D1B1CC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F63318C6-0DC3-4169-8A19-49837D1B1CC4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DB35675E-4EED-4200-B3F1-42EC2CAAADEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DB35675E-4EED-4200-B3F1-42EC2CAAADEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DB35675E-4EED-4200-B3F1-42EC2CAAADEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DB35675E-4EED-4200-B3F1-42EC2CAAADEB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
